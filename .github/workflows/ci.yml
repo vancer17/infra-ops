@@ -1,0 +1,188 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. YAML 格式检查
+  # ---------------------------------------------------------------------------
+  yaml-lint:
+    name: YAML Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install yamllint
+        run: pip install yamllint
+
+      - name: Run yamllint
+        run: yamllint -c .yamllint.yml .
+
+  # ---------------------------------------------------------------------------
+  # 2. Shell 脚本检查
+  # ---------------------------------------------------------------------------
+  shellcheck:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run ShellCheck
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: scripts
+          severity: warning
+
+  # ---------------------------------------------------------------------------
+  # 3. Ansible Lint
+  # ---------------------------------------------------------------------------
+  ansible-lint:
+    name: Ansible Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ansible tooling
+        run: |
+          pip install ansible ansible-lint
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Run ansible-lint
+        run: ansible-lint -c .ansible-lint
+
+  # ---------------------------------------------------------------------------
+  # 4. Ansible Playbook 语法检查
+  # ---------------------------------------------------------------------------
+  ansible-syntax:
+    name: Ansible Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Syntax check site playbook
+        run: |
+          if [ -f ansible/site.yml ]; then
+            ansible-playbook ansible/site.yml \
+              --syntax-check \
+              -i inventory/hosts.yml
+          else
+            echo "ansible/site.yml not found, skip."
+          fi
+
+      - name: Syntax check all playbooks
+        run: |
+          if [ -d ansible/playbooks ]; then
+            for playbook in ansible/playbooks/*.yml; do
+              [ -f "$playbook" ] || continue
+              echo "Checking $playbook"
+              ansible-playbook "$playbook" \
+                --syntax-check \
+                -i inventory/hosts.yml
+            done
+          else
+            echo "ansible/playbooks/ not found, skip."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 5. Docker Compose 配置校验
+  # ---------------------------------------------------------------------------
+  docker-validate:
+    name: Docker Compose Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate JumpServer compose
+        run: |
+          if [ -f jumpserver/docker-compose.yml ]; then
+            docker compose -f jumpserver/docker-compose.yml config
+          else
+            echo "jumpserver/docker-compose.yml not found, skip."
+          fi
+
+      - name: Validate monitoring compose
+        run: |
+          if [ -f monitoring/docker-compose.yml ]; then
+            docker compose -f monitoring/docker-compose.yml config
+          else
+            echo "monitoring/docker-compose.yml not found, skip."
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 6. 敏感信息扫描
+  # ---------------------------------------------------------------------------
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # 7. 汇总门禁（可选，便于分支保护统一检查一项）
+  # ---------------------------------------------------------------------------
+  ci-gate:
+    name: CI Gate
+    runs-on: ubuntu-latest
+    needs:
+      - yaml-lint
+      - shellcheck
+      - ansible-lint
+      - ansible-syntax
+      - docker-validate
+      - secret-scan
+    steps:
+      - name: All checks passed
+        run: echo "All CI jobs passed."

@@ -1,0 +1,120 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+      playbook:
+        description: "Playbook path"
+        required: true
+        default: "ansible/site.yml"
+        type: string
+      tags:
+        description: "Ansible tags (optional, e.g. docker,monitoring)"
+        required: false
+        default: ""
+        type: string
+      limit:
+        description: "Ansible limit (optional, e.g. dev-01)"
+        required: false
+        default: ""
+        type: string
+      dry_run:
+        description: "Dry run (check mode only)"
+        required: true
+        default: true
+        type: boolean
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+  ANSIBLE_FORCE_COLOR: "true"
+
+jobs:
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ansible
+        run: |
+          pip install ansible
+          ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          if [ -n "${{ secrets.ANSIBLE_SSH_KNOWN_HOSTS }}" ]; then
+            echo "${{ secrets.ANSIBLE_SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+            chmod 644 ~/.ssh/known_hosts
+          fi
+
+      - name: Setup Ansible Vault password
+        env:
+          ANSIBLE_VAULT_PASSWORD: ${{ secrets.ANSIBLE_VAULT_PASSWORD }}
+        run: |
+          if [ -n "$ANSIBLE_VAULT_PASSWORD" ]; then
+            printf '%s\n' "$ANSIBLE_VAULT_PASSWORD" > .vault_pass
+            chmod 600 .vault_pass
+          fi
+
+      - name: Build ansible-playbook command
+        id: build_cmd
+        run: |
+          CMD="ansible-playbook ${{ inputs.playbook }} -i inventory/hosts.yml"
+          CMD="$CMD -e target_env=${{ inputs.environment }}"
+
+          if [ -f .vault_pass ]; then
+            CMD="$CMD --vault-password-file .vault_pass"
+          fi
+
+          if [ -n "${{ inputs.tags }}" ]; then
+            CMD="$CMD --tags ${{ inputs.tags }}"
+          fi
+
+          if [ -n "${{ inputs.limit }}" ]; then
+            CMD="$CMD --limit ${{ inputs.limit }}"
+          fi
+
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            CMD="$CMD --check --diff"
+          fi
+
+          echo "cmd=$CMD" >> "$GITHUB_OUTPUT"
+
+      - name: Run Ansible (dry-run or apply)
+        run: ${{ steps.build_cmd.outputs.cmd }}
+
+      - name: Deployment summary
+        run: |
+          echo "## Deployment Summary" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Environment: \`${{ inputs.environment }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Playbook: \`${{ inputs.playbook }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Tags: \`${{ inputs.tags }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Limit: \`${{ inputs.limit }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Dry run: \`${{ inputs.dry_run }}\`" >> "$GITHUB_STEP_SUMMARY"
