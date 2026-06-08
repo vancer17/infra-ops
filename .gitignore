@@ -1,0 +1,203 @@
+# =============================================================================
+# infra-ops — 基础设施与运维仓库
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# 密钥、证书、敏感配置（切勿提交）
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt.local
+*.csr
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+known_hosts.local
+secrets/
+secret/
+*.secret
+*.secrets
+vault-password.txt
+.vault_pass
+.vault_pass.txt
+*.gpg
+!*.gpg.example
+
+# WireGuard 实际配置（仅提交 .example 模板）
+wg0.conf
+wg*.conf
+!*.conf.example
+!*.example
+peers.yml
+peers.yaml
+!peers.example.yml
+!peers.example.yaml
+
+# 环境变量与本地覆盖
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.local.yml
+*.local.yaml
+*.override.yml
+*.override.yaml
+
+# JumpServer / 平台组件本地配置
+jumpserver/.env
+jumpserver/data/
+jumpserver/static/
+monitoring/data/
+monitoring/grafana/data/
+monitoring/prometheus/data/
+
+# -----------------------------------------------------------------------------
+# Ansible
+# -----------------------------------------------------------------------------
+*.retry
+.ansible/
+ansible.log
+ansible-navigator.log
+collections/ansible_collections/
+
+# Ansible Vault 加密前的明文备份
+*.vault.plain
+*.decrypted
+
+# 动态 inventory 缓存
+*.cache
+inventory/*.local
+inventory/local/
+
+# -----------------------------------------------------------------------------
+# Terraform（若后续使用）
+# -----------------------------------------------------------------------------
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.tfvars
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# -----------------------------------------------------------------------------
+# Docker / Compose（JumpServer、监控等）
+# -----------------------------------------------------------------------------
+docker-compose.override.yml
+docker-compose.override.yaml
+docker-compose.local.yml
+docker-compose.local.yaml
+
+# -----------------------------------------------------------------------------
+# 日志、备份、临时文件
+# -----------------------------------------------------------------------------
+*.log
+logs/
+log/
+*.bak
+*.backup
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.cache/
+tmp/
+temp/
+
+# 备份脚本输出
+backups/
+backup/
+*.sql
+*.sql.gz
+*.dump
+!docs/**/*.sql
+
+# 审计录像与归档（体积大，走 OSS 不入库）
+audit/
+recordings/
+*.cast
+*.replay
+
+# -----------------------------------------------------------------------------
+# 操作系统
+# -----------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# -----------------------------------------------------------------------------
+# IDE / 编辑器
+# -----------------------------------------------------------------------------
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json.example
+*.sublime-project
+*.sublime-workspace
+.project
+.classpath
+.settings/
+*.code-workspace
+
+# -----------------------------------------------------------------------------
+# Python（Ansible 控制机 / 辅助脚本常见）
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# -----------------------------------------------------------------------------
+# Node（若有前端化运维小工具）
+# -----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# -----------------------------------------------------------------------------
+# 压缩包与二进制制品
+# -----------------------------------------------------------------------------
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+*.deb
+*.rpm
+
+# -----------------------------------------------------------------------------
+# 个人笔记与草稿（可选）
+# -----------------------------------------------------------------------------
+notes/
+scratch/
+TODO.local.md
