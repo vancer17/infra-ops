@@ -22,6 +22,12 @@ make inventory   # 若同时改了 inventories/dev/
 | known_hosts | GitHub Secret `ANSIBLE_SSH_KNOWN_HOSTS` |
 | 稳态 | 禁止 root SSH，Ansible 改用 `deploy@` |
 
+## 执行位置
+
+在 **CI 替代机 yax**（`121.41.58.20`）上执行；须已 `make setup` 且 `source .venv/bin/activate`。
+
+同机部署（dev-01 与 ci-01 同 ECS）时，`ssh-keys.sh` 会自动使用 `ansible_connection=local`，**勿**手动传 `-e ansible_connection=local`。
+
 ## 步骤
 
 ### 1. 在 CI 机生成密钥对

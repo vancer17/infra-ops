@@ -29,12 +29,13 @@ make inventory-mgmt
 ./scripts/wireguard/wg-keys.sh all-hub
 ./scripts/wireguard/wg-keys.sh vault-encrypt-hub
 
-# 对 Hub 执行 playbook（示例，需 SSH 可达）
-ansible-playbook ansible/playbooks/bootstrap.yml \
-  -i ansible/inventories/mgmt/ --limit hub-01
+# Bootstrap Hub（在 yax 控制机上，需 SSH 可达 Hub 私网）
+export ANSIBLE_INVENTORY=ansible/inventories/mgmt/
+./scripts/dev/bootstrap.sh all hub-01
 ```
 
-WireGuard 密钥 Runbook：`docs/wireguard/wg-keys.runbook.md`
+Runbook：`docs/bootstrap/hub-01-bootstrap.runbook.md`  
+WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
 
 ## 资产同步
 

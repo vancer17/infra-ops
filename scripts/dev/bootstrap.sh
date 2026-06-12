@@ -40,6 +40,10 @@ Environment:
 Examples:
   $(basename "$0") apply dev-01
   ANSIBLE_INVENTORY=ansible/inventories/mgmt/ $(basename "$0") apply hub-01
+
+Do NOT:
+  $(basename "$0") apply -e ansible_connection=local
+  (use plain "apply" on colocated hosts; script adds -e automatically)
 EOF
 }
 
@@ -191,7 +195,8 @@ main() {
   local cmd="${1:-}"
   shift || true
 
-  if [[ -n "${1:-}" && "$1" != --* ]]; then
+  # 仅将非选项参数视为主机名；勿把 -e/-i 等 ansible-playbook 标志误当作 LIMIT
+  if [[ -n "${1:-}" && "$1" != --* && "$1" != -* ]]; then
     LIMIT="$1"
     shift
   fi

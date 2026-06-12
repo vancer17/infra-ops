@@ -66,9 +66,10 @@ git push → 开 PR → 等待 GitHub CI Gate 绿 → 合并
 
 | 场景 | 入口 |
 |------|------|
-| Dev ECS Bootstrap（1.2） | `./scripts/dev/bootstrap.sh all dev-01` |
-| SSH 密钥（1.3） | `./scripts/dev/ssh-keys.sh all dev-01` |
-| 远程部署 | GitHub `deploy.yml`（Self-hosted Runner，`47.98.161.33`） |
+| Dev ECS Bootstrap（1.2） | `./scripts/dev/bootstrap.sh all dev-01`（在 yax 控制机上） |
+| Hub Bootstrap（1.2） | `ANSIBLE_INVENTORY=ansible/inventories/mgmt/ ./scripts/dev/bootstrap.sh all hub-01` |
+| SSH 密钥（1.3） | `./scripts/dev/ssh-keys.sh all dev-01`（mgmt 同理换 inventory） |
+| 远程部署 | GitHub `deploy.yml`（Self-hosted Runner，CI 替代机 `121.41.58.20`） |
 
 实机 Dry Run（预览变更、需 SSH）：
 
@@ -92,6 +93,15 @@ ansible-playbook ansible/playbooks/bootstrap.yml \
 - 下载 gitleaks 到 `.ci-tools/bin/`（若系统 PATH 无 gitleaks）
 
 Makefile 已把 `.venv/bin` 与 `.ci-tools/bin` 加入 PATH，**无需**手动 `source .venv/bin/activate`。
+
+在 **ECS 上跑 `bootstrap.sh` / `ssh-keys.sh`** 时 Makefile 的 PATH 不生效，须先：
+
+```bash
+make setup
+source .venv/bin/activate   # 或 export PATH="$PWD/.venv/bin:$PATH"
+```
+
+否则 `preflight` 会报 `ansible-playbook not found`。
 
 ### 3.2 系统依赖（不随 setup 安装）
 
@@ -165,12 +175,13 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 
 1. `make ci`（及改 inventory 时 `make inventory`）
 2. `git push` → PR → CI Gate 绿 → 合并
-3. `./scripts/dev/bootstrap.sh preflight dev-01`
-4. `./scripts/dev/bootstrap.sh apply dev-01`（或 `deploy.yml` dry_run=false）
-5. `./scripts/dev/bootstrap.sh verify dev-01`
-6. 第二次 `apply` 验证幂等
+3. `source .venv/bin/activate`（ECS 上必需）
+4. `./scripts/dev/bootstrap.sh preflight dev-01`
+5. `./scripts/dev/bootstrap.sh apply dev-01`（**勿**加 `-e ansible_connection=local`，同机时脚本自动处理）
+6. `./scripts/dev/bootstrap.sh verify dev-01`
+7. 第二次 `apply` 验证幂等；确认日志含 `Create jump_ops user`（`bootstrap.yml` 使用 `import_role` 分别导入 base/users）
 
-详见 [dev-01-bootstrap.runbook.md](bootstrap/dev-01-bootstrap.runbook.md)。
+详见 [dev-01-bootstrap.runbook.md](bootstrap/dev-01-bootstrap.runbook.md)、[hub-01-bootstrap.runbook.md](bootstrap/hub-01-bootstrap.runbook.md)。
 
 ## 9. 常见问题
 
@@ -185,6 +196,19 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 
 不能。`make ci` 不 SSH、不跑 `docker hello-world`、不测 RDS/OSS。
 
+### `ansible-playbook not found`（实机 Bootstrap）
+
+在 ECS 上未 `make setup` 或未 `source .venv/bin/activate`。见 §3.1。
+
+### `argument -l/--limit: expected one argument`
+
+勿执行 `./scripts/dev/bootstrap.sh apply -e ansible_connection=local`。  
+`-e` 会被误解析为主机名。同机部署用 `./scripts/dev/bootstrap.sh apply` 或 `apply dev-01` 即可。
+
+### `apply OK` 但缺少 jump_ops、`/opt/app/compose`
+
+`bootstrap.yml` 须用 `tasks` + `import_role` 分别导入 `common`（base/users），勿在 `roles:` 中重复同名 `common`（Ansible 2.16 可能两次都跑 base）。修复后重新 `apply`。
+
 ### 能否用 pre-commit / pre-push hook？
 
 可选。团队可配置 commit 前跑 `make lint`、push 前跑 `make ci`；hook 可被 `--no-verify` 跳过，**不能**替代 Branch Protection。
@@ -193,5 +217,6 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 
 - [README.md](../README.md) — 仓库概览与快速开始
 - [dev-01-bootstrap.runbook.md](bootstrap/dev-01-bootstrap.runbook.md)
+- [hub-01-bootstrap.runbook.md](bootstrap/hub-01-bootstrap.runbook.md)
 - [dev-ssh-keys.runbook.md](bootstrap/dev-ssh-keys.runbook.md)
 - [20260608-ECS 企业开发环境（Dev）实施方案.md](20260608-ECS%20企业开发环境（Dev）实施方案.md)

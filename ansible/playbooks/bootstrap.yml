@@ -62,10 +62,11 @@
 #
 #   ⚠ 若先 users 后 docker，deploy 用户无法加入尚不存在的 docker 组。
 #
-# 【同名 role 引用两次】
-#   common 先后以 tasks_from: base / users 各执行一次。Ansible 默认对同名 role
-#   去重（只跑第一次），须在第二次引用上设置 allow_duplicates: true，否则
-#   users.yml（jump_ops、deploy、目录、SSH）不会执行。
+# 【为何用 tasks + import_role，而非 roles 列表引用 common 两次】
+#   roles: 下同名 common + 不同 tasks_from（base / users）时，Ansible 2.16 在
+#   编译期仍可能两次都展开为 base（allow_duplicates 无法保证 users 执行）。
+#   改用 import_role 逐步导入，每次 tasks_from 独立生效。验证：
+#     ansible-playbook ... --list-tasks | grep jump_ops
 #
 # 【目标主机 hosts: dev】
 #   对应 inventory/hosts.yml 中 dev 组（含 dev_app 的 dev-01、dev_worker 的 dev-02）。
@@ -108,28 +109,27 @@
         cache_valid_time: 3600
 
   # ---------------------------------------------------------------------------
-  # roles — 可复用任务包，按书写顺序执行
+  # tasks — 用 import_role 按顺序导入各 role（避免 roles: 同名 common 去重问题）
   # ---------------------------------------------------------------------------
-  # tasks_from：只执行该 role 下 tasks/<文件名>.yml，而非 tasks/main.yml 全文
-  # tags：可用 --tags bootstrap 只跑带此标签的任务
-  roles:
-      # ① 系统基线：时区、NTP、基础包、locale、禁用 ufw
-      #    变量：timezone/main.yml、bootstrap_base_packages、host_firewall_ufw_enabled
-    - role: common
-      tasks_from: base
+  tasks:
+    # ① 系统基线：时区、NTP、基础包、locale、禁用 ufw
+    - name: Apply common base system configuration
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: base
       tags: [common, bootstrap]
 
-      # ② Docker：官方 apt 源安装 docker-ce、compose 插件、配置 daemon.json
-      #    副作用：创建系统组 docker（deploy 用户稍后加入此组）
-    - role: docker
+    # ② Docker：官方 apt 源安装 docker-ce、compose 插件（Hub 上 docker_install=false 时跳过）
+    - name: Install Docker CE
+      ansible.builtin.import_role:
+        name: docker
       tags: [docker, bootstrap]
 
-      # ③ 用户与访问：jump_ops、deploy、sudoers、SSH drop-in、目录
-      #    内含 assert：docker 组必须已存在
-      #    变量：bootstrap_users、deploy_authorized_keys、ssh_phase、bootstrap_dirs
-    - role: common
-      tasks_from: users
-      allow_duplicates: true
+    # ③ 用户与访问：jump_ops、deploy、sudoers、SSH drop-in、目录
+    - name: Configure users, SSH, and application directories
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: users
       tags: [common, bootstrap]
 
   # ---------------------------------------------------------------------------
