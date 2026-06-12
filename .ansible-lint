@@ -13,16 +13,16 @@ skip_list:
   - schema[version]
   - name[casing]
   - yaml[line-length]
+  - var-naming[no-role-prefix]
 
 warn_list:
   - no-changed-when
   - command-instead-of-shell
 
 kinds:
-  - playbook: "ansible/**/*.{yml,yaml}"
-  - playbook: "ansible/*.{yml,yaml}"
-  - vars: "inventory/group_vars/**/*.{yml,yaml}"
-  - vars: "inventory/host_vars/**/*.{yml,yaml}"
+  - playbook: "ansible/playbooks/**/*.{yml,yaml}"
+  - vars: "ansible/inventories/**/group_vars/**/*.{yml,yaml}"
+  - vars: "ansible/inventories/**/host_vars/**/*.{yml,yaml}"
   - meta: "ansible/roles/**/meta/main.{yml,yaml}"
   - tasks: "ansible/roles/**/tasks/*.{yml,yaml}"
   - handlers: "ansible/roles/**/handlers/*.{yml,yaml}"
