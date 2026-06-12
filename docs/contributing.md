@@ -17,6 +17,7 @@ make setup                    # 安装 Python/Galaxy/gitleaks
 修改 Ansible / inventory / scripts / workflows
     │
     ├─ 只改 inventories/dev/     → make inventory
+    ├─ 只改 inventories/mgmt/    → make inventory-mgmt
     ├─ 只改 roles/playbooks 规范 → make lint
     └─ 准备 push / 开 PR          → make ci
     │
@@ -56,7 +57,8 @@ git push → 开 PR → 等待 GitHub CI Gate 绿 → 合并
 
 | 检查 | Make target | 脚本 | 何时跑 |
 |------|-------------|------|--------|
-| Inventory 深度校验 | `make inventory` | `scripts/ci/inventory-check.sh` | 修改 `inventories/dev/`、`host_vars`、`network.yml` 后 |
+| Inventory 深度校验（dev） | `make inventory` | `scripts/ci/inventory-check.sh` | 修改 `inventories/dev/` 后 |
+| Inventory 深度校验（mgmt） | `make inventory-mgmt` | `scripts/ci/inventory-check-mgmt.sh` | 修改 `inventories/mgmt/`、Hub 台账后 |
 
 原因：`ansible-syntax.sh` 已含轻量 inventory 抽查；跨 VPC `ansible_host` 校验留本地，避免 CI 与 Jinja 渲染差异导致误报。改 inventory 后务必 `make inventory`。
 

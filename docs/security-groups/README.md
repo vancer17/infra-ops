@@ -4,7 +4,7 @@
 
 | 阶段 | 安全组 | SSH 来源 | 应用端口来源 | 公网 22 |
 |------|--------|----------|--------------|---------|
-| bootstrap | sg-dev-ecs-bootstrap | CI 公网 IP + 公司 IP（跨 VPC 不走私网） | 公司 IP + CI 公网 IP（若 Runner 验应用） | 临时开放 |
+| bootstrap | sg-dev-ecs-bootstrap | CI 公网 `121.41.58.20/32` + 公司 IP +（同 VPC）CI 私网 `172.21.226.38/32` | 公司 IP + CI 公网 IP | 临时开放 |
 | wireguard | sg-dev-ecs-wg | 10.200.0.1 (Hub) / 10.200.0.0/16 | 10.200.1.0/24 + 公司 WG | 关闭 |
 
 ## 维护规则
@@ -13,9 +13,11 @@
 2. 禁止在控制台直接改规则而不落库。
 3. Dev-01 / Dev-02 共用 `sg-dev-ecs-bootstrap`，不 per-host 建组（减少漂移）。
 4. Bootstrap 完成后，`bootstrap_status` 改为 `sg_done`。
-5. CI 与 Dev **不在同一 VPC** 时：Ansible/`hosts.yml` 必须使用 Dev **公网 IP**；`IN-SSH-CI-PRIVATE` 不启用。
-6. Inventory 入口：`ansible/inventories/dev/`（`inventory/` 为同名 symlink）。
-7. CI Runner 需从本机 curl 应用健康检查时，须为 `47.98.161.33/32` 放行 80/443/8080（见 `IN-*-CI` 规则）。
+5. **2026-06-08 起** CI 替代机（`121.41.58.20`）与 Dev 在**同一 VPC**：Ansible 优先 Dev **私网 IP**；`IN-SSH-CI-PRIVATE` 已启用。
+6. 原 CI `47.98.161.33` 已退役，安全组与 `network.yml` 均不再引用。
+7. Inventory 入口：`ansible/inventories/dev/`。
+8. CI Runner 健康检查须为 `121.41.58.20/32` 放行 80/443/8080（见 `IN-*-CI` 规则）。
+9. 资产台账：`docs/assets/registry.yaml` 为总览；变更须同步 `dev-ecs-bootstrap.rules.yaml`。
 
 ## 相关文档
 

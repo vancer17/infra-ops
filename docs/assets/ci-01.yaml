@@ -1,0 +1,84 @@
+# =============================================================================
+# CI-01 资产台账 — 临时 CI / Ansible 控制机 / GitHub Runner 宿主机
+# =============================================================================
+#
+# 【角色说明】
+#   企业原方案：47.98.161.33 作为 CI 机，运行 Self-hosted Runner，经 WG 部署各环境。
+#   当前现实：原 CI 不可用；本台与 dev-01 **同一台 ECS**（控制台名 yax）。
+#
+# 【同机多角色注意】
+#   - 公网 IP、私网 IP、实例 ID 与 dev-01.yaml 完全相同
+#   - CI 职责：ansible-playbook、GitHub Actions Runner、后续镜像构建
+#   - Dev-01 职责：应用运行时（Docker、Nginx 等）
+#   - WireGuard：规划上 CI 用 10.200.0.2，Dev 用 10.200.1.1；同机可合并为一个 wg 地址
+#
+# 【与 security_whitelist 的关系】
+#   network.yml / 安全组中的 ci_public_ip 现为 121.41.58.20（本机公网），
+#   不再是已退役的 47.98.161.33。
+#
+# =============================================================================
+
+schema_version: "1"
+updated_at: "2026-06-08"
+updated_by: "infra-ops"
+
+host:
+  name: ci-01
+  role: ci
+  env: mgmt
+  description: "临时 CI — Ansible 控制机 + GitHub Self-hosted Runner"
+
+  replacement:
+    replaces_planned_host: "47.98.161.33"
+    temporary: true
+    colocated_with: dev-01
+    same_instance_id: "i-bp14czvx1exdi6cmrt2r"
+
+  cloud:
+    provider: aliyun
+    region: cn-hangzhou
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    instance_type: "ecs.s6-c1m2.2xlarge"
+    console_name: "yax"
+    vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
+    vswitch_id: "vsw-bp1th8ab5itjji9me684i"
+    zone: "杭州 可用区 K"
+
+  network:
+    public_ip: "121.41.58.20"
+    private_ip: "172.21.226.38"
+    eip_bound: true
+    bandwidth_mbps: 5
+    planned_wg_ip: "10.200.0.2"
+    hostname: null
+    # 与 Dev 同 VPC（vpc-bp1jmugctnhj97dbjyx31），Ansible 访问 dev-02 可用私网 172.21.127.x
+    ci_same_vpc: true
+    ci_access_mode: public
+
+  security_groups:
+    bootstrap:
+      - id: "sg-bp122tjy3h95um8kv4f9"
+        name: "sg-dev-ecs-bootstrap"
+        phase: bootstrap
+        note: "与 dev-01 共用；本机既是 CI 来源也是 Dev 目标"
+
+  ram_role:
+    name: "Dev-ECS-Role"
+    attached: false
+    note: "若绑定在实例上，则 CI 与 Dev 共享同一 RAM 角色"
+
+  github_runner:
+    planned: true
+    labels: [self-hosted, dev, aliyun]
+    status: not_registered
+    note: "WG 通路验证后注册；仓库 deploy.yml runs-on 与此标签一致"
+
+  ssh_deploy_key:
+    comment: "infra-ci-deploy@121.41.58.20"
+    pubkey_path: "ansible/keys/infra-ci-deploy.pub"
+    github_secret: ANSIBLE_SSH_PRIVATE_KEY
+
+  lifecycle:
+    os: "Debian 12"
+    bootstrap_status: bootstrap_done
+    runner_status: not_registered

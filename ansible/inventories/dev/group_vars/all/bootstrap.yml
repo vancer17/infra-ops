@@ -1,0 +1,124 @@
+# =============================================================================
+# Ansible Inventory 变量文件：Dev 环境 Bootstrap（1.2）专用配置
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Ansible 的 group_vars（组变量）。路径中的 all 表示：inventory 里「所有主机」
+#   都会自动加载本文件中的变量，无需在 playbook 里手动 import。
+#
+# 【文件位置与加载规则】
+#   路径：ansible/inventories/dev/group_vars/all/bootstrap.yml
+#                              ^^^^^
+#                              关键字 all = 对 dev-01、dev-02 等全部主机生效
+#
+#   同目录下还有：
+#     - main.yml     → 环境通用（时区、OSS 等）
+#     - network.yml  → 网络、RDS、跨 VPC、host_firewall 等
+#     - bootstrap.yml → 本文件，仅 Bootstrap 阶段（1.2）的机器基线参数
+#
+#   Ansible 会把同组多个 yml **合并**为一个变量集；后加载的文件若键名相同会覆盖先加载的
+#   （同目录内按文件名字母序：bootstrap.yml → main.yml → network.yml）。
+#
+# 【与规格文档的关系】
+#   机器可读的「期望状态」详见：docs/bootstrap/dev-ecs-bootstrap.spec.yaml
+#   本文件是 Ansible **实际读取**的变量；改配置时应两处保持一致。
+#
+# 【谁在消费这些变量】
+#   playbook : ansible/playbooks/bootstrap.yml
+#   roles    : ansible/roles/common（base.yml、users.yml）
+#              ansible/roles/docker（tasks/main.yml）
+#   脚本     : scripts/dev/bootstrap.sh（主要读 network.yml / host_vars，不直接读本文件）
+#
+# 【执行顺序】
+#   bootstrap.yml 编排：
+#     1. common/base   ← bootstrap_base_packages、timezone（来自 main.yml）等
+#     2. docker        ← docker_install、docker_compose_plugin
+#     3. common/users  ← bootstrap_users、bootstrap_dirs、ssh.yml 中的 deploy_authorized_keys
+#   ⚠ deploy 用户依赖 docker 组，故 docker 必须在 users 之前执行。
+#
+# 【阶段说明】
+#   1.2 Bootstrap：root SSH + 本文件变量
+#   1.3 SSH 密钥：见 group_vars/all/ssh.yml + scripts/dev/ssh-keys.sh
+#   稳态        ：ssh-keys.sh steady → ssh_phase=steady，禁止 root 登录
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# bootstrap_base_packages — 系统基础软件包
+# -----------------------------------------------------------------------------
+# 类型：字符串列表
+# 消费者：roles/common/tasks/base.yml → apt 模块 name="{{ bootstrap_base_packages }}"
+# 作用：首次 Bootstrap 时在 Dev ECS 上安装常用工具；幂等（已安装则跳过）
+# 说明：locales 供 locale_gen 生成 en_US.UTF-8；netcat-openbsd 供验收脚本测 RDS 端口
+bootstrap_base_packages:
+  - ca-certificates      # HTTPS 证书
+  - curl                 # 下载、健康检查
+  - gnupg                # Docker 官方 apt 源验签
+  - apt-transport-https  # apt 走 HTTPS
+  - software-properties-common
+  - sudo                 # deploy 用户受限 sudo
+  - vim
+  - jq                   # 脚本/调试解析 JSON
+  - netcat-openbsd       # nc，verify 测 RDS:3306
+  - locales              # 与 main.yml 中 locale 配合
+
+# -----------------------------------------------------------------------------
+# bootstrap_users — 操作系统账号定义
+# -----------------------------------------------------------------------------
+# 类型：嵌套字典（map of map）
+# 消费者：roles/common/tasks/users.yml
+# deploy  ：CI/Ansible 部署专用；加入 docker 组以便无 sudo 运行容器
+# jump_ops：预留堡垒机账号；/usr/sbin/nologin 表示禁止交互登录，仅占位 UID
+bootstrap_users:
+  deploy:
+    groups: [docker]       # YAML 行内列表；等价于 groups: \n  - docker
+    sudo_docker: true      # true 时写入 /etc/sudoers.d/deploy，仅允许 docker 相关命令
+  jump_ops:
+    shell: /usr/sbin/nologin
+
+# -----------------------------------------------------------------------------
+# bootstrap_dirs — 应用与日志目录
+# -----------------------------------------------------------------------------
+# 类型：对象列表（每项含 path / owner / group / mode）
+# 消费者：roles/common/tasks/users.yml → file 模块 loop="{{ bootstrap_dirs }}"
+# mode：八进制权限字符串；0750 表示属主可读写执行、同组只读执行、其他无权限
+bootstrap_dirs:
+  - path: /opt/app
+    owner: deploy
+    group: deploy
+    mode: "0755"
+  - path: /opt/app/compose    # Docker Compose 项目与 .env 所在目录
+    owner: deploy
+    group: deploy
+    mode: "0750"
+  - path: /var/log/app
+    owner: deploy
+    group: deploy
+    mode: "0755"
+
+# -----------------------------------------------------------------------------
+# docker_install / docker_compose_plugin — 是否安装 Docker
+# -----------------------------------------------------------------------------
+# 类型：布尔
+# 消费者：roles/docker/tasks/main.yml 中 when: docker_install | bool
+#        | bool 把 true/false/yes/no/1/0 等统一成布尔，避免字符串 "false" 被误判为真
+# docker_compose_plugin：保留开关位，与 spec 对齐；当前 docker role 随 CE 一并安装 compose 插件
+docker_install: true
+docker_compose_plugin: true
+
+# deploy_authorized_keys / ssh_phase / ssh_inventory_user → group_vars/all/ssh.yml
+# 1.3 公钥由 ansible/keys/infra-ci-deploy.pub + scripts/dev/ssh-keys.sh 管理
+
+# -----------------------------------------------------------------------------
+# ram_role_name / ram_role_verify — 阿里云 ECS RAM 角色
+# -----------------------------------------------------------------------------
+# ram_role_name：与控制台绑定的角色名一致（访问 OSS dev/ 前缀等）
+# ram_role_verify：false = 日常 bootstrap 不校验；绑定角色后在控制台完成后改为 true，
+#                  或命令行覆盖：-e ram_role_verify=true --tags verify
+# 消费者：playbooks/bootstrap.yml post_tasks → 请求实例元数据
+#          http://100.100.100.200/latest/meta-data/ram/security-credentials/
+# 注意：RAM 绑定在阿里云控制台操作，Ansible 只做「是否已绑定」验收，不能代替绑定
+ram_role_name: Dev-ECS-Role
+ram_role_verify: false

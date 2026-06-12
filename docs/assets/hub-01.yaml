@@ -1,0 +1,92 @@
+# =============================================================================
+# Hub-01 资产台账 — 临时管理 Hub / WireGuard Server
+# =============================================================================
+#
+# 【角色说明】
+#   企业原方案：47.97.19.58（宝塔）作为 Hub，运行 WG Server、JumpServer、监控入口。
+#   当前现实：该机器不可用；本台 launch-advisor-20241121 临时承担 Hub 角色。
+#
+# 【本期职责】
+#   - 最小 WireGuard 组网的唯一 Server（UDP 51820，地址 10.200.0.1）
+#   - 后续：JumpServer 堡垒机、可选 dnsmasq 内网 DNS
+#
+# 【Ansible Inventory】
+#   inventories/dev/ 仅含 dev-01、dev-02
+#   inventories/mgmt/ 含 hub-01（本机）— 见 ansible/inventories/mgmt/README.md
+#
+# 【维护规则】
+#   原 Hub 恢复后：更新 registry.yaml replacements，迁移 WG 配置，勿直接删除本文件历史。
+#
+# =============================================================================
+
+schema_version: "1"
+updated_at: "2026-06-08"
+updated_by: "infra-ops"
+
+host:
+  name: hub-01
+  role: hub
+  env: mgmt
+  description: "临时 Hub — WireGuard Server +（规划）JumpServer"
+
+  # --- 替代关系 ---
+  replacement:
+    replaces_planned_host: "47.97.19.58"
+    temporary: true
+    until: "原 Hub 恢复或采购专用管理机"
+
+  # --- 阿里云 ECS ---
+  cloud:
+    provider: aliyun
+    region: cn-hangzhou
+    instance_id: "i-bp13u0d90uicmwrh4kb"
+    instance_type: "ecs.g6.xlarge"
+    console_name: "launch-advisor-20241121"
+    vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
+    vswitch_id: "vsw-bp17r7fqjqzeb2lqbyque"
+    zone: "杭州 可用区 I"
+
+  # --- 网络地址 ---
+  network:
+    public_ip: "121.43.49.58"
+    private_ip: "172.21.127.123"
+    eip_bound: true
+    bandwidth_mbps: 2
+    # WireGuard 规划地址；wg0 接口配置实施后与 registry.yaml wireguard_plan 对齐
+    planned_wg_ip: "10.200.0.1"
+    wg_listen_port: 51820
+    hostname: null
+    ci_same_vpc: true
+    ci_access_from: "private_or_wg"
+
+  # --- 安全组（控制台确认后填入 id；新建 Hub 专用组或复用需记录）---
+  security_groups:
+    bootstrap:
+      - id: null
+        name: "sg-hub-bootstrap"
+        phase: bootstrap
+        note: "待创建：入站 UDP 51820（公司 IP + CI 公网）、临时 SSH 公司 IP"
+    target:
+      - id: null
+        name: "sg-hub-wg"
+        phase: wireguard
+        note: "目标态：仅 UDP 51820 + WG 网段访问 443（JumpServer）"
+
+  ram_role:
+    name: null
+    attached: false
+    note: "Hub 通常不需 OSS 写权限；JumpServer 可用 AK 或 RAM 按最小权限"
+
+  access_whitelist:
+    ci_public_ip: "121.41.58.20/32"
+    office_egress_ips:
+      - "115.195.216.251/32"
+    wireguard_future: "10.200.0.0/16"
+
+  lifecycle:
+    os: "Debian 12"
+    reset_at: null
+    bootstrap_status: pending
+    wireguard_status: not_started
+    jumpserver_status: not_planned
+    baota_installed: false

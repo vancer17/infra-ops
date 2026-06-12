@@ -1,0 +1,4 @@
+# WireGuard Hub 私钥示例（单行 base64，无换行）
+# 真实文件：hub.private（gitignore）
+# 生成：./scripts/wireguard/wg-keys.sh generate-hub
+aBcDeFgH1234567890ExamplePrivateKeyReplaceMe=

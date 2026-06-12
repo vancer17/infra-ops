@@ -1,0 +1,251 @@
+# =============================================================================
+# 资产总台账（Asset Registry Master）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   infra-ops 仓库的「全局资产地图」：当前有哪些机器、各自承担什么角色、
+#   与企业原方案中的规划 IP 如何对应、哪些资源已不可用、由谁替代。
+#
+# 【与单主机文件的关系】
+#   registry.yaml     → 鸟瞰图、替代关系、VPC 拓扑、WG 地址分配表
+#   hub-01.yaml 等    → 单台机器的完整字段（实例 ID、安全组、依赖项）
+#
+# 【与 Ansible 的关系】
+#   network.yml 中的 dev_hosts / platform_hosts 须与本文件 hosts.* 的 IP 一致。
+#   修改本文件后必须同步 network.yml，并运行 make inventory。
+#
+# 【维护规则】
+#   - updated_at / updated_by 每次修订必填
+#   - 不可用机器保留在 unavailable_planned_hosts，避免后人误用旧 IP
+#   - replacements 记录「原角色 → 当前替代」，原机恢复后改 status 而非删除历史
+#
+# =============================================================================
+
+schema_version: "1"
+updated_at: "2026-06-08"
+updated_by: "infra-ops"
+
+# -----------------------------------------------------------------------------
+# network_phase — 全平台网络建设阶段（与 main.yml network_phase 对齐）
+# -----------------------------------------------------------------------------
+# bootstrap  → 公网 SSH 白名单、临时安全组；WG 未上线
+# wireguard  → Hub-Spoke 隧道可用，inventory ansible_host 改 wg_ip
+# steady     → 关公网 SSH、JumpServer 纳管完成
+network_phase: bootstrap
+
+# -----------------------------------------------------------------------------
+# vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
+# -----------------------------------------------------------------------------
+# 事实：截图中 4 台运行中实例均在同一 VPC，分属两个 vSwitch（子网）。
+# 影响：
+#   - CI 替代机与 Dev ECS 同 VPC → Ansible 可使用私网 IP（见 ci_connectivity）
+#   - RDS 白名单仍用各机 private_ip，与 WG 无关
+#   - 跨子网（172.21.127.0/24 ↔ 172.21.226.0/24）VPC 内可路由，无需公网
+vpc:
+  provider: aliyun
+  region: cn-hangzhou
+  region_name: "华东 1（杭州）"
+  vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
+  vswitches:
+    - id: "vsw-bp17r7fqjqzeb2lqbyque"
+      zone: "杭州 可用区 I"
+      cidr_note: "172.21.127.0/24 段（hub-01、dev-02 替代、test-01）"
+      hosts: [hub-01, dev-02, test-01]
+    - id: "vsw-bp1th8ab5itjji9me684i"
+      zone: "杭州 可用区 K"
+      cidr_note: "172.21.226.0/24 段（ci-01 / dev-01 同机）"
+      hosts: [ci-01, dev-01]
+
+# -----------------------------------------------------------------------------
+# unavailable_planned_hosts — 企业方案中规划但当前不可用的机器
+# -----------------------------------------------------------------------------
+# 用途：防止 inventory / 安全组 / 文档仍引用这些 IP
+# status: unavailable → 暂不登录、不纳入 Ansible inventory
+unavailable_planned_hosts:
+  - logical_name: hub-planned
+    planned_role: hub
+    planned_public_ip: "47.97.19.58"
+    note: "原宝塔 Hub；WG Server / JumpServer 规划机"
+    status: unavailable
+
+  - logical_name: ci-planned
+    planned_role: ci
+    planned_public_ip: "47.98.161.33"
+    planned_wg_ip: "10.200.0.2"
+    note: "原 GitHub Runner / Ansible 控制机"
+    status: unavailable
+
+  - logical_name: dev-02-planned
+    planned_role: dev_worker
+    planned_public_ip: "121.40.245.68"
+    planned_wg_ip: "10.200.1.2"
+    note: "原 Dev-02；由 dev-02（替代机）承接"
+    status: unavailable
+
+# -----------------------------------------------------------------------------
+# replacements — 原规划角色 → 当前替代资源（核心映射表）
+# -----------------------------------------------------------------------------
+# 读法：planned_* 是企业方案中的意图；replacement_host 是当前实际使用的台账名
+replacements:
+  - planned_role: hub
+    planned_public_ip: "47.97.19.58"
+    replacement_host: hub-01
+    replacement_public_ip: "121.43.49.58"
+    replacement_wg_ip: "10.200.0.1"
+    temporary: true
+    note: "原 Hub 恢复后可迁回 WG Server 或作 standby"
+
+  - planned_role: ci
+    planned_public_ip: "47.98.161.33"
+    replacement_host: ci-01
+    replacement_public_ip: "121.41.58.20"
+    replacement_wg_ip: "10.200.0.2"
+    colocated_with: dev-01
+    temporary: true
+    note: "CI 与 dev-01 同机（yax）；原 CI 恢复后应拆分 Runner 与 Dev 应用"
+
+  - planned_role: dev_worker
+    planned_public_ip: "121.40.245.68"
+    replacement_host: dev-02
+    replacement_public_ip: "112.124.104.223"
+    replacement_wg_ip: "10.200.1.2"
+    temporary: true
+    note: "launch-advisor-20260425；Bootstrap 状态 pending"
+
+# -----------------------------------------------------------------------------
+# hosts — 当前可用机器一览（键名 = docs/assets/<键名>.yaml 文件名）
+# -----------------------------------------------------------------------------
+# wg_ip：WireGuard 规划地址（10.200.0.0/16），隧道未建时仅作文档化
+# inventory_group：该主机是否、以及如何纳入 Ansible inventory
+hosts:
+  hub-01:
+    asset_file: hub-01.yaml
+    console_name: "launch-advisor-20241121"
+    instance_id: "i-bp13u0d90uicmwrh4kb"
+    logical_roles: [hub, wg_server]
+    env: mgmt
+    public_ip: "121.43.49.58"
+    private_ip: "172.21.127.123"
+    wg_ip: "10.200.0.1"
+    spec: "4 vCPU / 16 GiB"
+    zone: "杭州 可用区 I"
+    inventory_group: mgmt_hub
+    inventory_path: ansible/inventories/mgmt/
+    bootstrap_status: pending
+    note: "最小 WG 组网时的唯一 WG Server；后续可部署 JumpServer"
+
+  ci-01:
+    asset_file: ci-01.yaml
+    console_name: "yax"
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    logical_roles: [ci, ansible_control]
+    env: mgmt
+    public_ip: "121.41.58.20"
+    private_ip: "172.21.226.38"
+    wg_ip: "10.200.0.2"
+    spec: "8 vCPU / 16 GiB"
+    zone: "杭州 可用区 K"
+    inventory_group: null
+    bootstrap_status: bootstrap_done
+    colocated_hosts: [dev-01]
+    note: "兼 GitHub Self-hosted Runner 与 Ansible 控制机；与 dev-01 同 ECS"
+
+  dev-01:
+    asset_file: dev-01.yaml
+    console_name: "yax"
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    logical_roles: [dev_app]
+    env: dev
+    public_ip: "121.41.58.20"
+    private_ip: "172.21.226.38"
+    wg_ip: "10.200.1.1"
+    spec: "8 vCPU / 16 GiB"
+    zone: "杭州 可用区 K"
+    inventory_group: dev_app
+    bootstrap_status: bootstrap_done
+    same_ecs_as: ci-01
+    note: "阶段 1 Bootstrap 已完成；应用层配置待业务栈确定"
+
+  dev-02:
+    asset_file: dev-02.yaml
+    console_name: "launch-advisor-20260425"
+    instance_id: "i-bp17nu3p75waikdaquwr"
+    logical_roles: [dev_worker]
+    env: dev
+    public_ip: "112.124.104.223"
+    private_ip: "172.21.127.124"
+    wg_ip: "10.200.1.2"
+    spec: "2 vCPU / 4 GiB"
+    zone: "杭州 可用区 I"
+    inventory_group: dev_worker
+    bootstrap_status: pending
+    note: "替代原 121.40.245.68；纳入 WG 与 Bootstrap 待实施"
+
+  test-01:
+    asset_file: test-01.yaml
+    console_name: "显物"
+    instance_id: "i-bp1bs8vdr9ta7wi5kfgq"
+    logical_roles: [test_app]
+    env: test
+    public_ip: "116.62.228.105"
+    private_ip: "172.21.127.122"
+    wg_ip: "10.200.2.1"
+    spec: "2 vCPU / 8 GiB"
+    zone: "杭州 可用区 I"
+    inventory_group: null
+    bootstrap_status: pending
+    note: "与 RDS 同区域；本期最小 WG 可选纳入，Test inventory 后续再加"
+
+# -----------------------------------------------------------------------------
+# wireguard_plan — 最小组网地址分配（实施 WG 时按此表配置）
+# -----------------------------------------------------------------------------
+# 仅规划，不代表已配置。AllowedIPs 策略见企业方案 §4.3
+wireguard_plan:
+  hub_server:
+    host: hub-01
+    listen_udp: 51820
+    address: "10.200.0.1/24"
+  peers:
+    - host: ci-01
+      address: "10.200.0.2/32"
+      allowed_ips_to_route: ["10.200.0.0/16"]
+    - host: dev-01
+      address: "10.200.1.1/32"
+      note: "与 ci-01 同 ECS 时，可合并为一个 Peer 或仅用 10.200.0.2"
+    - host: dev-02
+      address: "10.200.1.2/32"
+      allowed_ips_to_route: ["10.200.0.0/24", "10.200.1.0/24"]
+    - host: test-01
+      address: "10.200.2.1/32"
+      optional_this_phase: true
+  client_pool:
+    description: "开发人员笔记本"
+    cidr: "10.200.10.0/24"
+
+# -----------------------------------------------------------------------------
+# shared_cloud_dependencies — 跨主机共享的云产品（非 ECS）
+# -----------------------------------------------------------------------------
+shared_cloud_dependencies:
+  rds:
+    instance_id: "rm-bp1wjjf373l7t331vno"
+    endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+    port: 3306
+    dev_database: app_dev
+    dev_user: app_dev
+    whitelist_group: dev-ecs
+  oss:
+    - bucket: yzx-file-storage
+      dev_prefix: "dev/"
+    - bucket: taoyouxiangzu
+      dev_prefix: "dev/"
+
+# -----------------------------------------------------------------------------
+# security_whitelist_summary — 安全组/RDS 白名单源 IP 汇总（须与 network.yml 一致）
+# -----------------------------------------------------------------------------
+security_whitelist_summary:
+  ci_public_ip: "121.41.58.20/32"
+  ci_public_ip_legacy: "47.98.161.33/32"
+  ci_public_ip_legacy_status: retired
+  office_egress_ips:
+    - "115.195.216.251/32"
+  wireguard_cidr_future: "10.200.0.0/16"

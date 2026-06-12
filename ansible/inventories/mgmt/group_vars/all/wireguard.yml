@@ -1,0 +1,77 @@
+# =============================================================================
+# Ansible Inventory 变量：WireGuard 规划（占位，隧道尚未实施）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   存放 Hub WG Server 与未来 Peer 的**规划参数**，供后续 wireguard role 消费。
+#   当前阶段（建立 Ansible 纳管）不执行任何 WG 安装任务。
+#
+# 【为何单独成文件】
+#   将 WG 参数与 network.yml（IP 台账）、bootstrap.yml（系统基线）分离：
+#     - 实施 WG 时主要改本文件与 hub-01.yaml 的 wireguard_status
+#     - 避免 network.yml 过于臃肿
+#
+# 【私钥管理原则（实施时遵守）】
+#   - Git 中只放公钥、Peer 列表、AllowedIPs 规划
+#   - Hub PrivateKey 放 ansible-vault 或 Hub 本地 /etc/wireguard/，不进 Git 明文
+#
+# 【与 docs/assets/hub-01.yaml 对齐字段】
+#   wg_listen_port、planned_wg_ip（即 interface_address）
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# wireguard — 全局开关与 Server 接口参数
+# -----------------------------------------------------------------------------
+wireguard:
+  # false = 仅变量占位；true 后 wireguard role 才会安装并配置 wg0
+  enabled: false
+
+  interface: wg0
+
+  # Hub Server 在隧道内的地址（与 mgmt_hosts.hub-01.wg_ip 一致）
+  hub_address: "10.200.0.1/24"
+
+  # Hub 公钥（由 wg-keys.sh sync-inventory 从 hub.pub 写入；可提交 Git）
+  # 消费者：Peer 客户端 wg0.conf 的 [Peer] PublicKey、文档校验
+  hub_public_key: null
+
+  # 公网监听端口（须在安全组放行 UDP）
+  listen_port: 51820
+
+  # 是否开启 IPv4 转发（Hub 作为 Spoke 汇聚点时必须为 true）
+  ip_forward: true
+
+  # 实施状态，与 hub-01.yaml lifecycle.wireguard_status 同步
+  # not_started | server_up | operational
+  status: not_started
+
+# -----------------------------------------------------------------------------
+# wireguard_peers_planned — 规划中的 Peer 列表（仅公钥占位，实施时填入）
+# -----------------------------------------------------------------------------
+# 每项对应 Hub wg0.conf 中的一个 [Peer] 段。
+# 私钥留在各 Peer 机器本地；此处只登记 public_key 与 AllowedIPs。
+#
+# 注意：ci-01 与 dev-01 同机时，可合并为一个 Peer 地址 10.200.0.2。
+wireguard_peers_planned:
+  - name: ci-01
+    wg_ip: "10.200.0.2"
+    public_key: null
+    note: "CI 替代机；实施 WG 时在 ci-01 生成密钥后填入公钥"
+
+  - name: dev-01
+    wg_ip: "10.200.1.1"
+    public_key: null
+    note: "与 ci-01 同 ECS 时可暂不单独建 Peer"
+
+  - name: dev-02
+    wg_ip: "10.200.1.2"
+    public_key: null
+    note: "Dev-02 替代机 Bootstrap 后纳入"
+
+  - name: developer-laptop
+    wg_ip: "10.200.10.1"
+    public_key: null
+    note: "运维笔记本；地址从 10.200.10.0/24 分配"

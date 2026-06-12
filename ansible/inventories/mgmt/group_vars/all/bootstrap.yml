@@ -1,0 +1,69 @@
+# =============================================================================
+# Ansible Inventory 变量：Hub Bootstrap（管理面基线）专用配置
+# =============================================================================
+#
+# 【与 dev/bootstrap.yml 的差异】
+#   Dev ECS 需要 Docker 跑应用容器；Hub 首期仅需：
+#     - 系统基线（时区、用户、SSH）
+#     - 后续 WireGuard / JumpServer 的安装目录
+#   因此 docker_install: false，不拉取 Docker CE 软件源。
+#
+# 【消费者】
+#   复用 ansible/playbooks/bootstrap.yml + roles/common
+#   执行示例：
+#     ansible-playbook ansible/playbooks/bootstrap.yml \
+#       -i ansible/inventories/mgmt/ --limit hub-01
+#
+# 【RAM 角色】
+#   Hub 通常不访问 OSS；ram_role_name 留空，跳过 RAM 验收任务。
+#
+# =============================================================================
+
+---
+
+# 系统基础包（与 dev 类似，供 common/base role 安装）
+bootstrap_base_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - apt-transport-https
+  - software-properties-common
+  - sudo
+  - vim
+  - jq
+  - netcat-openbsd
+  - locales
+  # Hub 将来装 WireGuard 时由 wireguard role 安装 wireguard 包
+  # 此处不预装，避免 Bootstrap 与 WG 实施耦合
+
+# 操作系统账号（与 dev 保持一致，便于统一运维习惯）
+# Hub 首期无 Docker，deploy 不加 docker 组
+bootstrap_users:
+  deploy:
+    groups: []
+    sudo_docker: false
+  jump_ops:
+    shell: /usr/sbin/nologin
+
+# Hub 管理面目录（非应用 /opt/app，避免与 Dev 应用布局混淆）
+bootstrap_dirs:
+  - path: /opt/mgmt
+    owner: deploy
+    group: deploy
+    mode: "0755"
+  - path: /opt/wireguard
+    owner: root
+    group: root
+    mode: "0750"
+  - path: /var/log/mgmt
+    owner: deploy
+    group: deploy
+    mode: "0755"
+
+# Hub 首期不安装 Docker（JumpServer 后期可用 Docker 时再改为 true）
+docker_install: false
+docker_compose_plugin: false
+
+# Hub 不绑定 OSS 访问 RAM 角色
+ram_role_name: null
+ram_role_verify: false
