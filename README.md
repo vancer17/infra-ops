@@ -74,7 +74,8 @@ infra-ops/
 | [docs/assets/registry.yaml](docs/assets/registry.yaml) | 资产总台账（机器一览、原规划 IP 替代映射） |
 | [docs/contributing.md](docs/contributing.md) | 贡献流程、静态 vs 实机检查、依赖与 Branch Protection |
 | [docs/20260608-ECS 企业开发环境（Dev）实施方案.md](docs/20260608-ECS%20企业开发环境（Dev）实施方案.md) | Dev 环境总体方案 |
-| [docs/bootstrap/dev-01-bootstrap.runbook.md](docs/bootstrap/dev-01-bootstrap.runbook.md) | Dev-01 Bootstrap（1.2） |
+| [docs/bootstrap/dev-01-bootstrap.runbook.md](docs/bootstrap/dev-01-bootstrap.runbook.md) | Dev-01 / CI 控制机 Bootstrap（1.2） |
+| [docs/bootstrap/hub-01-bootstrap.runbook.md](docs/bootstrap/hub-01-bootstrap.runbook.md) | Hub-01 Bootstrap（1.2） |
 | [docs/bootstrap/dev-ssh-keys.runbook.md](docs/bootstrap/dev-ssh-keys.runbook.md) | SSH 密钥体系（1.3） |
 | [docs/wireguard/wg-keys.runbook.md](docs/wireguard/wg-keys.runbook.md) | WireGuard 密钥生成与保管（Hub） |
 | [docs/plan/20260608-开发环境（Dev）部署计划.md](docs/plan/20260608-开发环境（Dev）部署计划.md) | 分阶段部署计划 |
