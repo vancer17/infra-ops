@@ -1,0 +1,37 @@
+# =============================================================================
+# Ansible Role 任务文件：common — SSH 稳态收紧（1.3 steady）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   仅包含「将 sshd drop-in 切换为 steady 阶段」的单项任务。
+#   与 users.yml 分离，避免 steady Play 重复创建用户、写 authorized_keys。
+#
+# 【如何被调用】
+#   ansible/playbooks/ssh-keys.yml Play 2（--tags steady）：
+#     ansible.builtin.import_role:
+#       name: common
+#       tasks_from: ssh-steady
+#
+# 【前置条件】
+#   - bootstrap.yml 与 ssh-keys distribute 已完成
+#   - deploy@ 可 SSH 登录（steady 成功后 root 不可登录）
+#   - Play 级变量 ssh_phase: steady
+#
+# =============================================================================
+
+---
+- name: Install SSH hardening drop-in (steady phase)
+  ansible.builtin.template:
+    src: sshd-dev-bootstrap.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-dev-bootstrap.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: >-
+      bash -c 'cp %s /etc/ssh/sshd_config.d/.ansible-validate.tmp &&
+      /usr/sbin/sshd -t;
+      ec=$?;
+      rm -f /etc/ssh/sshd_config.d/.ansible-validate.tmp;
+      exit $ec'
+  notify: Reload sshd
+  tags: [common, ssh, ssh_hardening, steady]

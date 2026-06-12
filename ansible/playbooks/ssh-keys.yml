@@ -62,8 +62,10 @@
 #     ssh_ci_pubkey_file = ansible/inventories/dev/../../keys/infra-ci-deploy.pub
 #     由 scripts/dev/ssh-keys.sh generate 生成
 #
-# 【与 roles/common/tasks/users.yml 的关系】
-#   本 playbook 通过 `role: common, tasks_from: users` 只跑 users.yml 里的任务。
+# 【与 roles/common/tasks 的关系】
+#   Play 1：import_role tasks_from users（分发公钥）
+#   Play 2：import_role tasks_from ssh-steady（仅收紧 sshd）
+#   勿用 Play 级 roles: + tasks_from（Ansible 2.16 会误执行 common/tasks/main.yml → base.yml）。
 #   users.yml 会：
 #     1. 若 .pub 文件存在，合并到 deploy_authorized_keys
 #     2. authorized_key 模块写入 /home/deploy/.ssh/authorized_keys
@@ -160,13 +162,14 @@
         key: deploy
 
   # ---------------------------------------------------------------------------
-  # roles — 调用 common role 的 users 任务文件
+  # tasks — import_role（与 bootstrap.yml 一致；勿用 roles: + tasks_from，会误跑 main.yml）
   # ---------------------------------------------------------------------------
-  # tasks_from: users → 只执行 roles/common/tasks/users.yml，不跑 tasks/main.yml。
-  # users.yml 内 authorized_key task 会读取上面的 deploy_authorized_keys 写入远程。
-  roles:
-    - role: common
-      tasks_from: users
+  tasks:
+    - name: Configure deploy user SSH keys and bootstrap sshd drop-in
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: users
+      tags: [distribute]
 
   # ---------------------------------------------------------------------------
   # post_tasks — role 完成后的验收（确保公钥已写入）
@@ -218,11 +221,14 @@
           - ssh_phase == 'steady'
         fail_msg: "steady play requires ssh_phase=steady"
 
-  roles:
-    # users.yml 里「Install SSH hardening drop-in」task 会 template 重写 sshd drop-in，
-    # 并 notify Reload sshd → handlers/main.yml 执行 systemctl reload ssh。
-    - role: common
-      tasks_from: users
+  tasks:
+    # ssh-steady.yml 仅重写 sshd drop-in（PermitRootLogin no），不重复 users.yml 全流程。
+    # 使用 import_role：roles: + tasks_from 在 Ansible 2.16 会错误执行 main.yml → base.yml。
+    - name: Apply steady SSH hardening drop-in
+      ansible.builtin.import_role:
+        name: common
+        tasks_from: ssh-steady
+      tags: [steady]
 
   post_tasks:
     # command 模块：在远程执行 shell 命令（无专用模块时的兜底）。
