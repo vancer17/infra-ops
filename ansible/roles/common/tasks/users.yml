@@ -13,7 +13,7 @@
 #     ansible/playbooks/bootstrap.yml
 #       1. role: common, tasks_from: base    ← 时区、装包、关 ufw
 #       2. role: docker                      ← 安装 Docker，创建系统组 docker
-#       3. role: common, tasks_from: users   ← 本文件 
+#       3. role: common, tasks_from: users   ← 本文件
 #
 #   tasks_from: users 表示：只 import 本文件里的 task 列表，不跑 common/tasks/main.yml。
 #   common/tasks/main.yml 仅包含 base，刻意不自动 import users，避免 docker 未装时就建 deploy。
