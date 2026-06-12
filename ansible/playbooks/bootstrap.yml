@@ -108,23 +108,23 @@
   # tasks_from：只执行该 role 下 tasks/<文件名>.yml，而非 tasks/main.yml 全文
   # tags：可用 --tags bootstrap 只跑带此标签的任务
   roles:
-    # ① 系统基线：时区、NTP、基础包、locale、禁用 ufw
-    #    变量：timezone/main.yml、bootstrap_base_packages、host_firewall_ufw_enabled
-  - role: common
-    tasks_from: base
-    tags: [common, bootstrap]
+      # ① 系统基线：时区、NTP、基础包、locale、禁用 ufw
+      #    变量：timezone/main.yml、bootstrap_base_packages、host_firewall_ufw_enabled
+    - role: common
+      tasks_from: base
+      tags: [common, bootstrap]
 
-    # ② Docker：官方 apt 源安装 docker-ce、compose 插件、配置 daemon.json
-    #    副作用：创建系统组 docker（deploy 用户稍后加入此组）
-  - role: docker
-    tags: [docker, bootstrap]
+      # ② Docker：官方 apt 源安装 docker-ce、compose 插件、配置 daemon.json
+      #    副作用：创建系统组 docker（deploy 用户稍后加入此组）
+    - role: docker
+      tags: [docker, bootstrap]
 
-    # ③ 用户与访问：jump_ops、deploy、sudoers、SSH drop-in、目录
-    #    内含 assert：docker 组必须已存在
-    #    变量：bootstrap_users、deploy_authorized_keys、ssh_phase、bootstrap_dirs
-  - role: common
-    tasks_from: users
-    tags: [common, bootstrap]
+      # ③ 用户与访问：jump_ops、deploy、sudoers、SSH drop-in、目录
+      #    内含 assert：docker 组必须已存在
+      #    变量：bootstrap_users、deploy_authorized_keys、ssh_phase、bootstrap_dirs
+    - role: common
+      tasks_from: users
+      tags: [common, bootstrap]
 
   # ---------------------------------------------------------------------------
   # post_tasks — roles 完成后的收尾与验收
