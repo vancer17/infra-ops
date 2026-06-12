@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# Dev ECS Bootstrap 入口：preflight → apply → verify
+# =============================================================================
+# Dev/Mgmt ECS Bootstrap 入口：preflight → apply → verify
+# =============================================================================
+#
+# 支持 inventories/dev/ 与 inventories/mgmt/（通过 ANSIBLE_INVENTORY 切换）。
+# 同机部署（如 ci-01 与 dev-01 同 ECS）时自动使用 ansible_connection=local。
+#
+# =============================================================================
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -7,7 +15,9 @@ INVENTORY="${ANSIBLE_INVENTORY:-${ROOT}/ansible/inventories/dev/}"
 PLAYBOOK="${ROOT}/ansible/playbooks/bootstrap.yml"
 LIMIT="${ANSIBLE_LIMIT:-dev-01}"
 
-# 与 ansible.cfg host_key_checking=False 对齐；BatchMode 避免 CI 无人值守挂起
+# shellcheck source=scripts/dev/lib/inventory-resolve.sh
+source "${ROOT}/scripts/dev/lib/inventory-resolve.sh"
+
 SSH_OPTS=(
   -o BatchMode=yes
   -o ConnectTimeout=10
@@ -18,14 +28,18 @@ usage() {
   cat <<EOF
 Usage: $(basename "$0") <preflight|apply|verify|all> [host]
 
-  preflight  检查台账、SSH、Ansible 依赖、跨 VPC 连通地址
-  apply      执行 bootstrap.yml
+  preflight  检查台账、Ansible 依赖、SSH/同机探测
+  apply      执行 bootstrap.yml（同机时自动 -e ansible_connection=local）
   verify     运行主机验收检查
   all        preflight → apply → verify
 
 Environment:
   ANSIBLE_INVENTORY  默认 ansible/inventories/dev/
-  ANSIBLE_LIMIT      默认 dev-01
+  ANSIBLE_LIMIT      默认 dev-01（也可作为第二个参数传入）
+
+Examples:
+  $(basename "$0") apply dev-01
+  ANSIBLE_INVENTORY=ansible/inventories/mgmt/ $(basename "$0") apply hub-01
 EOF
 }
 
@@ -33,39 +47,18 @@ asset_file() {
   echo "${ROOT}/docs/assets/${LIMIT}.yaml"
 }
 
-inventory_host_json() {
-  ansible-inventory -i "$INVENTORY" --host "$LIMIT" 2>/dev/null
-}
-
-# 读取 inventory 合并变量；支持点号路径，如 ci_connectivity.same_vpc_as_dev
 host_var() {
-  local key="$1"
-  inventory_host_json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-key = '''${key}'''
-val = data
-for part in key.split('.'):
-    if isinstance(val, dict):
-        val = val.get(part, '')
-    else:
-        val = ''
-        break
-if isinstance(val, bool):
-    print(str(val).lower())
-elif isinstance(val, (dict, list)):
-    print(json.dumps(val))
-elif val is None:
-    print('')
-else:
-    print(val)
-"
+  resolve_inventory_var "$INVENTORY" "$LIMIT" "$1"
 }
 
 resolve_ansible_host() {
   local host
   host="$(host_var ansible_host)"
   [[ -n "$host" ]] || { echo "ERROR: cannot resolve ansible_host for ${LIMIT}"; exit 1; }
+  [[ "$host" != *"{{"* ]] || {
+    echo "ERROR: ansible_host not rendered for ${LIMIT}; check inventory" >&2
+    exit 1
+  }
   echo "$host"
 }
 
@@ -78,7 +71,11 @@ resolve_ansible_user() {
 check_cross_vpc_host() {
   local host="$1"
   local same_vpc
-  same_vpc="$(host_var ci_connectivity.same_vpc_as_dev)"
+  # dev inventory: same_vpc_as_dev；mgmt inventory: same_vpc_as_ci
+  same_vpc="$(host_var ci_connectivity.same_vpc_as_dev 2>/dev/null || true)"
+  if [[ -z "$same_vpc" ]]; then
+    same_vpc="$(host_var ci_connectivity.same_vpc_as_ci 2>/dev/null || true)"
+  fi
   same_vpc="${same_vpc:-false}"
 
   if [[ "$same_vpc" == "false" && "$host" =~ ^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.) ]]; then
@@ -100,19 +97,35 @@ check_asset_ledger() {
     return 0
   fi
 
-  if ! grep -Eq 'private_ip: "[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"' "$asset"; then
+  if ! grep -Eq 'private_ip:\s*"?[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' "$asset"; then
     echo "WARN: ${LIMIT} private_ip may be unset in ${asset}"
   fi
-  if ! grep -qE 'bootstrap_status: "(sg_done|bootstrap_done)"' "$asset"; then
+  if ! grep -qE 'bootstrap_status:\s*"? *(sg_done|bootstrap_done)"?' "$asset"; then
     echo "WARN: complete step 1.1 (sg_done) before bootstrap on ${LIMIT}"
   fi
+}
+
+run_verify_checks() {
+  local rds_host="${1:-}"
+  timedatectl | grep -q 'Time zone: Asia/Shanghai'
+  id deploy >/dev/null
+  id jump_ops >/dev/null
+  if [[ -f /var/run/docker.sock ]] || command -v docker >/dev/null 2>&1; then
+    docker run --rm hello-world >/dev/null
+  fi
+  test -d /opt/app/compose || test -d /opt/mgmt
+  if command -v ufw >/dev/null 2>&1; then ufw status | grep -qi inactive; fi
+  if [[ -n "$rds_host" ]]; then
+    nc -z -w 5 "$rds_host" 3306
+  fi
+  echo "verify OK on $(hostname)"
 }
 
 preflight() {
   check_asset_ledger
 
-  command -v ansible-playbook >/dev/null || { echo "ERROR: ansible-playbook not found"; exit 1; }
-  command -v ansible-inventory >/dev/null || { echo "ERROR: ansible-inventory not found"; exit 1; }
+  command -v ansible-playbook >/dev/null || { echo "ERROR: ansible-playbook not found; run: make setup" >&2; exit 1; }
+  command -v ansible >/dev/null || { echo "ERROR: ansible not found; run: make setup" >&2; exit 1; }
 
   ansible-galaxy collection install -r "${ROOT}/ansible/requirements.yml" --force-with-deps 2>/dev/null || true
 
@@ -121,6 +134,12 @@ preflight() {
   user="$(resolve_ansible_user)"
   check_cross_vpc_host "$host_ip"
 
+  if is_colocated_target "$host_ip"; then
+    echo "Colocated target: ${LIMIT}@${host_ip} — skip SSH probe (apply will use ansible_connection=local)"
+    echo "preflight OK"
+    return 0
+  fi
+
   echo "SSH probe: ${user}@${host_ip} (limit=${LIMIT})"
   ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" true \
     || { echo "ERROR: cannot SSH to ${LIMIT}"; exit 1; }
@@ -128,7 +147,15 @@ preflight() {
 }
 
 apply() {
-  ansible-playbook "$PLAYBOOK" -i "$INVENTORY" --limit "$LIMIT" "$@"
+  local -a colocated_args=()
+  mapfile -t colocated_args < <(ansible_colocated_extra_args "$INVENTORY" "$LIMIT" "$@")
+
+  if [[ ${#colocated_args[@]} -gt 0 ]]; then
+    echo "Colocated: applying with ${colocated_args[*]}"
+  fi
+
+  ansible-playbook "$PLAYBOOK" -i "$INVENTORY" --limit "$LIMIT" \
+    "${colocated_args[@]}" "$@"
   echo "apply OK (limit=$LIMIT)"
 }
 
@@ -136,7 +163,13 @@ verify() {
   local host_ip user rds_host
   host_ip="$(resolve_ansible_host)"
   user="$(resolve_ansible_user)"
-  rds_host="$(host_var rds.host)"
+  rds_host="$(host_var rds.host 2>/dev/null || true)"
+
+  if is_colocated_target "$host_ip"; then
+    echo "Colocated verify on ${host_ip}"
+    run_verify_checks "$rds_host"
+    return 0
+  fi
 
   ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$rds_host" <<'REMOTE'
 set -euo pipefail
@@ -145,7 +178,7 @@ timedatectl | grep -q 'Time zone: Asia/Shanghai'
 id deploy >/dev/null
 id jump_ops >/dev/null
 docker run --rm hello-world >/dev/null
-test -d /opt/app/compose
+test -d /opt/app/compose || test -d /opt/mgmt
 if command -v ufw >/dev/null 2>&1; then ufw status | grep -qi inactive; fi
 if [[ -n "$rds_host" ]]; then
   nc -z -w 5 "$rds_host" 3306
@@ -154,12 +187,26 @@ echo "verify OK on $(hostname)"
 REMOTE
 }
 
-cmd="${1:-}"
-shift || true
-case "$cmd" in
-  preflight) preflight ;;
-  apply) apply "$@" ;;
-  verify) verify ;;
-  all) preflight; apply "$@"; verify ;;
-  *) usage; exit 1 ;;
-esac
+main() {
+  local cmd="${1:-}"
+  shift || true
+
+  if [[ -n "${1:-}" && "$1" != --* ]]; then
+    LIMIT="$1"
+    shift
+  fi
+  export ANSIBLE_LIMIT="$LIMIT"
+
+  case "$cmd" in
+    preflight) preflight ;;
+    apply) apply "$@" ;;
+    verify) verify ;;
+    all) preflight; apply "$@"; verify ;;
+    *)
+      usage
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

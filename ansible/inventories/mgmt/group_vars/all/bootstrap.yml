@@ -33,6 +33,7 @@ bootstrap_base_packages:
   - jq
   - netcat-openbsd
   - locales
+  - systemd-timesyncd    # NTP 客户端（阿里云最小镜像常未预装）
   # Hub 将来装 WireGuard 时由 wireguard role 安装 wireguard 包
   # 此处不预装，避免 Bootstrap 与 WG 实施耦合
 

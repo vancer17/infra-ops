@@ -73,31 +73,27 @@
   tags: [common, bootstrap]
 
 # -----------------------------------------------------------------------------
-# Task 2：启用 NTP 时间同步
+# Task 2：安装 Bootstrap 基础软件包（须在 timesyncd 之前）
+# -----------------------------------------------------------------------------
+# 阿里云 Debian 12 最小镜像常未预装 systemd-timesyncd 单元；先 apt 再启用服务。
+# 列表中含 systemd-timesyncd、locales（供 locale_gen）、netcat（供 verify 测 RDS）
+- name: Install bootstrap base packages
+  ansible.builtin.apt:
+    name: "{{ bootstrap_base_packages }}"
+    state: present
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 3：启用 NTP 时间同步
 # -----------------------------------------------------------------------------
 # 模块：ansible.builtin.systemd — 管理系统服务（非 Docker 的 systemd）
-# 服务：systemd-timesyncd（Debian 12 默认 NTP 客户端）
-# enabled: true  → 开机自启
-# state: started → 当前立即启动
+# 依赖：Task 2 已安装 systemd-timesyncd 包
 # 验收：timedatectl 应显示 System clock synchronized: yes
 - name: Ensure systemd-timesyncd is enabled
   ansible.builtin.systemd:
     name: systemd-timesyncd
     enabled: true
     state: started
-  tags: [common, bootstrap]
-
-# -----------------------------------------------------------------------------
-# Task 3：安装 Bootstrap 基础软件包
-# -----------------------------------------------------------------------------
-# 模块：ansible.builtin.apt — Debian/Ubuntu 包管理
-# name: "{{ bootstrap_base_packages }}" — 列表整体传入，apt 模块支持一次装多个包
-# state: present — 确保已安装；不会强制升级到最新版（升级由 apt upgrade 策略决定）
-# 注意：列表中含 locales，供下一 task locale_gen 使用；含 netcat 供 verify 脚本测 RDS
-- name: Install bootstrap base packages
-  ansible.builtin.apt:
-    name: "{{ bootstrap_base_packages }}"
-    state: present
   tags: [common, bootstrap]
 
 # -----------------------------------------------------------------------------
