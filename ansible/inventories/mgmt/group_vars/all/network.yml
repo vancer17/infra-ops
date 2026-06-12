@@ -1,0 +1,104 @@
+# =============================================================================
+# Ansible Inventory 变量：管理面网络与连通性配置
+# =============================================================================
+#
+# 【这个文件是什么】
+#   集中定义 Hub 及相关管理面节点的 IP 台账、CI 控制机如何连接 Hub、
+#   安全组白名单引用。是 Ansible 运行时的机器可读 SSOT。
+#
+# 【权威来源】
+#   人工台账：docs/assets/registry.yaml、docs/assets/hub-01.yaml、ci-01.yaml
+#   修订流程：先改 docs/assets/ → 再同步本文件 → make inventory-mgmt
+#
+# 【核心设计：CI 如何连接 Hub】
+#   当前事实（2026-06-08）：
+#     - CI 替代机 ci-01（121.41.58.20 / 172.21.226.38）与 Hub 在同一 VPC
+#     - Hub hub-01（121.43.49.58 / 172.21.127.123）在另一 vSwitch，VPC 内可路由
+#     - Ansible 从 CI 机执行时，优先使用 Hub 私网 IP（172.21.127.123）
+#
+#   access_mode: public
+#     Bootstrap 期经 VPC 私网或公网 SSH；WG 未上线前不使用 wg_ip 作为 ansible_host
+#
+#   将来 access_mode: wireguard 后，host_vars/hub-01.yml 自动改用 10.200.0.1
+#
+# 【mgmt_hosts 与 dev 的 platform_hosts】
+#   dev/inventories/.../network.yml 中的 platform_hosts 供 dev playbook 只读引用。
+#   mgmt_hosts 是 mgmt inventory 的主机台账；二者字段应保持一致。
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# security_whitelist — 允许访问 Hub ECS 的来源（与安全组规则对应）
+# -----------------------------------------------------------------------------
+# 修改后须同步 Hub 安全组文档（待建 sg-hub-bootstrap.rules.yaml）
+security_whitelist:
+  ci_public_ip: "121.41.58.20/32"
+  ci_private_ip: "172.21.226.38/32"
+  office_egress_ips:
+    - "115.195.216.251/32"
+  wireguard_cidr_future: "10.200.0.0/16"
+
+# -----------------------------------------------------------------------------
+# ci_connectivity — Ansible 控制机（ci-01）到 Hub 的网络关系
+# -----------------------------------------------------------------------------
+# same_vpc_as_ci: true → inventory-check 允许 ansible_host 为 172.x 私网
+# access_mode: public | wireguard — 驱动 host_vars 中 ansible_host 的 Jinja 分支
+# control_host: 文档化字段，标明谁在执行 ansible-playbook（不参与自动计算）
+ci_connectivity:
+  same_vpc_as_ci: true
+  access_mode: public
+  control_host: ci-01
+  control_public_ip: "121.41.58.20"
+  control_private_ip: "172.21.226.38"
+  control_replaces_planned_ip: "47.98.161.33"
+
+# -----------------------------------------------------------------------------
+# mgmt_hosts — mgmt inventory 主机的网络台账
+# -----------------------------------------------------------------------------
+# 键名 = inventory 中的主机名（hub-01）
+# 字段说明：
+#   public_ip / private_ip     阿里云 EIP / VPC 私网
+#   wg_ip                      WireGuard 规划地址（隧道未建时仅作文档）
+#   ansible_host_from_ci       跨 VPC 或私网不可用时的回退地址（通常为公网）
+#   ansible_host_internal      同 VPC 时 CI 优先使用的地址（通常为私网）
+#   wireguard_server           true 表示该节点为 WG Server（非 Client）
+mgmt_hosts:
+  hub-01:
+    public_ip: "121.43.49.58"
+    private_ip: "172.21.127.123"
+    wg_ip: "10.200.0.1"
+    role: hub
+    instance_id: "i-bp13u0d90uicmwrh4kb"
+    console_name: "launch-advisor-20241121"
+    replaces_planned_public_ip: "47.97.19.58"
+    wireguard_server: true
+    wg_listen_port: 51820
+    ansible_host_from_ci: "121.43.49.58"
+    ansible_host_internal: "172.21.127.123"
+    bootstrap_status: pending
+    wireguard_status: not_started
+
+# -----------------------------------------------------------------------------
+# control_plane_hosts — CI 控制机台账（非 mgmt inventory 成员，仅供引用）
+# -----------------------------------------------------------------------------
+# ci-01 不列入 mgmt/hosts.yml，避免 bootstrap playbook 误操作 CI 机。
+# 需要时 playbook 可通过 hostvars 或显式 -i 多 inventory 引用。
+control_plane_hosts:
+  ci-01:
+    public_ip: "121.41.58.20"
+    private_ip: "172.21.226.38"
+    wg_ip: "10.200.0.2"
+    role: ci
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    colocated_with: dev-01
+
+# -----------------------------------------------------------------------------
+# host_firewall — Hub 主机 ufw 策略（Bootstrap 期不启用，与 dev 一致）
+# -----------------------------------------------------------------------------
+host_firewall:
+  enabled: false
+  note: "云安全组为主；WG 阶段完成后再评估 ufw"
+
+host_firewall_ufw_enabled: "{{ host_firewall.enabled }}"

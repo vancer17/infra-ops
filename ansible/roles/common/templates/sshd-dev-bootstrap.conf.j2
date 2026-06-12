@@ -1,0 +1,14 @@
+# Managed by Ansible — phase {{ ssh_phase }}
+{% if ssh_phase == 'steady' %}
+PermitRootLogin no
+AllowUsers deploy
+{% else %}
+PermitRootLogin prohibit-password
+AllowUsers root deploy
+{% endif %}
+PasswordAuthentication no
+PubkeyAuthentication yes
+KbdInteractiveAuthentication no
+MaxAuthTries 3
+ClientAliveInterval 300
+ClientAliveCountMax 2

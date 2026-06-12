@@ -1,0 +1,4 @@
+# WireGuard Hub 公钥示例（单行 base64）
+# 真实文件：hub.pub（可提交 Git）
+# 由 hub.private 经 wg pubkey 派生
+xYzAbC1234567890ExamplePublicKeyReplaceMe=

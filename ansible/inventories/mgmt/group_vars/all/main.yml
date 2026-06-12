@@ -1,0 +1,51 @@
+# =============================================================================
+# Ansible Inventory 变量：管理面（mgmt）全局通用配置
+# =============================================================================
+#
+# 【这个文件是什么】
+#   group_vars/all/main.yml 对 mgmt inventory 中的**所有主机**（当前仅 hub-01）
+#   自动加载。定义环境标识、时区、网络阶段等「管理面级常量」。
+#
+# 【与同目录其他文件的分工】
+#   main.yml       → 本文件：env_name、network_phase、时区/语言
+#   network.yml    → IP 台账、CI 如何连 Hub、安全组白名单引用
+#   ssh.yml        → SSH 密钥、连接用户、加固阶段
+#   bootstrap.yml  → Hub Bootstrap 专用（用户、目录；Hub 默认不装 Docker）
+#   wireguard.yml      → WG Server 规划参数、hub_public_key、Peer 公钥
+#   wireguard_keys.yml → 密钥文件路径与保管策略（无私钥）
+#
+#   Ansible 按文件名字母序合并：bootstrap → main → network → ssh → wireguard → wireguard_keys
+#
+# 【与 inventories/dev/group_vars 的关系】
+#   键名（env_name、network_phase、timezone）尽量与 dev 保持一致，
+#   仅 env_name 等值不同。这样 common role 可跨环境复用。
+#
+# 【资产同步】
+#   修改后须与 docs/assets/hub-01.yaml、docs/assets/registry.yaml 对齐，
+#   并运行：make inventory-mgmt
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# env_name — 逻辑环境名
+# -----------------------------------------------------------------------------
+# mgmt 表示管理面，与 dev/test/prod 应用环境区分。
+# playbook 中可用 when: env_name == 'mgmt' 防止误用 dev 变量。
+env_name: mgmt
+
+# -----------------------------------------------------------------------------
+# network_phase — 全平台网络建设阶段（与 registry.yaml 对齐）
+# -----------------------------------------------------------------------------
+# bootstrap  → 公网/私网 SSH 白名单；WG 隧道尚未实施
+# wireguard  → Hub-Spoke 隧道可用；inventory ansible_host 可切 wg_ip
+# steady     → 关公网 SSH、JumpServer 纳管完成
+network_phase: bootstrap
+
+# -----------------------------------------------------------------------------
+# timezone / locale — 系统区域设置
+# -----------------------------------------------------------------------------
+# 消费者：roles/common/tasks/base.yml（与 dev 环境相同 role）
+timezone: Asia/Shanghai
+locale: en_US.UTF-8

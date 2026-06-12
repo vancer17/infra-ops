@@ -42,6 +42,9 @@ CI_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 # Dev inventory 目录（syntax-check、inventory 解析共用）
 CI_ANSIBLE_INVENTORY="${CI_ANSIBLE_INVENTORY:-${CI_REPO_ROOT}/ansible/inventories/dev/}"
 
+# Mgmt inventory 目录（Hub / 管理面；inventory-check-mgmt.sh 使用）
+CI_ANSIBLE_INVENTORY_MGMT="${CI_ANSIBLE_INVENTORY_MGMT:-${CI_REPO_ROOT}/ansible/inventories/mgmt/}"
+
 # 配置文件（相对 repo root）
 CI_YAMLLINT_CONFIG="${CI_YAMLLINT_CONFIG:-${CI_REPO_ROOT}/.yamllint.yml}"
 CI_ANSIBLE_LINT_CONFIG="${CI_ANSIBLE_LINT_CONFIG:-${CI_REPO_ROOT}/.ansible-lint}"

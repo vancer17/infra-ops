@@ -1,0 +1,22 @@
+---
+# =============================================================================
+# host_vars/dev-01.yml — Dev-01 主机级 Inventory 变量
+# =============================================================================
+#
+# ansible_host 计算逻辑：
+#   same_vpc_as_dev=true 时使用 172.21.226.38（本机私网）
+#   注意：dev-01 与 ci-01 同 ECS，Ansible 从 CI 机执行时 SSH 本机私网地址
+#
+# 资产来源：docs/assets/dev-01.yaml
+# =============================================================================
+ansible_host: >-
+  {{
+    dev_hosts['dev-01'].ansible_host_from_ci
+    if (
+      not ci_connectivity.same_vpc_as_dev
+      or dev_hosts['dev-01'].private_ip is none
+      or dev_hosts['dev-01'].ansible_host_internal is none
+    )
+    else dev_hosts['dev-01'].ansible_host_internal
+  }}
+ansible_user: "{{ ssh_inventory_user | default('root') }}"

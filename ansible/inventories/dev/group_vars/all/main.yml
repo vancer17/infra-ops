@@ -1,0 +1,106 @@
+# =============================================================================
+# Ansible Inventory 变量文件：Dev 环境「全局通用」配置
+# =============================================================================
+#
+# 【这个文件是什么】
+#   group_vars/all/ 下的 main.yml，表示 inventory 中**所有 Dev 主机**（dev-01、
+#   dev-02…）都会自动加载的**环境级公共变量**。
+#
+# 【与同目录其他文件的分工】
+#   main.yml      → 本文件：环境标识、时区/语言、OSS 等非敏感「全环境常量」
+#   bootstrap.yml → 1.2 Bootstrap 专用（用户、Docker 开关、SSH 阶段等）
+#   network.yml   → 网络拓扑、RDS、跨 VPC、安全组白名单引用 IP 等
+#
+#   三者合并后才是 dev-01 的完整变量集；Ansible 按文件名字母序加载：
+#     bootstrap.yml → main.yml → network.yml
+#   若键名冲突，后加载的文件覆盖先加载的（当前三个文件键名无冲突）。
+#
+# 【谁在消费这些变量】
+#   timezone、locale  → roles/common/tasks/base.yml（装系统时区与 locale）
+#   env_name          → 预留：后续 app_deploy role / .env.j2 模板标记环境
+#   network_phase     → 预留：与 network.yml 中 ci_connectivity 配合，标记阶段
+#   oss.bucket/prefix → 预留：后续应用部署时写 .env 或 RAM 策略文档对照
+#
+# 【与 Test/Prod 的扩展方式】
+#   Test 环境复制 inventories/test/group_vars/all/main.yml，仅改：
+#     env_name: test
+#     network_phase: bootstrap | wireguard | ...
+#     oss.prefix: test
+#   键名保持一致、只改值 —— 这是多环境 inventory 的标准做法。
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# env_name — 逻辑环境名
+# -----------------------------------------------------------------------------
+# 类型：字符串
+# 当前值：dev
+# 用途：
+#   - 在 playbook、模板、日志中区分 dev / test / prod，避免误操作生产资源
+#   - 后续 app_deploy role 生成 /opt/app/compose/.env 时可写入 ENV=development
+#     （或与 env_name 映射：dev → development）
+# 注意：改此值不会自动改阿里云资源；RDS/OSS 实际隔离仍靠 network.yml 与云控制台配置
+env_name: dev
+
+# -----------------------------------------------------------------------------
+# network_phase — 网络建设阶段标记
+# -----------------------------------------------------------------------------
+# 类型：字符串枚举（项目约定，非 Ansible 内置）
+# 当前值：bootstrap
+# 含义：
+#   bootstrap  → 1.1～1.2：公网 SSH 白名单、临时安全组（见 network.yml same_vpc_as_dev）
+#   wireguard  → 阶段 5：WG 组网完成，inventory ansible_host 改 WG 内网 IP
+#   steady     → 运维收口完成（JumpServer、关公网 SSH 等）
+# 当前 playbook 未直接用 when: network_phase == 'bootstrap' 过滤任务；
+# 主要供人工/脚本判断，以及将来在 playbook 里写阶段条件，例如：
+#   when: network_phase == 'wireguard'
+network_phase: bootstrap
+
+# -----------------------------------------------------------------------------
+# timezone — 系统时区
+# -----------------------------------------------------------------------------
+# 类型：字符串（IANA 时区名，如 Asia/Shanghai、UTC）
+# 消费者：roles/common/tasks/base.yml
+#   community.general.timezone:
+#     name: "{{ timezone }}"
+# 执行效果：timedatectl set-timezone Asia/Shanghai（幂等）
+# 与验收脚本 scripts/dev/bootstrap.sh verify 中
+#   timedatectl | grep 'Time zone: Asia/Shanghai' 对应
+timezone: Asia/Shanghai
+
+# -----------------------------------------------------------------------------
+# locale — 系统区域/字符集
+# -----------------------------------------------------------------------------
+# 类型：字符串（locale 名，格式 language_COUNTRY.UTF-8）
+# 消费者：roles/common/tasks/base.yml
+#   community.general.locale_gen:
+#     name: "{{ locale }}"
+# 依赖：bootstrap.yml 中 bootstrap_base_packages 含 locales 包，否则 locale_gen 可能失败
+# en_US.UTF-8：英文界面 + UTF-8，与 RDS utf8mb4、应用 UTF-8 一致；团队若需中文可改 zh_CN.UTF-8
+locale: en_US.UTF-8
+
+# -----------------------------------------------------------------------------
+# oss — 阿里云对象存储（Dev 环境）
+# -----------------------------------------------------------------------------
+# 类型：嵌套字典
+# 结构：
+#   oss.bucket  → Bucket 名称
+#   oss.prefix  → 对象键前缀，Dev 环境固定 dev/，与 Prod prod/ 隔离
+#
+# 对应资产：
+#   docs/assets/dev-01.yaml → dependencies.oss.buckets
+#   企业方案：yzx-file-storage、taoyouxiangzu（子项目 bucket 在 host 台账单独列）
+#
+# 访问方式（Bootstrap 期）：
+#   ECS 绑定 RAM 角色 Dev-ECS-Role，策略仅允许 dev/* 前缀；不在变量里放 AK/SK
+#
+# 后续消费者（阶段 4 应用部署，尚未在本仓库 role 中引用）：
+#   .env.j2 模板示例：
+#     OSS_BUCKET={{ oss.bucket }}
+#     OSS_PREFIX={{ oss.prefix }}/
+# 引用语法：oss.bucket、oss.prefix（点号访问嵌套键）
+oss:
+  bucket: yzx-file-storage   # 主文件存储 Bucket
+  prefix: dev                # 环境前缀；对象路径形如 dev/uploads/xxx

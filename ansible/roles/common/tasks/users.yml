@@ -1,0 +1,206 @@
+# =============================================================================
+# Ansible Role Task 文件：common/users.yml
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Role「common」里的一段任务（tasks），专门负责：
+#     用户账号、sudo 权限、SSH 加固、deploy 公钥、应用目录
+#   属于 Bootstrap 阶段 1.2 的「后半段」，不负责装系统包或 Docker（那在 base.yml / docker role）。
+#
+# 【如何被调用 — 不要单独直接跑本文件】
+#   本文件不会自动执行。须由 playbook 按正确顺序引用：
+#
+#     ansible/playbooks/bootstrap.yml
+#       1. role: common, tasks_from: base    ← 时区、装包、关 ufw
+#       2. role: docker                      ← 安装 Docker，创建系统组 docker
+#       3. role: common, tasks_from: users   ← 本文件 
+#
+#   tasks_from: users 表示：只 import 本文件里的 task 列表，不跑 common/tasks/main.yml。
+#   common/tasks/main.yml 仅包含 base，刻意不自动 import users，避免 docker 未装时就建 deploy。
+#
+# 【Task 文件语法】
+#   顶层是一个 YAML 列表，每个元素是一个 task（以 `- name:` 开头）：
+#
+#     - name: 人类可读的任务描述（日志里显示）
+#       ansible.builtin.user:    # 「模块名」= 用什么能力
+#         name: deploy             # 模块参数（键值对）
+#         groups: "{{ ... }}"      # 双花括号 = Jinja2 模板，运行时替换为 inventory 变量
+#       when: 条件列表             # 全部条件为真才执行，否则 skipped
+#       loop: "{{ 列表变量 }}"    # 对列表每项循环执行一次
+#       tags: [common, bootstrap] # 供 --tags common 筛选
+#       notify: Reload sshd       # 若本 task changed，Play 末尾触发 handler
+#
+#   模块全名格式：集合.模块（如 ansible.builtin.user、ansible.posix.authorized_key）
+#   旧写法 user: / copy: 仍可用，本项目统一写全名便于阅读。
+#
+# 【变量来源】
+#   本文件引用的变量定义在 inventory：
+#     ansible/inventories/dev/group_vars/all/bootstrap.yml
+#       bootstrap_users、bootstrap_dirs、deploy_authorized_keys、ssh_phase
+#   Ansible 在执行每个 task 前，把 {{ ... }} 替换成 dev-01/dev-02 上的实际值。
+#
+# 【执行顺序设计】
+#   1. 断言 docker 组存在     → 防止 playbook 顺序错误导致 silent failure
+#   2. jump_ops（预留账号）    → 与 deploy 无依赖，可先建
+#   3. deploy + docker 组      → 依赖 docker role 已创建 docker 组
+#   4. sudoers                 → 依赖 deploy 用户已存在
+#   5. SSH 加固                → 会 reload sshd；放在有密钥通道之后更安全（bootstrap 期仍允许 root）
+#   6. authorized_keys         → 1.2 常为空；1.3 填入 CI 公钥
+#   7. 应用目录                → 依赖 deploy 用户已存在以便 chown
+#
+# 【与阶段 1.3 / SSH 稳态的关系】
+#   deploy_authorized_keys 默认 []，见 group_vars/all/ssh.yml
+#   若 ansible/keys/infra-ci-deploy.pub 存在，本文件首 task 自动合并到 deploy_authorized_keys
+#   ssh_phase: bootstrap → 模板允许 root + deploy 登录
+#   1.3 完成后：ssh-keys.sh steady → ssh_phase=steady，禁止 root
+#
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# Task 0：从仓库公钥文件合并 deploy_authorized_keys（1.3）
+# -----------------------------------------------------------------------------
+- name: Stat CI deploy public key file on controller
+  ansible.builtin.stat:
+    path: "{{ ssh_ci_pubkey_file }}"
+  delegate_to: localhost
+  run_once: true
+  register: ssh_ci_pubkey_stat
+  tags: [common, bootstrap, ssh, ssh_keys, always]
+
+- name: Merge CI deploy public key from file into deploy_authorized_keys
+  ansible.builtin.set_fact:
+    deploy_authorized_keys: >-
+      {{
+        (deploy_authorized_keys | default([]))
+        + [lookup('file', ssh_ci_pubkey_file) | trim]
+        if ssh_ci_pubkey_stat.stat.exists
+        else (deploy_authorized_keys | default([]))
+      }}
+  run_once: true
+  tags: [common, bootstrap, ssh, ssh_keys, always]
+
+# -----------------------------------------------------------------------------
+# Task 1：断言 docker 组已存在
+# -----------------------------------------------------------------------------
+# 模块：getent — 读取目标机 /etc/group 等系统数据库（不在此创建组）
+# 作用：若 bootstrap.yml 误把 users 排在 docker 之前，此处会 failed 并中止，避免 deploy 无 docker 组
+# when：两个条件都满足才检查（deploy 配置里确实要求加入 docker 组）
+#   - is defined   → 变量存在
+#   - 'docker' in ... → 字符串 docker 在 groups 列表中
+- name: Assert docker group exists before creating deploy user
+  ansible.builtin.getent:
+    database: group
+    key: docker
+  when:
+    - bootstrap_users.deploy.groups is defined
+    - "'docker' in bootstrap_users.deploy.groups"
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 2：创建 jump_ops 用户（预留，不可登录）
+# -----------------------------------------------------------------------------
+# 模块：user — 管理系统账号
+# system: true        → 系统用户（UID 通常较小，/etc/passwd 里常见 nologin 类账号）
+# create_home: false  → 不创建 /home/jump_ops
+# shell               → 来自 bootstrap_users.jump_ops.shell，即 /usr/sbin/nologin
+- name: Create jump_ops user
+  ansible.builtin.user:
+    name: jump_ops
+    system: true
+    shell: "{{ bootstrap_users.jump_ops.shell }}"
+    create_home: false
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 3：创建 deploy 用户（部署专用）
+# -----------------------------------------------------------------------------
+# groups: "{{ bootstrap_users.deploy.groups }}"  → 当前为 [docker]
+# append: true  → 追加到附加组，不覆盖用户已有主组（幂等、安全）
+# create_home: true → 创建 /home/deploy，后续 authorized_key 需要
+- name: Create deploy user
+  ansible.builtin.user:
+    name: deploy
+    shell: /bin/bash
+    groups: "{{ bootstrap_users.deploy.groups }}"
+    append: true
+    create_home: true
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 4：配置 deploy 的 sudo 权限（仅 Docker 相关）
+# -----------------------------------------------------------------------------
+# 模块：copy — 在目标机写入文件内容（非 template，无 Jinja2 渲染）
+# dest: /etc/sudoers.d/deploy  → sudo  drop-in 片段，主配置会 include 此目录
+# mode: "0440"  → 仅 root 可读写，其他用户不可改（sudoers 安全要求）
+# content: |    → YAML 多行字符串（保留换行），写入文件正文
+# validate       → 写前先跑 visudo -cf 临时文件，语法错误则拒绝写入，防止锁死 sudo
+# when           → bootstrap_users.deploy.sudo_docker 为 true 时才写
+# NOPASSWD       → deploy 执行指定命令无需输入密码（CI 自动化部署需要）
+# 只授权 /usr/bin/docker → docker compose 是其子命令，无需单独写 compose 路径
+- name: Configure deploy sudo for docker commands
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/deploy
+    owner: root
+    group: root
+    mode: "0440"
+    content: |
+      # docker compose 为 /usr/bin/docker 子命令，授权 docker 二进制即可
+      deploy ALL=(ALL) NOPASSWD: /usr/bin/docker
+      deploy ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart docker
+    validate: /usr/sbin/visudo -cf %s
+  when: bootstrap_users.deploy.sudo_docker | bool
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 5：安装 SSH 加固配置（drop-in）
+# -----------------------------------------------------------------------------
+# 模块：template — 用 Jinja2 模板渲染后写入目标机（与 copy 区别：支持 {% if %} 等）
+# src  相对于 role 的 templates/ 目录 → templates/sshd-dev-bootstrap.conf.j2
+# dest → /etc/ssh/sshd_config.d/99-dev-bootstrap.conf（sshd 自动加载 .conf.d）
+# validate → 写前 sshd -t 校验语法，避免错误配置导致 SSH 不可用
+# notify: Reload sshd → 本 task 若 changed，Play 结束时执行 handlers/main.yml 里的 Reload sshd
+#                        handler 只跑一次，多次 notify 同一 handler 也仅一次
+- name: Install SSH hardening drop-in
+  ansible.builtin.template:
+    src: sshd-dev-bootstrap.conf.j2
+    dest: /etc/ssh/sshd_config.d/99-dev-bootstrap.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f /etc/ssh/sshd_config
+  notify: Reload sshd
+  tags: [common, bootstrap, ssh, ssh_hardening]
+
+# -----------------------------------------------------------------------------
+# Task 6：写入 deploy 用户的 SSH 公钥
+# -----------------------------------------------------------------------------
+# 模块：authorized_key — 管理 ~/.ssh/authorized_keys
+# loop: "{{ deploy_authorized_keys }}" → 列表有几个公钥就执行几次；item 为当前项
+# when: length > 0 → 1.2 默认空列表 []，整 task skipped，不报错
+# 1.3：由 ssh.yml + ansible/keys/infra-ci-deploy.pub 或 ssh-keys.yml 注入
+- name: Configure deploy authorized keys
+  ansible.posix.authorized_key:
+    user: deploy
+    key: "{{ item }}"
+    state: present
+  loop: "{{ deploy_authorized_keys | default([]) | unique }}"
+  when: deploy_authorized_keys | default([]) | length > 0
+  tags: [common, bootstrap, ssh, ssh_keys]
+
+# -----------------------------------------------------------------------------
+# Task 7：创建应用与日志目录
+# -----------------------------------------------------------------------------
+# 模块：file — 管理文件/目录状态
+# state: directory → 确保目录存在（不存在则创建，存在则检查权限）
+# loop: "{{ bootstrap_dirs }}" → 每项含 path / owner / group / mode，见 bootstrap.yml 变量
+# owner/group: deploy → 后续 Compose 部署以 deploy 用户运行，目录需归 deploy 所有
+- name: Create application directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ bootstrap_dirs }}"
+  tags: [common, bootstrap]

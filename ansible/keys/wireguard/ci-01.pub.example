@@ -1,0 +1,4 @@
+# WireGuard Peer ci-01 公钥示例（单行 base64）
+# 真实文件：ci-01.pub（可提交 Git）
+# 生成：./scripts/wireguard/wg-keys.sh generate-peer ci-01
+pQrStUvW1234567890ExamplePeerPublicKeyReplaceMe=
