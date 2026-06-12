@@ -1,0 +1,106 @@
+# Dev ECS 主机 Bootstrap 规格（1.2）
+# 适用：dev-01, dev-02（Dev-02 重置后复用）
+schema_version: "1"
+phase: bootstrap
+target_os:
+  family: debian
+  version: "12"
+
+system:
+  locale: "en_US.UTF-8"           # 或 zh_CN.UTF-8，团队统一即可
+  timezone: "Asia/Shanghai"
+  ntp:
+    service: systemd-timesyncd     # Debian 12 默认；也可 chrony
+    expected: synchronized
+
+packages:
+  base:
+    - ca-certificates
+    - curl
+    - gnupg
+    - apt-transport-https
+    - software-properties-common
+    - sudo
+    - vim
+    - jq
+    - netcat-openbsd              # RDS/OSS 连通性验收
+  remove:                         # 重置后若有残留
+    - snapd                       # 可选
+
+users:
+  deploy:
+    groups: [docker]
+    shell: /bin/bash
+    home: /home/deploy
+    sudo:
+      # 仅 docker 相关；不含 apt、不含 NOPASSWD: ALL
+      commands:
+        - /usr/bin/docker
+        - /usr/bin/docker compose
+        - /usr/bin/systemctl restart docker
+    ssh_authorized_keys: []      # 1.3：ansible/keys/infra-ci-deploy.pub + ssh-keys.sh
+
+  jump_ops:
+    groups: []
+    shell: /usr/sbin/nologin       # 预留，本期不可登录
+    ssh_authorized_keys: []
+
+ssh:
+  # bootstrap 过渡态（1.2～1.3）；steady 目标态见 ssh_steady
+  phase: bootstrap
+  permit_root_login: "prohibit-password"
+  password_authentication: "no"
+  pubkey_authentication: "yes"
+  challenge_response: "no"
+  allow_users:
+    - root
+    - deploy
+  hardening:
+    max_auth_tries: 3
+    client_alive_interval: 300
+    client_alive_count_max: 2
+
+ssh_steady:
+  # 1.3 完成后生效
+  phase: steady
+  permit_root_login: "no"
+  allow_users:
+    - deploy
+
+docker:
+  install_method: official_apt_repo   # 禁止 snap / get.docker.com 裸脚本
+  edition: ce
+  compose: plugin                     # docker compose（v2 插件）
+  daemon:
+    log_driver: json-file
+    log_max_size: "10m"
+    log_max_file: "3"
+    live_restore: true
+
+directories:
+  - path: /opt/app
+    owner: deploy
+    group: deploy
+    mode: "0755"
+  - path: /opt/app/compose
+    owner: deploy
+    group: deploy
+    mode: "0750"
+  - path: /var/log/app
+    owner: deploy
+    group: deploy
+    mode: "0755"
+
+host_firewall:
+  ufw_enabled: false                  # 与 1.1 原则一致：安全组为主
+
+ram_role:
+  name: Dev-ECS-Role
+  attach_via: aliyun_console          # 1.2 控制台绑定，Ansible 只做 verify
+  verify:
+    metadata_url: "http://100.100.100.200/latest/meta-data/ram/security-credentials/"
+    expected_role: Dev-ECS-Role
+
+post_bootstrap:
+  bootstrap_status: bootstrap_done
+  next_step: "1.3 SSH keys — scripts/dev/ssh-keys.sh"
