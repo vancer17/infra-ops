@@ -158,7 +158,8 @@
 # 模块：template — 用 Jinja2 模板渲染后写入目标机（与 copy 区别：支持 {% if %} 等）
 # src  相对于 role 的 templates/ 目录 → templates/sshd-dev-bootstrap.conf.j2
 # dest → /etc/ssh/sshd_config.d/99-dev-bootstrap.conf（sshd 自动加载 .conf.d）
-# validate → 写前 sshd -t 校验语法，避免错误配置导致 SSH 不可用
+# validate → Ansible 要求命令含 %s（待写入的临时文件路径）。
+#   drop-in 片段不能单独 sshd -t -f %s，须短暂放入 sshd_config.d/ 后跑 sshd -t 测全配置。
 # notify: Reload sshd → 本 task 若 changed，Play 结束时执行 handlers/main.yml 里的 Reload sshd
 #                        handler 只跑一次，多次 notify 同一 handler 也仅一次
 - name: Install SSH hardening drop-in
@@ -168,7 +169,12 @@
     owner: root
     group: root
     mode: "0644"
-    validate: /usr/sbin/sshd -t -f /etc/ssh/sshd_config
+    validate: >-
+      bash -c 'cp %s /etc/ssh/sshd_config.d/.ansible-validate.tmp &&
+      /usr/sbin/sshd -t;
+      ec=$?;
+      rm -f /etc/ssh/sshd_config.d/.ansible-validate.tmp;
+      exit $ec'
   notify: Reload sshd
   tags: [common, bootstrap, ssh, ssh_hardening]
 
