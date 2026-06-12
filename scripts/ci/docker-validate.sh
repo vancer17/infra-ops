@@ -26,13 +26,29 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/ci/lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
-ci_require_cmd docker
-
 # 待校验的 compose 路径（相对描述名 → 用于日志）
 declare -A COMPOSE_TARGETS=(
   ["jumpserver/docker-compose.yml"]="${CI_REPO_ROOT}/jumpserver/docker-compose.yml"
   ["monitoring/docker-compose.yml"]="${CI_REPO_ROOT}/monitoring/docker-compose.yml"
 )
+
+# 先统计是否存在待校验文件；全无则跳过，不要求本机安装 docker
+# （Bootstrap 前 ECS 上常无 docker CLI，且仓库可能尚未添加 compose 文件）
+pending=0
+for label in jumpserver/docker-compose.yml monitoring/docker-compose.yml; do
+  if [[ -f "${COMPOSE_TARGETS[$label]}" ]]; then
+    pending=$((pending + 1))
+  fi
+done
+
+if [[ "${pending}" -eq 0 ]]; then
+  ci_skip "no compose files to validate (all optional paths missing)"
+  exit 0
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  ci_die "docker not found but ${pending} compose file(s) exist; install Docker CE or docker.io + compose plugin"
+fi
 
 validated=0
 
@@ -49,8 +65,4 @@ for label in jumpserver/docker-compose.yml monitoring/docker-compose.yml; do
   validated=$((validated + 1))
 done
 
-if [[ "${validated}" -eq 0 ]]; then
-  ci_skip "no compose files to validate (all optional paths missing)"
-else
-  ci_log "docker-validate OK (${validated} file(s))"
-fi
+ci_log "docker-validate OK (${validated} file(s))"
