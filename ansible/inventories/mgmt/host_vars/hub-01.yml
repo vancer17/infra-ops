@@ -1,0 +1,59 @@
+---
+# =============================================================================
+# host_vars/hub-01.yml — Hub-01 主机级 Inventory 变量
+# =============================================================================
+#
+# 【host_vars 是什么】
+#   仅对 inventory 中名为 hub-01 的这一台主机生效的变量。
+#   优先级高于 group_vars（同键名时 host_vars 覆盖 group_vars）。
+#
+# 【ansible_host 的计算逻辑】
+#   Ansible 通过 ansible_host 决定 SSH 连哪個 IP。Hub 的地址随网络阶段变化：
+#
+#   1. access_mode == wireguard 且 wg_ip 已规划
+#      → 使用 WG 地址（10.200.0.1），前提是隧道已建立且控制机已接入 WG
+#
+#   2. same_vpc_as_ci == true 且私网地址已登记（当前 Bootstrap 期）
+#      → 使用 ansible_host_internal（172.21.127.123）
+#      CI 替代机（ci-01）与 Hub 在同一 VPC，优先走私网，不经公网
+#
+#   3. 否则
+#      → 回退 ansible_host_from_ci（公网 121.43.49.58）
+#
+#   变量原料来自 group_vars/all/network.yml 的 mgmt_hosts['hub-01']。
+#
+# 【ansible_user】
+#   引用 group_vars/all/ssh.yml 的 ssh_inventory_user：
+#     bootstrap 期通常为 root（尚未分发 deploy 密钥）
+#     1.3 完成后改为 deploy
+#
+# 【资产来源】
+#   docs/assets/hub-01.yaml
+#
+# =============================================================================
+
+ansible_host: >-
+  {{
+    mgmt_hosts['hub-01'].wg_ip
+    if (
+      ci_connectivity.access_mode == 'wireguard'
+      and mgmt_hosts['hub-01'].wg_ip is not none
+    )
+    else (
+      mgmt_hosts['hub-01'].ansible_host_internal
+      if (
+        ci_connectivity.same_vpc_as_ci
+        and mgmt_hosts['hub-01'].private_ip is not none
+        and mgmt_hosts['hub-01'].ansible_host_internal is not none
+      )
+      else mgmt_hosts['hub-01'].ansible_host_from_ci
+    )
+  }}
+
+ansible_user: "{{ ssh_inventory_user | default('root') }}"
+
+# 与资产台账 lifecycle.bootstrap_status 对齐，供 playbook 条件与脚本读取
+bootstrap_status: "{{ mgmt_hosts['hub-01'].bootstrap_status | default('pending') }}"
+
+# Hub 是否为 WireGuard Server（供未来 wireguard role 判断 server/client 模式）
+wireguard_server: "{{ mgmt_hosts['hub-01'].wireguard_server | default(true) }}"

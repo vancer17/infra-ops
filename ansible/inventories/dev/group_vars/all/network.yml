@@ -1,0 +1,164 @@
+# =============================================================================
+# Ansible Inventory 变量文件：Dev 环境网络与连通性配置
+# =============================================================================
+#
+# 【这个文件是什么】
+#   group_vars/all 下的组变量，对 inventory 中所有 Dev 主机（dev-01、dev-02）生效。
+#   集中定义：IP 地址台账、CI 与 Dev 如何连通、安全组/RDS 白名单引用、
+#   应用端口、主机防火墙策略、RDS 连接信息。
+#
+# 【与 docs/assets/ 的关系（2026-06-08 资产台账修订）】
+#   人工台账权威来源：docs/assets/registry.yaml + docs/assets/<host>.yaml
+#   本文件是 Ansible 运行时的机器可读 SSOT，字段须与资产台账保持一致。
+#   修订流程：先改 docs/assets/ → 再同步本文件 → make inventory
+#
+# 【2026-06-08 网络事实变更】
+#   1. 原 CI 机 47.98.161.33 不可用 → 由 121.41.58.20（ci-01 / dev-01 同机）替代
+#   2. 原 Dev-02 121.40.245.68 不可用 → 由 112.124.104.223（dev-02 替代）承接
+#   3. 当前 4 台可用 ECS 均在同一 VPC vpc-bp1jmugctnhj97dbjyx31
+#      → same_vpc_as_dev: true，Ansible 优先使用 private_ip（ansible_host_internal）
+#   4. WireGuard 地址已规划，隧道尚未实施 → ci_access_mode 仍为 public（Bootstrap SSH）
+#
+# 【ansible_host 计算逻辑】
+#   见 host_vars/dev-*.yml：
+#     当 same_vpc_as_dev=true 且 private_ip、ansible_host_internal 均有值
+#       → 使用 ansible_host_internal（VPC 私网）
+#     否则
+#       → 使用 ansible_host_from_ci（通常为 public_ip）
+#   WG 实施后将 ci_access_mode 改为 wireguard，ansible_host_internal 改为 wg_ip
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# security_whitelist — 允许访问 Dev ECS 的来源 IP（与安全组入站规则对应）
+# -----------------------------------------------------------------------------
+# 2026-06-08：ci_public_ip 从已退役的 47.98.161.33 改为 CI 替代机 121.41.58.20
+# 修改后须同步 docs/security-groups/dev-ecs-bootstrap.rules.yaml
+security_whitelist:
+  ci_public_ip: "121.41.58.20/32"
+  ci_public_ip_legacy: "47.98.161.33/32"
+  ci_public_ip_legacy_status: retired
+  office_egress_ips:
+    - "115.195.216.251/32"
+  wireguard_cidr_future: "10.200.0.0/16"
+
+# -----------------------------------------------------------------------------
+# rds_whitelist — RDS 实例 IP 白名单（RDS 控制台配置，非 ECS 安全组）
+# -----------------------------------------------------------------------------
+# 规则：只加 ECS 私网 IP；dev-02 替代机已登记，Bootstrap 后确认连通性
+rds_whitelist:
+  group_name: dev-ecs
+  entries:
+    - host: dev-01
+      ip: "172.21.226.38/32"
+    - host: dev-02
+      ip: "172.21.127.124/32"
+      status: pending_bootstrap
+
+# -----------------------------------------------------------------------------
+# ci_connectivity — 控制机（CI）到 Dev 的网络关系
+# -----------------------------------------------------------------------------
+# same_vpc_as_dev: true
+#   当前 CI 替代机（121.41.58.20）与 dev-01 同 ECS，与 dev-02 同 VPC
+#   → inventory-check 允许 ansible_host 为 172.x 私网地址
+#
+# ci_access_mode: public
+#   Bootstrap 期仍通过公网 SSH 白名单；WG 完成后改为 wireguard
+#
+# ci_substitute：文档化字段，供 playbook/runbook 读取，不参与 ansible_host 计算
+ci_connectivity:
+  same_vpc_as_dev: true
+  ci_access_mode: public
+  ci_substitute:
+    planned_public_ip: "47.98.161.33"
+    current_public_ip: "121.41.58.20"
+    current_host: ci-01
+    colocated_with_dev: dev-01
+
+# -----------------------------------------------------------------------------
+# platform_hosts — 管理面节点（非 dev inventory 成员，供文档与后续 mgmt playbook）
+# -----------------------------------------------------------------------------
+# 与 dev_hosts 分离：hub-01、ci-01 不由 dev-01/dev-02 playbook 的 hosts: dev 管理
+# 字段结构与 dev_hosts 一致，便于将来 inventories/mgmt/ 复制
+platform_hosts:
+  hub-01:
+    public_ip: "121.43.49.58"
+    private_ip: "172.21.127.123"
+    wg_ip: "10.200.0.1"
+    role: hub
+    instance_id: "i-bp13u0d90uicmwrh4kb"
+    replaces_planned_ip: "47.97.19.58"
+    wireguard_server: true
+  ci-01:
+    public_ip: "121.41.58.20"
+    private_ip: "172.21.226.38"
+    wg_ip: "10.200.0.2"
+    role: ci
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    replaces_planned_ip: "47.98.161.33"
+    same_ecs_as: dev-01
+
+# -----------------------------------------------------------------------------
+# dev_hosts — Dev inventory 主机的网络台账（与 docs/assets/dev-*.yaml 对齐）
+# -----------------------------------------------------------------------------
+dev_hosts:
+  dev-01:
+    public_ip: "121.41.58.20"
+    private_ip: "172.21.226.38"
+    wg_ip: "10.200.1.1"
+    role: dev_app
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    # 跨 VPC 回退地址；同 VPC 时 host_vars 优先 internal
+    ansible_host_from_ci: "121.41.58.20"
+    ansible_host_internal: "172.21.226.38"
+    same_ecs_as_ci: true
+    bootstrap_status: bootstrap_done
+  dev-02:
+    public_ip: "112.124.104.223"
+    private_ip: "172.21.127.124"
+    wg_ip: "10.200.1.2"
+    role: dev_worker
+    instance_id: "i-bp17nu3p75waikdaquwr"
+    replaces_planned_public_ip: "121.40.245.68"
+    ansible_host_from_ci: "112.124.104.223"
+    ansible_host_internal: "172.21.127.124"
+    bootstrap_status: pending
+
+# -----------------------------------------------------------------------------
+# optional_hosts — 本期不纳入 dev inventory，仅作文档化（Test 等）
+# -----------------------------------------------------------------------------
+optional_hosts:
+  test-01:
+    public_ip: "116.62.228.105"
+    private_ip: "172.21.127.122"
+    wg_ip: "10.200.2.1"
+    role: test_app
+    instance_id: "i-bp1bs8vdr9ta7wi5kfgq"
+
+# -----------------------------------------------------------------------------
+# app_ports — Dev 环境应用监听端口
+# -----------------------------------------------------------------------------
+app_ports:
+  http: 80
+  https: 443
+  app: 8080
+
+# -----------------------------------------------------------------------------
+# host_firewall — 目标机 ufw 策略（Bootstrap 期不启用）
+# -----------------------------------------------------------------------------
+host_firewall:
+  enabled: false
+  note: "阶段 5 可评估是否启用 ufw"
+
+host_firewall_ufw_enabled: "{{ host_firewall.enabled }}"
+
+# -----------------------------------------------------------------------------
+# rds — 应用连接 RDS 的业务参数
+# -----------------------------------------------------------------------------
+rds:
+  host: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+  port: 3306
+  database: app_dev
+  user: app_dev

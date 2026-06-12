@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: docker
+  author: infra-ops
+  description: Install Docker CE and Compose plugin from official repository
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies: []

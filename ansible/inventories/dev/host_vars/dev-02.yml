@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# host_vars/dev-02.yml — Dev-02 主机级 Inventory 变量
+# =============================================================================
+#
+# ansible_host 计算逻辑（与 dev-01 相同）：
+#   1. ci_connectivity.same_vpc_as_dev = true 且私网地址已登记
+#      → 使用 ansible_host_internal（172.21.127.124），CI 替代机在同 VPC 内直连
+#   2. 否则回退 ansible_host_from_ci（公网 112.124.104.223）
+#
+# 资产来源：docs/assets/dev-02.yaml（替代原 121.40.245.68）
+# Bootstrap：pending — 阶段 1 尚未在本机执行
+#
+# =============================================================================
+ansible_host: >-
+  {{
+    dev_hosts['dev-02'].ansible_host_from_ci
+    if (
+      not ci_connectivity.same_vpc_as_dev
+      or dev_hosts['dev-02'].private_ip is none
+      or dev_hosts['dev-02'].ansible_host_internal is none
+    )
+    else dev_hosts['dev-02'].ansible_host_internal
+  }}
+ansible_user: "{{ ssh_inventory_user | default('root') }}"
+bootstrap_status: "{{ dev_hosts['dev-02'].bootstrap_status | default('pending') }}"

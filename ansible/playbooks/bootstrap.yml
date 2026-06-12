@@ -1,0 +1,173 @@
+# =============================================================================
+# Ansible Playbook：Dev ECS Bootstrap（阶段 1.2）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Playbook（剧本）= 一次 Ansible 运行的「任务编排清单」。
+#   与 inventory 的分工：
+#     inventory（group_vars / host_vars）→ 定义「参数是什么」
+#     playbook（本文件）                → 定义「对哪些机器、按什么顺序、做什么」
+#
+# 【Playbook 基本语法】
+#   文件顶层是一个「Play 列表」，每个 Play 以 `- name:` 开头，例如：
+#
+#     - name: 本 Play 的描述
+#       hosts: 目标主机或组名          # 来自 inventory/hosts.yml
+#       become: true                 # 是否 sudo 提权为 root
+#       gather_facts: true           # 是否先采集目标机信息（ansible_* 变量）
+#       pre_tasks: [...]             # 正式 role 之前执行
+#       roles: [...]                 # 引用 roles/ 下的可复用任务包
+#       post_tasks: [...]            # 正式 role 之后执行
+#
+#   每个 task 常见字段：
+#     name:     任务描述（必填，便于日志阅读）
+#     <module>: 模块名，如 apt、user、uri（模块即「做什么」）
+#     when:     条件表达式，为 false 时跳过（skipped）
+#     register: 把模块返回值存到变量，供后续 task 使用
+#     tags:     标签，用于 --tags / --skip-tags 选择性执行
+#     notify:   触发 handler（在 handlers/main.yml，Play 末尾执行）
+#
+# 【常用执行命令】
+#   # 对 dev-01 完整 Bootstrap（推荐入口脚本封装同样逻辑）
+#   ansible-playbook ansible/playbooks/bootstrap.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01
+#
+#   # 或
+#   ./scripts/dev/bootstrap.sh apply
+#
+#   # 控制台绑定 RAM 角色后，仅跑验收任务
+#   ansible-playbook ansible/playbooks/bootstrap.yml \
+#     -i ansible/inventories/dev/ --limit dev-01 \
+#     -e ram_role_verify=true --tags verify
+#
+#   # 1.3 SSH 密钥：scripts/dev/ssh-keys.sh all dev-01
+#   # 1.3 收紧 SSH：scripts/dev/ssh-keys.sh steady dev-01
+#
+#   # 预览变更、不真正修改（部分模块支持）
+#   ansible-playbook ... --check --diff
+#
+# 【变量来源（本 Playbook 不重复定义变量）】
+#   group_vars/all/bootstrap.yml  → 用户、目录、ssh_phase、ram_role_name …
+#   group_vars/all/network.yml    → host_firewall_ufw_enabled、rds …
+#   group_vars/all/main.yml       → timezone、locale …
+#   host_vars/dev-01.yml          → ansible_host、ansible_user
+#
+# 【执行顺序（刻意设计，不可打乱）】
+#   pre_tasks  → 版本断言、apt update
+#   common/base → 时区、装包、关 ufw
+#   docker      → 安装 Docker CE（创建 docker 系统组）
+#   common/users → 建 deploy 用户（需加入 docker 组）、SSH、目录
+#   post_tasks  → RAM / ufw 验收（条件触发）
+#
+#   ⚠ 若先 users 后 docker，deploy 用户无法加入尚不存在的 docker 组。
+#
+# 【目标主机 hosts: dev】
+#   对应 inventory/hosts.yml 中 dev 组（含 dev_app 的 dev-01、dev_worker 的 dev-02）。
+#   用 --limit dev-01 可只跑单台。
+#
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# Play 1：Bootstrap Dev ECS hosts
+# -----------------------------------------------------------------------------
+- name: Bootstrap Dev ECS hosts
+  # 目标组：inventory 里 dev 组下的所有主机（dev-01、dev-02）
+  hosts: dev
+  # become: true → 每个 task 默认以 sudo 执行
+  # Bootstrap 期 ansible_user 多为 root（见 host_vars），become 仍建议保留以便统一
+  become: true
+  # gather_facts: true → Play 开始前运行 setup 模块，采集 OS、IP、架构等到 ansible_* 变量
+  # 例如 ansible_distribution、ansible_distribution_major_version 供下方 assert 使用
+  gather_facts: true
+
+  # ---------------------------------------------------------------------------
+  # pre_tasks — 在 roles 之前执行的前置任务
+  # ---------------------------------------------------------------------------
+  # 用途：环境门禁、准备包索引；不带 tags 时每次 Play 都会跑
+  pre_tasks:
+    # assert 模块：条件不满足则 failed，整个 Play 中止
+    - name: Assert Debian 12
+      ansible.builtin.assert:
+        that:                              # 列表内全部表达式须为 true
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12   # | int 过滤器转整数比较
+        fail_msg: "Bootstrap 仅支持 Debian 12+"
+
+    # apt 模块：update_cache 只刷新索引，不升级包（升级由 role 内按需处理）
+    # cache_valid_time: 3600 → 1 小时内重复跑 Playbook 可跳过 update，加快幂等执行
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+  # ---------------------------------------------------------------------------
+  # roles — 可复用任务包，按书写顺序执行
+  # ---------------------------------------------------------------------------
+  # tasks_from：只执行该 role 下 tasks/<文件名>.yml，而非 tasks/main.yml 全文
+  # tags：可用 --tags bootstrap 只跑带此标签的任务
+  roles:
+    # ① 系统基线：时区、NTP、基础包、locale、禁用 ufw
+    #    变量：timezone/main.yml、bootstrap_base_packages、host_firewall_ufw_enabled
+  - role: common
+    tasks_from: base
+    tags: [common, bootstrap]
+
+    # ② Docker：官方 apt 源安装 docker-ce、compose 插件、配置 daemon.json
+    #    副作用：创建系统组 docker（deploy 用户稍后加入此组）
+  - role: docker
+    tags: [docker, bootstrap]
+
+    # ③ 用户与访问：jump_ops、deploy、sudoers、SSH drop-in、目录
+    #    内含 assert：docker 组必须已存在
+    #    变量：bootstrap_users、deploy_authorized_keys、ssh_phase、bootstrap_dirs
+  - role: common
+    tasks_from: users
+    tags: [common, bootstrap]
+
+  # ---------------------------------------------------------------------------
+  # post_tasks — roles 完成后的收尾与验收
+  # ---------------------------------------------------------------------------
+  # 带 tags: verify 的任务可用 --tags verify 单独执行
+  post_tasks:
+    # uri 模块：对目标机发起 HTTP 请求（此处请求本机元数据服务 100.100.100.200）
+    # 阿里云 ECS 绑定 RAM 角色后，该 URL 返回角色名；未绑定返回 404
+    #
+    # register: ram_meta → 后续可用 ram_meta.status、ram_meta.content
+    # when: 仅当 group_vars 中 ram_role_verify=true 或 -e ram_role_verify=true 时执行
+    # failed_when: 自定义失败条件（覆盖模块默认的 status 判断）
+    #   status_code: [200, 404] 允许 404 进入 register，再由 failed_when 判定失败
+    - name: Verify RAM role attached (Aliyun metadata)
+      ansible.builtin.uri:
+        url: http://100.100.100.200/latest/meta-data/ram/security-credentials/
+        return_content: true
+        status_code: [200, 404]
+      register: ram_meta
+      failed_when: >-
+        ram_meta.status != 200 or
+        (ram_meta.content | default('') | trim) != (ram_role_name | trim)
+      when: ram_role_verify | default(false) | bool
+      tags: [verify, bootstrap]
+
+    # stat 模块：检查远程文件是否存在，不修改系统
+    # 仅当策略为「不启用主机 ufw」时，才需要做后续 ufw 验收
+    - name: Check ufw binary exists
+      ansible.builtin.stat:
+        path: /usr/sbin/ufw
+      register: ufw_bin
+      when: not host_firewall_ufw_enabled | default(false) | bool
+      tags: [verify, bootstrap]
+
+    # command 模块：执行任意 shell 命令；changed_when: false 表示永不视为「已变更」
+    # 英文 locale 下 ufw status 输出含 "Status: active" 表示防火墙在生效 → 视为失败
+    # 若系统未安装 ufw（ufw_bin 不存在），本 task 与上一条一并跳过
+    - name: Ensure ufw is not enforcing rules
+      ansible.builtin.command: ufw status
+      register: ufw_check
+      changed_when: false
+      failed_when: "'Status: active' in ufw_check.stdout"
+      when:
+        - not host_firewall_ufw_enabled | default(false) | bool
+        - ufw_bin.stat.exists | default(false)
+      tags: [verify, bootstrap]

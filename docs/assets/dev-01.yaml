@@ -1,76 +1,92 @@
-# Dev-01 资产台账
-# 维护规则：公网 IP / 角色 / 环境 不变则不改；内网 IP、安全组 ID 以阿里云为准
+# =============================================================================
+# Dev-01 资产台账 — Dev 主应用节点
+# =============================================================================
+#
+# 【角色说明】
+#   Dev 环境主应用机：Web/API、Nginx 反代（应用层待业务栈确定后部署）。
+#
+# 【与 CI-01 同机】
+#   本台 ECS（控制台 yax）同时承担 ci-01 角色，见 ci-01.yaml 与 registry.yaml。
+#   字段 instance_id / public_ip / private_ip 与 ci-01 一致，勿填不同值。
+#
+# 【Inventory 对应】
+#   ansible/inventories/dev/hosts.yml → dev_app → dev-01
+#   network.yml → dev_hosts.dev-01
+#
+# =============================================================================
+
 schema_version: "1"
-updated_at: "2026-06-08"          # 末次台账修订日期
-updated_by: "郑尧元"
+updated_at: "2026-06-08"
+updated_by: "infra-ops"
 
 host:
   name: dev-01
   role: dev_app
   env: dev
-  description: "主应用 Web/API + Nginx 反代"
+  description: "主应用 Web/API + Nginx 反代（与 ci-01 同 ECS）"
 
-  # --- 阿里云 ECS ---
+  colocated_with: ci-01
+
   cloud:
     provider: aliyun
-    region: "cn-hangzhou"
-    instance_id: "i-bp14czvx1exdi6zmrt2r"
+    region: cn-hangzhou
+    instance_id: "i-bp14czvx1exdi6cmrt2r"
     instance_type: "ecs.s6-c1m2.2xlarge"
-    vpc_id: "vpc-bp1jmugctnhj97dxjyr31"
-    vswitch_id: "vsw-bp1th8ab5ibjii9me684i"
+    console_name: "yax"
+    vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
+    vswitch_id: "vsw-bp1th8ab5itjji9me684i"
+    zone: "杭州 可用区 K"
 
-  # --- 网络地址 ---
   network:
     public_ip: "121.41.58.20"
-    private_ip: "172.21.226.38"            # 重置后必查：ECS 详情 → 主私网 IP
-    eip_bound: true                      # 是否绑定弹性公网 IP
-    planned_wg_ip: "10.200.1.1"         # 阶段 5 启用
-    hostname: "iZbp14czvx1exdi6zmrt2rZ"
-    ci_same_vpc: false
-    ci_access_from: "public"             # CI 跨 VPC，Ansible/SSH 走公网
+    private_ip: "172.21.226.38"
+    eip_bound: true
+    bandwidth_mbps: 5
+    planned_wg_ip: "10.200.1.1"
+    hostname: null
+    # 2026-06-08 台账修订：CI 替代机与本机同 ECS，且均在 vpc-bp1jmugctnhj97dbjyx31
+    ci_same_vpc: true
+    ci_access_from: private
 
-  # --- 安全组 ---
   security_groups:
     bootstrap:
       - id: "sg-bp122tjy3h95um8kv4f9"
-        name: "sg-dev-ecs-bootstrap"
+        name: sg-dev-ecs-bootstrap
         attached_at: "2026-06-08"
         phase: bootstrap
         note: "Bootstrap 临时策略；WG 完成后迁移至 sg-dev-ecs-wg"
-    target:                              # 阶段 5 预填，本期不创建
+    target:
       - id: null
-        name: "sg-dev-ecs-wg"
+        name: sg-dev-ecs-wg
         phase: wireguard
 
-  # --- RAM（阶段 0.4 绑定，Bootstrap 前可先 null）---
   ram_role:
-    name: "Dev-ECS-Role"
-    attached: false                      # 绑定后改 true
+    name: Dev-ECS-Role
+    attached: false
 
-  # --- 关联依赖（1.1 同步记录，实际配置在各云产品控制台）---
   dependencies:
     rds:
-      instance: "rm-bp1wjjf373l7t331vno"
-      endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
-      whitelist_group: "dev-ecs"
-      whitelist_ip: "172.21.226.38/32"       # = private_ip，仅内网
+      instance: rm-bp1wjjf373l7t331vno
+      endpoint: rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com
+      whitelist_group: dev-ecs
+      whitelist_ip: "172.21.226.38/32"
     oss:
       buckets:
-        - name: "yzx-file-storage"
-          prefix: "dev/"
-        - name: "taoyouxiangzu"
-          prefix: "dev/"
+        - name: yzx-file-storage
+          prefix: dev/
+        - name: taoyouxiangzu
+          prefix: dev/
 
-  # --- Bootstrap 访问白名单（安全组规则的源 IP 引用）---
   access_whitelist:
-    ci_public_ip: "47.98.161.33/32"
+    ci_public_ip: "121.41.58.20/32"
+    ci_public_ip_legacy: "47.98.161.33/32"
+    ci_public_ip_legacy_status: retired
     office_egress_ips:
-      - "115.206.212.16/32"              # 可多条，每人/每地一条
+      - "115.195.216.251/32"
     note: "禁止 0.0.0.0/0 入站 SSH"
 
-  # --- 状态 ---
   lifecycle:
-    os: "Debian 12"
+    os: Debian 12
     reset_at: "2026-06-08"
-    bootstrap_status: "sg_done"          # pending | sg_done | bootstrap_done
+    bootstrap_status: bootstrap_done
     baota_installed: false

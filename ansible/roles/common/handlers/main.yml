@@ -1,0 +1,65 @@
+# =============================================================================
+# Ansible Role Handler：common 角色 — 变更后的「收尾动作」
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Role 下的 handlers/main.yml，定义 **Handler（处理器）** 任务列表。
+#   Handler 不是普通 task 那样逐步执行，而是：
+#     1. 由其他 task 通过 notify: <handler 名称> 触发
+#     2. 在当前 play 的**普通 task 全部跑完之后**才执行
+#     3. 同一 play 内多次 notify 同一 handler → **只执行一次**
+#
+# 【文件路径含义】
+#   ansible/roles/common/handlers/main.yml
+#                    ^^^^^^
+#                    handler 目录；Ansible 自动加载，无需在 playbook 里 import
+#
+# 【与普通 tasks 的区别】
+#   tasks/main.yml   → 「去做某事」（安装、写文件、建用户…）
+#   handlers/main.yml → 「某事改完后，需要重启/重载服务才生效」
+#
+#   典型场景：改了 sshd 配置文件 → 必须 reload ssh，新配置才会生效；
+#            但不应每改一次文件就 reload 一次，所以用 handler 延迟合并执行。
+#
+# 【本 role 中的触发链】
+#   tasks/users.yml
+#     └─ Install SSH hardening drop-in（template 模块写 sshd drop-in）
+#          notify: Reload sshd    ← 名称必须与下面 handler 的 name 完全一致
+#                ↓
+#   handlers/main.yml（本文件）
+#     └─ Reload sshd → systemd 模块 reload ssh 服务
+#
+# 【为什么用 reloaded 而不是 restarted】
+#   reloaded：重读配置，不断开已有 SSH 连接（适合 sshd）
+#   restarted：完全重启服务，可能中断当前 Ansible 使用的 SSH 会话
+#   Debian 12 上 OpenSSH 的 systemd 单元名是 ssh（不是 sshd）
+#
+# 【执行时机示意】
+#   Play 开始
+#     → pre_tasks
+#     → role common/base（时区、装包…）
+#     → role docker
+#     → role common/users
+#           → template 写 SSH 配置 → changed → 登记 notify Reload sshd
+#     → post_tasks
+#     → 【此时才执行】Reload sshd（若 template task 为 changed）
+#   Play 结束
+#
+# 【若 template 返回 ok（无变更）】
+#   notify 不会触发，handler 跳过 — 这是幂等设计的一部分。
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# Reload sshd — SSH 服务配置重载
+# -----------------------------------------------------------------------------
+# name：必须与 notify 字符串完全一致（大小写、空格均敏感）
+# module：ansible.builtin.systemd — 通过 systemd 管理 Linux 服务
+#   name: ssh       → Debian/Ubuntu 上 OpenSSH 服务单元名
+#   state: reloaded → 等价于 systemctl reload ssh（发送 SIGHUP，重读配置）
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: reloaded

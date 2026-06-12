@@ -35,6 +35,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 # CI 脚本目录（与 scripts/ci/lib/common.sh 中路径约定一致）
 SCRIPTS_CI := $(REPO_ROOT)/scripts/ci
+SCRIPTS_WG := $(REPO_ROOT)/scripts/wireguard
 
 # 本地工具路径：install-deps.sh 创建的 venv 与 gitleaks 安装目录
 VENV_BIN := $(REPO_ROOT)/.venv/bin
@@ -44,9 +45,10 @@ CI_TOOLS_BIN := $(REPO_ROOT)/.ci-tools/bin
 export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
 
 # .PHONY：声明这些 target 不对应同名文件，避免「文件已存在则跳过 recipe」
-.PHONY: help setup lint syntax inventory ci \
+.PHONY: help setup lint syntax inventory inventory-mgmt ci \
         yamllint shellcheck ansible-lint ansible-syntax \
-        docker-validate secret-scan
+        docker-validate secret-scan \
+        wg-keys-check wg-keys-list
 
 # -----------------------------------------------------------------------------
 # help — 默认目标；make 无参数时显示可用命令
@@ -62,6 +64,12 @@ help:
 	@echo "  make lint           yamllint + shellcheck + ansible-lint"
 	@echo "  make syntax         Ansible playbook --syntax-check + light inventory"
 	@echo "  make inventory      Dev inventory parse + cross-VPC ansible_host check"
+	@echo "  make inventory-mgmt Mgmt inventory parse (hub-01 ansible_host check)"
+	@echo ""
+	@echo "WireGuard keys (on CI machine with wireguard-tools):"
+	@echo "  make wg-keys-check   Check wg/ansible-vault deps"
+	@echo "  make wg-keys-list    List hub/peer key files status"
+	@echo "  See: docs/wireguard/wg-keys.runbook.md"
 	@echo ""
 	@echo "Individual checks (same as CI jobs):"
 	@echo "  make yamllint       YAML format (.yamllint.yml)"
@@ -126,6 +134,14 @@ inventory:
 	@echo "[make] inventory OK"
 
 # -----------------------------------------------------------------------------
+# inventory-mgmt — Mgmt inventory 解析与 Hub ansible_host 策略校验
+# -----------------------------------------------------------------------------
+# 修改 inventories/mgmt/ 后运行；对应 scripts/ci/inventory-check-mgmt.sh
+inventory-mgmt:
+	bash "$(SCRIPTS_CI)/inventory-check-mgmt.sh"
+	@echo "[make] inventory-mgmt OK"
+
+# -----------------------------------------------------------------------------
 # ci — 全量静态门禁（push / PR 前推荐）
 # -----------------------------------------------------------------------------
 # 对应 ci.yml 在 ci-gate 之前的全部 job，顺序见 scripts/ci/run-all.sh
@@ -142,3 +158,12 @@ docker-validate:
 
 secret-scan:
 	bash "$(SCRIPTS_CI)/secret-scan.sh"
+
+# -----------------------------------------------------------------------------
+# wg-keys — WireGuard 密钥脚本快捷入口（实机操作，非 make ci 一部分）
+# -----------------------------------------------------------------------------
+wg-keys-check:
+	bash "$(SCRIPTS_WG)/wg-keys.sh" check-deps
+
+wg-keys-list:
+	bash "$(SCRIPTS_WG)/wg-keys.sh" list

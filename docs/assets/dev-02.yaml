@@ -1,0 +1,90 @@
+# =============================================================================
+# Dev-02 资产台账 — Dev Worker 替代机
+# =============================================================================
+#
+# 【角色说明】
+#   企业原方案：121.40.245.68 作为 dev_worker（Redis、队列、Worker）。
+#   当前现实：原机器不可用；本台 launch-advisor-20260425 作为 **临时替代**。
+#
+# 【与 inventory 的关系】
+#   inventories/dev/hosts.yml 中 dev_worker 组 → dev-02
+#   network.yml dev_hosts.dev-02 须与本文件 IP 一致
+#
+# 【Bootstrap 状态】
+#   bootstrap_status: pending — 阶段 1 尚未在本机执行
+#
+# =============================================================================
+
+schema_version: "1"
+updated_at: "2026-06-08"
+updated_by: "infra-ops"
+
+host:
+  name: dev-02
+  role: dev_worker
+  env: dev
+  description: "Dev Worker / Redis / 队列（替代原 121.40.245.68）"
+
+  replacement:
+    replaces_planned_host: "121.40.245.68"
+    temporary: true
+
+  cloud:
+    provider: aliyun
+    region: cn-hangzhou
+    instance_id: "i-bp17nu3p75waikdaquwr"
+    instance_type: "ecs.u1-c1m2.large"
+    console_name: "launch-advisor-20260425"
+    vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
+    vswitch_id: "vsw-bp17r7fqjqzeb2lqbyque"
+    zone: "杭州 可用区 I"
+
+  network:
+    public_ip: "112.124.104.223"
+    private_ip: "172.21.127.124"
+    eip_bound: true
+    bandwidth_mbps: 5
+    planned_wg_ip: "10.200.1.2"
+    hostname: null
+    ci_same_vpc: true
+  # CI（121.41.58.20）与本机同 VPC → Ansible 优先用 private_ip 作为 ansible_host_internal
+
+  security_groups:
+    bootstrap:
+      - id: null
+        name: "sg-dev-ecs-bootstrap"
+        phase: bootstrap
+        note: "待绑定：与 dev-01 共用 sg-dev-ecs-bootstrap 规则模板"
+    target:
+      - id: null
+        name: "sg-dev-ecs-wg"
+        phase: wireguard
+
+  ram_role:
+    name: "Dev-ECS-Role"
+    attached: false
+
+  dependencies:
+    rds:
+      instance: "rm-bp1wjjf373l7t331vno"
+      endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+      whitelist_group: dev-ecs
+      whitelist_ip: "172.21.127.124/32"
+      whitelist_status: pending
+    oss:
+      buckets:
+        - name: yzx-file-storage
+          prefix: dev/
+        - name: taoyouxiangzu
+          prefix: dev/
+
+  access_whitelist:
+    ci_public_ip: "121.41.58.20/32"
+    office_egress_ips:
+      - "115.195.216.251/32"
+
+  lifecycle:
+    os: "Debian 12"
+    reset_at: null
+    bootstrap_status: pending
+    baota_installed: false

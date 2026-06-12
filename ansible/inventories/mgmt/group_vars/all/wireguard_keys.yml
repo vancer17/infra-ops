@@ -1,0 +1,57 @@
+# =============================================================================
+# Ansible Inventory 变量：WireGuard 密钥路径与保管策略（非机密）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   定义密钥文件在仓库中的**路径约定**与**保管规则**，供 wg-keys.sh 与未来的
+#   wireguard role 共同引用。不包含私钥明文。
+#
+# 【与 wireguard.yml 的分工】
+#   wireguard.yml      → 隧道参数（地址、端口、Peer 列表、hub_public_key）
+#   wireguard_keys.yml → 本文件：文件路径、vault 文件名、生成命令文档
+#
+# 【私钥三条路径（Hub）】
+#   1. ansible/keys/wireguard/hub.private     本地明文，gitignore，运维备份
+#   2. group_vars/all/wireguard_vault.yml     ansible-vault 加密，提交 Git
+#   3. Hub /etc/wireguard/wg0.conf            wireguard-hub playbook 部署后落盘
+#
+# 【维护】
+#   生成密钥：./scripts/wireguard/wg-keys.sh generate-hub
+#   同步公钥：./scripts/wireguard/wg-keys.sh sync-inventory
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# wireguard_keys — 路径常量（相对仓库根目录）
+# -----------------------------------------------------------------------------
+wireguard_keys:
+  # 密钥目录；*.private gitignore，*.pub 可提交
+  directory: ansible/keys/wireguard
+
+  hub:
+    private_file: ansible/keys/wireguard/hub.private
+    public_file: ansible/keys/wireguard/hub.pub
+    # Ansible Vault 加密文件（wireguard_vault.hub_private_key）
+    vault_file: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml
+    vault_example: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml.example
+
+  peer:
+    # Peer 公钥命名：ansible/keys/wireguard/<name>.pub
+    public_file_pattern: "ansible/keys/wireguard/{name}.pub"
+    private_file_pattern: "ansible/keys/wireguard/{name}.private"
+
+  # 生成脚本入口（文档化，供 playbook 注释或运维手册引用）
+  generator_script: scripts/wireguard/wg-keys.sh
+
+  # 私钥是否允许出现在 Git 明文（恒为 false）
+  allow_plaintext_private_in_git: false
+
+# -----------------------------------------------------------------------------
+# wireguard_vault — 由 vault/wireguard.yml 解密后注入的变量名（role 消费者）
+# -----------------------------------------------------------------------------
+# 实施 wireguard-hub.yml 时，playbook 通过 vars_files 或 include_vars 加载
+# vault 文件，解密后可用 wireguard_vault.hub_private_key。
+# 当前阶段仅建立 vault 文件，enabled 仍为 false。
+wireguard_vault_var_prefix: wireguard_vault

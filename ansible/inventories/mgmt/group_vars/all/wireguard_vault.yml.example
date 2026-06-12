@@ -1,0 +1,25 @@
+# =============================================================================
+# Ansible Vault 示例：WireGuard Hub 私钥（明文结构参考 — 勿直接提交本文件）
+# =============================================================================
+#
+# 【如何使用】
+#   1. ./scripts/wireguard/wg-keys.sh generate-hub
+#   2. ./scripts/wireguard/wg-keys.sh vault-encrypt-hub
+#      生成已加密的 wireguard_vault.yml（同目录，无 .example 后缀）
+#   3. 仅提交加密后的 wireguard_vault.yml
+#
+# 【自动加载】
+#   文件位于 group_vars/all/ 且经 ansible-vault 加密后，ansible-playbook 在提供
+#   --vault-password-file 时会自动解密并注入 wireguard_vault.* 变量。
+#
+# 【解密查看】
+#   ansible-vault view ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml \
+#     --vault-password-file .vault_pass
+#
+# =============================================================================
+
+wireguard_vault:
+  hub_private_key: "REPLACE_WITH_BASE64_PRIVATE_KEY_FROM_hub.private"
+  hub_public_key: "REPLACE_WITH_BASE64_PUBLIC_KEY_FROM_hub.pub"
+  key_version: 1
+  generated_by: wg-keys.sh

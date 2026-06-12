@@ -1,0 +1,94 @@
+# =============================================================================
+# Ansible Role 入口文件：common 角色 — tasks/main.yml
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Role（角色）的**默认任务入口**。路径约定：
+#
+#     ansible/roles/<角色名>/tasks/main.yml
+#                    ^^^^^^       ^^^^^^^^
+#                    common       无 tasks_from 时 Ansible 自动执行此文件
+#
+#   Role 是可复用的任务包；Playbook 通过 roles: 引用，避免把几十条 task 全写在 playbook 里。
+#
+# 【Role 目录结构（common 角色）】
+#
+#     roles/common/
+#     ├── tasks/
+#     │   ├── main.yml    ← 本文件：默认入口（仅 base）
+#     │   ├── base.yml    系统基线（时区、包、locale、ufw）
+#     │   └── users.yml   用户、sudo、SSH、目录（依赖 docker 组）
+#     ├── templates/      Jinja2 模板（如 sshd-dev-bootstrap.conf.j2）
+#     ├── handlers/main.yml   被 notify 触发（如 Reload sshd）
+#     └── meta/main.yml       角色元数据（名称、最低 Ansible 版本）
+#
+# 【main.yml 与 base.yml / users.yml 的关系】
+#
+#   本文件**只** import base.yml，**不** import users.yml。
+#
+#   原因：users.yml 会创建 deploy 用户并加入 docker 组；
+#         docker 组由 docker 角色安装 Docker CE 时才创建。
+#         若 main.yml 把 base + users 串在一起，有人写：
+#
+#           roles:
+#             - common          # 未指定 tasks_from → 跑 main.yml
+#             - docker          # 顺序反了或漏 docker
+#
+#         会在 docker 组不存在时失败，或 deploy 进不了 docker 组。
+#
+# 【Bootstrap 实际路径】
+#
+#   playbooks/bootstrap.yml **不执行本 main.yml**，而是用 tasks_from 点名文件：
+#
+#     roles:
+#       - role: common
+#         tasks_from: base      # 直接跑 base.yml，跳过 main.yml
+#       - role: docker
+#       - role: common
+#         tasks_from: users     # 直接跑 users.yml，跳过 main.yml
+#
+#   因此完整 Bootstrap 顺序由 **playbook 编排**，不由 main.yml 编排。
+#   main.yml 是「单独引用 common 角色」时的安全默认行为。
+#
+# 【import_tasks 语法说明】
+#
+#     - name: Apply base system configuration    # task 在日志中的显示名（必填）
+#       ansible.builtin.import_tasks: base.yml  # 把同目录下 base.yml 中所有 task 静态嵌入此位置
+#
+#   - import_tasks vs include_tasks：
+#       import_tasks  → 编译期静态展开，不可循环、不可 when 包裹整个文件（Ansible 2.4+）
+#       include_tasks → 运行期动态加载，可配合 when、loop
+#     此处用 import_tasks 即可，因 base.yml 始终要在 role 入口执行。
+#
+#   - 路径：base.yml 与 main.yml 同在 tasks/ 下，故写文件名即可，无需相对路径。
+#
+# 【变量来源】
+#
+#   本 role 不定义变量，全部来自 inventory group_vars：
+#     bootstrap.yml → bootstrap_base_packages、host_firewall_ufw_enabled …
+#     main.yml      → timezone、locale
+#     network.yml   → host_firewall（经 host_firewall_ufw_enabled 派生）
+#
+# 【本 main.yml 执行时机】
+#
+#   | 调用方式                              | 实际执行的 task 文件        |
+#   |---------------------------------------|-----------------------------|
+#   | roles: [common]                       | main.yml → 仅 base.yml      |
+#   | role: common, tasks_from: base        | 仅 base.yml（跳过 main）    |
+#   | role: common, tasks_from: users       | 仅 users.yml（跳过 main）   |
+#   | bootstrap.yml 完整流程                | base → docker → users       |
+#
+# 【tags 说明】
+#
+#   main.yml 自身未写 tags；base.yml 内各 task 带有 tags: [common, bootstrap]。
+#   执行 ansible-playbook ... --tags common 时，仅运行带 common 标签的 task。
+#
+# =============================================================================
+
+---
+# 将 base.yml 中的任务静态导入为当前 role 的一部分（时区、NTP、基础包、locale、ufw）
+- name: Apply base system configuration
+  ansible.builtin.import_tasks: base.yml
+
+# 故意不在此 import users.yml — 见文件顶部说明。
+# 用户/SSH/目录任务请通过 playbooks/bootstrap.yml 在 docker role 之后 tasks_from: users 调用。

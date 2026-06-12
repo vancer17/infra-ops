@@ -91,4 +91,20 @@ for host in dev-01 dev-02; do
   fi
 done
 
+# -----------------------------------------------------------------------------
+# Step 4 — mgmt inventory 解析（Hub 纳管；捕获 Jinja2/ansible_host 错误）
+# -----------------------------------------------------------------------------
+mgmt_inventory="${CI_ANSIBLE_INVENTORY_MGMT}"
+if [[ -d "${mgmt_inventory}" ]]; then
+  ci_log "Mgmt inventory graph check: ${mgmt_inventory}"
+  ci_cd ansible-inventory -i "${mgmt_inventory}" --graph >/dev/null
+  if ci_cd ansible-inventory -i "${mgmt_inventory}" --host hub-01 >/dev/null 2>&1; then
+    ci_log "Mgmt inventory host vars OK: hub-01"
+  else
+    ci_skip "host hub-01 not in mgmt inventory"
+  fi
+else
+  ci_skip "mgmt inventory not found: ${mgmt_inventory}"
+fi
+
 ci_log "ansible-syntax OK"

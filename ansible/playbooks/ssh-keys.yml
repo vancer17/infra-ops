@@ -1,0 +1,236 @@
+# =============================================================================
+# Ansible Playbook：Dev SSH 密钥体系（阶段 1.3）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   专门负责「CI 机 ↔ Dev ECS」的 SSH 密钥配置，是 Bootstrap（1.2）之后的独立步骤。
+#   与 bootstrap.yml 的分工：
+#     bootstrap.yml  → 装系统、Docker、建 deploy 用户、目录（1.2）
+#     ssh-keys.yml   → 把 CI 公钥写入 deploy，再可选收紧 sshd（1.3）
+#
+# 【为什么拆成两个 Play】
+#   Play 1（distribute）：仍用 root 连接，因为首次写入 deploy 的 authorized_keys
+#                         需要 root 权限（deploy 自己还不能 SSH 上来改自己的密钥）。
+#   Play 2（steady）    ：deploy 已能登录后，用 root 最后一次改 sshd 配置，
+#                         把 PermitRootLogin 设为 no；reload 后 root 永久不可 SSH。
+#
+# 【Playbook 基本语法】
+#
+#     - name: Play 的人类可读描述
+#       hosts: dev                    # inventory 中的组名（dev-01、dev-02 都在 dev 组）
+#       become: true                  # 每个 task 默认 sudo 成 root 执行
+#       gather_facts: true/false     # 是否先跑 setup 模块采集 OS 信息
+#       tags: [distribute]            # 供 --tags distribute 只跑本 Play
+#       vars:                        # Play 级变量，覆盖 inventory 中的同名变量
+#         ansible_user: root
+#       pre_tasks: [...]             # role 之前的前置任务
+#       roles: [...]                 # 引用 ansible/roles/ 下的 role
+#       post_tasks: [...]            # role 之后的验收任务
+#
+#   单个 task 常见字段：
+#     name:       日志里显示的任务名
+#     <module>:   模块及参数（如 ansible.builtin.stat、ansible.builtin.assert）
+#     register:   把模块返回值存进变量，后续 task 用 {{ 变量名.xxx }}
+#     when:       条件为 false 时跳过（显示 skipped）
+#     delegate_to: localhost         # 在控制机（你跑 ansible 的 CI 机）上执行，不在远程 ECS
+#     run_once: true                 # 多主机时只执行一次（结果通过 set_fact 共享给组内主机）
+#
+# 【常用执行命令】
+#   # 推荐：脚本封装完整流程（generate / distribute / verify / steady）
+#   ./scripts/dev/ssh-keys.sh all dev-01
+#   ./scripts/dev/ssh-keys.sh steady dev-01
+#
+#   # 仅分发公钥（Play 1）
+#   ansible-playbook ansible/playbooks/ssh-keys.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01 \
+#     --tags distribute
+#
+#   # 仅收紧 SSH（Play 2；执行前务必确认 deploy@ 能登录）
+#   ansible-playbook ansible/playbooks/ssh-keys.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01 \
+#     --tags steady \
+#     -e ssh_phase=steady
+#
+# 【变量来源】
+#   group_vars/all/ssh.yml       → ssh_ci_pubkey_file、deploy_authorized_keys_extra、ssh_phase …
+#   group_vars/all/bootstrap.yml → bootstrap_users（users role 仍会读）
+#   host_vars/dev-01.yml         → ansible_host（连哪台、哪个 IP）
+#
+#   公钥文件路径（inventory 中定义）：
+#     ssh_ci_pubkey_file = ansible/inventories/dev/../../keys/infra-ci-deploy.pub
+#     由 scripts/dev/ssh-keys.sh generate 生成
+#
+# 【与 roles/common/tasks/users.yml 的关系】
+#   本 playbook 通过 `role: common, tasks_from: users` 只跑 users.yml 里的任务。
+#   users.yml 会：
+#     1. 若 .pub 文件存在，合并到 deploy_authorized_keys
+#     2. authorized_key 模块写入 /home/deploy/.ssh/authorized_keys
+#     3. template 模块写 /etc/ssh/sshd_config.d/99-dev-bootstrap.conf（受 ssh_phase 控制）
+#   distribute 阶段 ssh_phase 默认为 bootstrap（仍允许 root）；
+#   steady 阶段 Play 2 显式设置 ssh_phase: steady（禁止 root）。
+#
+# 【前置条件】
+#   - 1.2 bootstrap.yml 已跑完（deploy 用户、/home/deploy 已存在）
+#   - ansible/keys/infra-ci-deploy.pub 已存在（ssh-keys.sh generate）
+#   - 当前仍能用 root SSH 登录目标机（steady 之前）
+#
+# =============================================================================
+
+---
+
+# =============================================================================
+# Play 1：Distribute — 分发 CI 公钥到 deploy 用户
+# =============================================================================
+# tags: [distribute]
+#   执行 `ansible-playbook ... --tags distribute` 时只跑带此 tag 的 Play/task。
+#   steady Play 带 tags: [steady]，不会被 distribute 触发。
+#
+# vars.ansible_user: root
+#   覆盖 host_vars 里的 ssh_inventory_user。
+#   1.3 分发阶段必须用 root，因为 deploy 还没有 authorized_keys，无法 SSH 登录。
+# =============================================================================
+- name: Distribute deploy SSH public key (1.3)
+  hosts: dev
+  become: true
+  gather_facts: true
+  tags: [distribute]
+  vars:
+    ansible_user: root
+
+  # ---------------------------------------------------------------------------
+  # pre_tasks — 在 role 之前：读公钥、校验环境、准备变量
+  # ---------------------------------------------------------------------------
+  pre_tasks:
+    # -------------------------------------------------------------------------
+    # Task：检查控制机上的公钥文件是否存在
+    # -------------------------------------------------------------------------
+    # stat 模块：查看文件/目录元数据（是否存在、权限、大小等），不修改文件。
+    # delegate_to: localhost → 在「跑 ansible 的机器」（CI 机）上 stat，不是 Dev ECS。
+    # run_once: true → dev 组有多台时也只查一次（公钥文件在 CI 仓库里只有一份）。
+    # register → 结果存入 ssh_ci_pubkey_stat，后面用 ssh_ci_pubkey_stat.stat.exists
+    - name: Stat CI deploy public key file
+      ansible.builtin.stat:
+        path: "{{ ssh_ci_pubkey_file }}"
+      delegate_to: localhost
+      run_once: true
+      register: ssh_ci_pubkey_stat
+
+    # assert 模块：条件列表全部为 true 则继续，否则 failed 并中止整个 Play。
+    # fail_msg → 失败时打印的提示（引导用户先跑 ssh-keys.sh generate）。
+    - name: Fail if CI deploy public key file is missing
+      ansible.builtin.assert:
+        that:
+          - ssh_ci_pubkey_stat.stat.exists
+        fail_msg: >-
+          Missing {{ ssh_ci_pubkey_file }}.
+          Run: ./scripts/dev/ssh-keys.sh generate
+      run_once: true
+
+    # set_fact 模块：设置/覆盖 Ansible 变量（仅在本次 Playbook 运行期间有效）。
+    # lookup('file', path) → 读取控制机本地文件内容为字符串。
+    # | trim → Jinja2 过滤器，去掉首尾空白和换行。
+    # [ ... ] + list → 把公钥文件内容包成单元素列表，再与 extra 公钥列表拼接。
+    # deploy_authorized_keys_extra → 可在 ssh.yml 里追加个人应急密钥。
+    # run_once: true → 变量设置一次后，同 Play 内所有 dev 主机都能用到。
+    - name: Load deploy authorized keys from file and extras
+      ansible.builtin.set_fact:
+        deploy_authorized_keys: >-
+          {{
+            [lookup('file', ssh_ci_pubkey_file) | trim]
+            + (deploy_authorized_keys_extra | default([]))
+          }}
+      run_once: true
+
+    # gather_facts: true 已在 Play 级开启，此处可直接用 ansible_distribution 等变量。
+    # | int → 把版本号字符串转成整数再比较（避免 "12" 与 12 类型问题）。
+    - name: Assert Debian 12
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "SSH key setup only supports Debian 12+"
+
+    # getent 模块：读目标机系统数据库（passwd/group 等），不创建用户。
+    # 若 deploy 不存在（1.2 未跑），getent 会 failed，避免在错误状态下写密钥。
+    - name: Assert deploy user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: deploy
+
+  # ---------------------------------------------------------------------------
+  # roles — 调用 common role 的 users 任务文件
+  # ---------------------------------------------------------------------------
+  # tasks_from: users → 只执行 roles/common/tasks/users.yml，不跑 tasks/main.yml。
+  # users.yml 内 authorized_key task 会读取上面的 deploy_authorized_keys 写入远程。
+  roles:
+    - role: common
+      tasks_from: users
+
+  # ---------------------------------------------------------------------------
+  # post_tasks — role 完成后的验收（确保公钥已写入）
+  # ---------------------------------------------------------------------------
+  post_tasks:
+    # slurp 模块：读取远程文件并以 base64 编码返回（适合读二进制或小文本）。
+    # register.content → base64 字符串，需 b64decode 才能当普通文本用。
+    - name: Read deploy authorized_keys
+      ansible.builtin.slurp:
+        src: /home/deploy/.ssh/authorized_keys
+      register: deploy_authkeys_slurp
+
+    # 验收逻辑：
+    #   OpenSSH 公钥格式：「类型 base64主体 注释」，例如 ssh-ed25519 AAAA... comment
+    #   .split()[1] → 取第二段（base64 主体），在 authorized_keys 文件内容里 search。
+    #   is search(...) → Jinja2 测试子串是否存在。
+    # 比整行精确匹配更稳（authorized_keys 里可能有 options 前缀）。
+    - name: Verify deploy authorized_keys contains CI public key
+      ansible.builtin.assert:
+        that:
+          - (deploy_authkeys_slurp.content | b64decode) is search(
+              (lookup('file', ssh_ci_pubkey_file) | trim).split()[1]
+            )
+        fail_msg: "CI public key not found in /home/deploy/.ssh/authorized_keys"
+
+# =============================================================================
+# Play 2：Steady — 收紧 SSH，禁止 root 登录
+# =============================================================================
+# 危险操作：执行成功后 root 无法再 SSH，只能靠 deploy@ + 私钥登录。
+# 务必先在外部验证：ssh -i ansible/keys/infra-ci-deploy deploy@<host>
+#
+# gather_facts: false → 本 Play 不需要 ansible_distribution，跳过 setup 加快速度。
+# vars.ssh_phase: steady → 传给 users.yml 里的 sshd 模板，生成 PermitRootLogin no。
+# =============================================================================
+- name: Apply steady SSH hardening (post 1.3)
+  hosts: dev
+  become: true
+  gather_facts: false
+  tags: [steady]
+  vars:
+    ansible_user: root
+    ssh_phase: steady
+
+  pre_tasks:
+    # 防止误跑 steady 却忘记 -e ssh_phase=steady（inventory 默认仍是 bootstrap）。
+    - name: Assert steady phase requested
+      ansible.builtin.assert:
+        that:
+          - ssh_phase == 'steady'
+        fail_msg: "steady play requires ssh_phase=steady"
+
+  roles:
+    # users.yml 里「Install SSH hardening drop-in」task 会 template 重写 sshd drop-in，
+    # 并 notify Reload sshd → handlers/main.yml 执行 systemctl reload ssh。
+    - role: common
+      tasks_from: users
+
+  post_tasks:
+    # command 模块：在远程执行 shell 命令（无专用模块时的兜底）。
+    # grep -Fq → 固定字符串、安静模式，在 sshd drop-in 里找 PermitRootLogin no。
+    # changed_when: false → 验收命令不应标记为「已变更」（否则 idempotency 报告混乱）。
+    # failed_when: rc != 0 → grep 没找到则 Play failed。
+    - name: Verify sshd drop-in disallows root login
+      ansible.builtin.command: grep -Fq 'PermitRootLogin no' /etc/ssh/sshd_config.d/99-dev-bootstrap.conf
+      register: sshd_root_check
+      changed_when: false
+      failed_when: sshd_root_check.rc != 0

@@ -1,0 +1,70 @@
+# =============================================================================
+# Ansible Role 元数据：common 角色（meta/main.yml）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   这是 Ansible Role 的「元数据 / 清单文件」，路径固定为：
+#     roles/<角色名>/meta/main.yml
+#   它 **不会** 在目标 ECS 上执行任何命令，也 **不会** 直接改变服务器配置。
+#   主要用途：
+#     1. 描述角色是谁写的、做什么、需要什么 Ansible 版本（galaxy_info）
+#     2. 声明角色依赖（dependencies），Ansible 会在本 role 之前自动跑依赖 role
+#     3. 若发布到 Ansible Galaxy，供他人搜索与安装
+#     4. ansible-lint 等工具用 schema 校验本文件格式是否合法
+#
+# 【Role 是什么】
+#   Role = 一组可复用的 Ansible 任务包。common 角色负责 Dev ECS 的「通用基线」：
+#     - tasks/base.yml   时区、NTP、基础包、locale、ufw
+#     - tasks/users.yml  用户、sudo、SSH 加固、目录、authorized_keys
+#     - tasks/main.yml   默认只 import base（完整 Bootstrap 见 playbook 编排）
+#     - handlers/        sshd reload 等
+#     - templates/       sshd 配置 Jinja2 模板
+#
+# 【与 inventory 里 group_vars 的区别】
+#   group_vars/all/bootstrap.yml  → 变量（装什么包、用户名、目录路径）
+#   roles/common/tasks/*.yml      → 任务（怎么装、怎么建用户）
+#   roles/common/meta/main.yml    → 角色说明书 + 依赖关系（不装软件）
+#
+# 【本角色在 Bootstrap 中如何被调用】
+#   playbooks/bootstrap.yml 并未简单写 `- role: common`，而是分两次、指定子任务文件：
+#     1. role: common, tasks_from: base   ← 在 docker 之前
+#     2. role: docker
+#     3. role: common, tasks_from: users ← 在 docker 之后（deploy 需要 docker 组）
+#   因此 meta/main.yml 里的 dependencies 当前为空；顺序由 **playbook 显式控制**。
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# galaxy_info — 发布到 Ansible Galaxy 或供工具识别时的「包信息」
+# -----------------------------------------------------------------------------
+# 即使不发布到公网 Galaxy，也建议填写：ansible-lint 的 schema[meta] 规则会校验必填项。
+# 本地私有 role 同样受益（CI 门禁、团队可读性）。
+galaxy_info:
+  # role 的逻辑名称；与目录名 common 一致，playbook 里 role: common 即引用此目录
+  role_name: common
+  # 作者/维护方标识；ansible-lint 要求存在 author 字段
+  author: infra-ops
+  description: Dev ECS base system, users, SSH, and directories
+  #  SPDX 许可证；私有仓库常用 MIT，与仓库根 LICENSE 对齐即可
+  license: MIT
+  # 最低 Ansible 版本；低于此版本运行可能因模块/语法不兼容而失败
+  min_ansible_version: "2.14"
+
+# -----------------------------------------------------------------------------
+# dependencies — 本 role 依赖的其他 role（执行顺序）
+# -----------------------------------------------------------------------------
+# 类型：列表；每项可写 role 名，或带 version 的 Galaxy 坐标。
+# 为空 [] 表示：common 不自动拉取其他 role，playbook 负责编排顺序。
+#
+# 示例（当前未使用，仅说明）：
+#   dependencies:
+#     - role: docker              # 若写这里，跑 common 前会先跑 docker
+#     - role: geerlingguy.docker
+#       version: "7.0.0"
+#
+# 为何 Bootstrap 保持 []：
+#   deploy 用户必须在 docker 组存在 **之后** 才创建，但 base 又必须在 docker **之前**。
+#   同一 role 无法同时依赖 docker 又先于 docker，故由 bootstrap.yml 拆分 tasks_from。
+dependencies: []

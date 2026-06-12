@@ -1,0 +1,144 @@
+# =============================================================================
+# Ansible Role 任务文件：common 角色 — 系统基础配置（base）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Role（角色）里的一组 Task（任务），不是 Playbook。
+#   路径：ansible/roles/common/tasks/base.yml
+#                      ^^^^^  ^^^^^
+#                      角色名  任务文件名（可任意，由 playbook 指定 tasks_from）
+#
+# 【如何被调用】
+#   bootstrap.yml 不直接 import 本文件，而是通过 role 机制：
+#
+#     roles:
+#       - role: common
+#         tasks_from: base          # 只执行 base.yml，跳过 common/tasks/main.yml
+#         tags: [common, bootstrap]
+#
+#   common/tasks/main.yml 仅 import base.yml，不含 users.yml；
+#   users.yml 在 docker role 之后单独 tasks_from 调用（deploy 依赖 docker 组）。
+#
+# 【执行时机】
+#   pre_tasks（Debian 断言、apt update）
+#       ↓
+#   本文件 base.yml（时区、包、locale、ufw）
+#       ↓
+#   docker role（安装 Docker，创建 docker 组）
+#       ↓
+#   common/users.yml（用户、SSH、目录）
+#       ↓
+#   post_tasks（RAM/ufw 验收）
+#
+# 【Task 文件语法】
+#   顶层是「任务列表」，每项以 `- name:` 开头：
+#
+#     - name: 人类可读描述（日志里显示，建议写清楚）
+#       <模块名>:
+#         参数: 值
+#       tags: [标签1, 标签2]    # 可选
+#       when: 条件表达式         # 可选，false → skipped
+#       failed_when: false       # 可选，强制把失败当成功（慎用）
+#
+#   模块名带命名空间，表示来自哪个集合：
+#     ansible.builtin.*     → Ansible 内置（apt、systemd、user…）
+#     community.general.*   → community.general 集合（timezone、ufw、locale_gen…）
+#
+#   变量 "{{ var }}" 来自 inventory group_vars（main.yml、bootstrap.yml、network.yml）
+#   或 gather_facts 产生的 ansible_* 变量。
+#
+# 【依赖的 inventory 变量】
+#   timezone                  ← group_vars/all/main.yml（Asia/Shanghai）
+#   locale                    ← main.yml（en_US.UTF-8）
+#   bootstrap_base_packages   ← bootstrap.yml（apt 包列表）
+#   host_firewall_ufw_enabled ← network.yml（派生自 host_firewall.enabled）
+#
+# 【幂等性】
+#   每个 task 设计为可重复执行：已是期望状态时返回 ok（无 changed），
+#   连续跑两次 bootstrap 不应因本文件报错。
+#
+# =============================================================================
+
+---
+# -----------------------------------------------------------------------------
+# Task 1：设置系统时区
+# -----------------------------------------------------------------------------
+# 模块：community.general.timezone（需 ansible-galaxy collection install community.general）
+# 变量：timezone ← main.yml，当前为 Asia/Shanghai
+# 行为：写 /etc/timezone，并调用 timedatectl 生效
+# 结果：首次 changed，之后 ok
+- name: Set timezone
+  community.general.timezone:
+    name: "{{ timezone }}"
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 2：启用 NTP 时间同步
+# -----------------------------------------------------------------------------
+# 模块：ansible.builtin.systemd — 管理系统服务（非 Docker 的 systemd）
+# 服务：systemd-timesyncd（Debian 12 默认 NTP 客户端）
+# enabled: true  → 开机自启
+# state: started → 当前立即启动
+# 验收：timedatectl 应显示 System clock synchronized: yes
+- name: Ensure systemd-timesyncd is enabled
+  ansible.builtin.systemd:
+    name: systemd-timesyncd
+    enabled: true
+    state: started
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 3：安装 Bootstrap 基础软件包
+# -----------------------------------------------------------------------------
+# 模块：ansible.builtin.apt — Debian/Ubuntu 包管理
+# name: "{{ bootstrap_base_packages }}" — 列表整体传入，apt 模块支持一次装多个包
+# state: present — 确保已安装；不会强制升级到最新版（升级由 apt upgrade 策略决定）
+# 注意：列表中含 locales，供下一 task locale_gen 使用；含 netcat 供 verify 脚本测 RDS
+- name: Install bootstrap base packages
+  ansible.builtin.apt:
+    name: "{{ bootstrap_base_packages }}"
+    state: present
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 4：生成并启用系统 locale
+# -----------------------------------------------------------------------------
+# 模块：community.general.locale_gen — 调用 locale-gen 机制
+# 变量：locale ← main.yml（en_US.UTF-8）
+# 依赖：Task 3 已安装 locales 包
+# 作用：避免容器/应用日志乱码；与 LANG 环境一致
+- name: Configure system locale
+  community.general.locale_gen:
+    name: "{{ locale }}"
+    state: present
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 5：移除 snapd（可选清理）
+# -----------------------------------------------------------------------------
+# 模块：ansible.builtin.apt，state: absent — 卸载
+# snapd：Debian 最小镜像有时预装；Bootstrap 规范用 apt/Docker，不用 snap
+# failed_when: false — 若本未安装 snapd，卸载「失败」也视为成功，不中断 playbook
+- name: Remove optional packages
+  ansible.builtin.apt:
+    name: snapd
+    state: absent
+  failed_when: false
+  tags: [common, bootstrap]
+
+# -----------------------------------------------------------------------------
+# Task 6：关闭主机 ufw（与云安全组策略对齐）
+# -----------------------------------------------------------------------------
+# 模块：community.general.ufw — 管理 Uncomplicated Firewall
+# when: not host_firewall_ufw_enabled | bool
+#   → 仅当 network.yml 中 host_firewall.enabled 为 false 时执行
+#   → | bool 把 false/0/"false" 等统一成布尔，避免字符串误判
+# state: disabled — 关闭 ufw；Bootstrap 期以阿里云安全组为主，避免双重防火墙规则冲突
+# failed_when: false — 若系统未安装 ufw，disable 可能报错，不阻断整体 Bootstrap
+# 补充：playbook post_tasks 还会检查 ufw 非 active（若 ufw 二进制存在）
+- name: Disable ufw when host firewall is disabled
+  community.general.ufw:
+    state: disabled
+  when: not host_firewall_ufw_enabled | bool
+  failed_when: false
+  tags: [common, bootstrap]

@@ -1,0 +1,59 @@
+# =============================================================================
+# Test-01 资产台账 — Test 环境预留（本期可选纳入 WG）
+# =============================================================================
+#
+# 【角色说明】
+#   企业原方案：116.62.228.105 作为 Test-01，与 RDS 同区域。
+#   当前现实：机器可用，但 Test inventory / Bootstrap **本期不做**。
+#
+# 【与 Dev 资产台账的关系】
+#   纳入 registry.yaml 便于 VPC / WG 规划一览；不修改 inventories/dev/
+#   后续增加 inventories/test/ 时，从此文件迁移字段。
+#
+# =============================================================================
+
+schema_version: "1"
+updated_at: "2026-06-08"
+updated_by: "infra-ops"
+
+host:
+  name: test-01
+  role: test_app
+  env: test
+  description: "Test 主应用节点（预留，本期不 Bootstrap）"
+
+  cloud:
+    provider: aliyun
+    region: cn-hangzhou
+    instance_id: "i-bp1bs8vdr9ta7wi5kfgq"
+    instance_type: "ecs.g6.large"
+    console_name: "显物"
+    vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
+    vswitch_id: "vsw-bp17r7fqjqzeb2lqbyque"
+    zone: "杭州 可用区 I"
+
+  network:
+    public_ip: "116.62.228.105"
+    private_ip: "172.21.127.122"
+    eip_bound: true
+    bandwidth_mbps: 5
+    planned_wg_ip: "10.200.2.1"
+    ci_same_vpc: true
+
+  security_groups:
+    bootstrap:
+      - id: null
+        name: null
+        phase: not_assigned
+        note: "Test 安全组待 Test 阶段单独规划"
+
+  dependencies:
+    rds:
+      instance: "rm-bp1wjjf373l7t331vno"
+      endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+      note: "历史关联 RDS；Test 库 test 待创建"
+
+  lifecycle:
+    os: unknown
+    bootstrap_status: not_in_scope
+    wireguard_optional_this_phase: true
