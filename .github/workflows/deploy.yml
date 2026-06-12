@@ -46,7 +46,7 @@ env:
 jobs:
   deploy:
     name: Deploy to ${{ inputs.environment }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, dev, aliyun]
     environment: ${{ inputs.environment }}
 
     steps:
@@ -85,7 +85,7 @@ jobs:
       - name: Build ansible-playbook command
         id: build_cmd
         run: |
-          CMD="ansible-playbook ${{ inputs.playbook }} -i inventory/hosts.yml"
+          CMD="ansible-playbook ${{ inputs.playbook }} -i ansible/inventories/dev/"
           CMD="$CMD -e target_env=${{ inputs.environment }}"
 
           if [ -f .vault_pass ]; then

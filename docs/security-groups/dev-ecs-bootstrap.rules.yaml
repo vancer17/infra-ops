@@ -1,0 +1,134 @@
+# Dev ECS Bootstrap 阶段安全组规则
+# 适用：dev-01, dev-02（Dev-02 重置后同样绑定 sg-dev-ecs-bootstrap）
+schema_version: "1"
+phase: bootstrap
+security_group:
+  name: sg-dev-ecs-bootstrap
+  id: sg-bp122tjy3h95um8kv4f9
+  description: "Dev ECS Bootstrap 临时策略；WG 完成后废弃公网 22"
+  region: cn-hangzhou
+  vpc_id: vpc-bp1jmugctnhj97dxjyr31
+
+rules:
+  inbound:
+    - id: IN-SSH-CI
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "47.98.161.33/32"
+      description: "Bootstrap-CI-Ansible-SSH"
+      expires_at_phase: wireguard       # 阶段 5 删除
+
+    - id: IN-SSH-OFFICE
+      priority: 2
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "115.206.212.16/32"
+      description: "Bootstrap-Office-SSH-Temporary"
+      expires_at_phase: wireguard
+
+    - id: IN-HTTP-OFFICE
+      priority: 10
+      policy: accept
+      protocol: tcp
+      port_range: "80/80"
+      source: "115.206.212.16/32"
+      description: "Bootstrap-Dev-HTTP"
+      expires_at_phase: wireguard
+
+    - id: IN-HTTPS-OFFICE
+      priority: 11
+      policy: accept
+      protocol: tcp
+      port_range: "443/443"
+      source: "115.206.212.16/32"
+      description: "Bootstrap-Dev-HTTPS"
+      expires_at_phase: wireguard
+
+    - id: IN-APP-OFFICE
+      priority: 12
+      policy: accept
+      protocol: tcp
+      port_range: "8080/8080"           # 按技术栈改：Node 3000、Java 8080
+      source: "115.206.212.16/32"
+      description: "Bootstrap-Dev-App-Port"
+      expires_at_phase: wireguard
+
+    - id: IN-HTTP-CI
+      priority: 13
+      policy: accept
+      protocol: tcp
+      port_range: "80/80"
+      source: "47.98.161.33/32"
+      description: "Bootstrap-CI-HTTP-HealthCheck"
+      expires_at_phase: wireguard
+
+    - id: IN-HTTPS-CI
+      priority: 14
+      policy: accept
+      protocol: tcp
+      port_range: "443/443"
+      source: "47.98.161.33/32"
+      description: "Bootstrap-CI-HTTPS-HealthCheck"
+      expires_at_phase: wireguard
+
+    - id: IN-APP-CI
+      priority: 15
+      policy: accept
+      protocol: tcp
+      port_range: "8080/8080"
+      source: "47.98.161.33/32"
+      description: "Bootstrap-CI-App-HealthCheck"
+      expires_at_phase: wireguard
+
+    # 仅 CI 与 Dev 同 VPC 时启用；当前跨 VPC，控制台勿添加此规则
+    - id: IN-SSH-CI-PRIVATE
+      enabled: false
+      applicable_when:
+        ci_same_vpc_as_dev: true
+      priority: 3
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "<CI 私网 IP/32>"
+      description: "Bootstrap-CI-Private-SSH"
+      expires_at_phase: wireguard
+      optional: true
+
+    # 同 VPC 内 Dev-02 → Dev-01（应用后期内网互访，Bootstrap 可先不加）
+    - id: IN-APP-DEV-SUBNET
+      priority: 20
+      policy: accept
+      protocol: tcp
+      port_range: "8080/8080"
+      source: "<Dev 网段 CIDR>"         # 如 10.0.1.0/24 或 10.200.1.0/24
+      description: "Dev-Subnet-App-Internal"
+      optional: true
+
+  outbound:
+    - id: OUT-ALL
+      priority: 1
+      policy: accept
+      protocol: all
+      port_range: "-1/-1"
+      destination: "0.0.0.0/0"
+      description: "Bootstrap-Allow-All-Egress"
+
+  # 显式禁止项（文档约束，阿里云默认 deny，此处作审计清单）
+  implicit_deny:
+    - "禁止 0.0.0.0/0 入站 22"
+    - "禁止 0.0.0.0/0 入站应用端口"
+    - "禁止删除 outbound 导致无法拉镜像/RDS/OSS"
+
+# RDS 白名单（非 ECS 安全组，但属于 1.1 同步动作）
+rds_whitelist:
+  group_name: dev-ecs
+  entries:
+    - ip: "172.21.226.38/32"
+      host: dev-01
+      note: "仅内网，不加公网 IP"
+    - ip: null
+      host: dev-02
+      status: pending

@@ -1,0 +1,42 @@
+# =============================================================================
+# requirements-dev.in — 本地 / CI 静态检查 Python 依赖（人工维护的「源约束」）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   定义 infra-ops 仓库静态质量检查所需的 Python 包及版本范围。
+#   这是 uv 锁定的「输入」；不要在此文件里写精确 patch 版本。
+#
+# 【与 requirements-dev.txt 的关系】
+#   requirements-dev.in  →  你改这里（加包、放宽/收紧主版本）
+#   requirements-dev.txt   →  uv pip compile 自动生成，含全部传递依赖的精确版本
+#
+# 【如何更新锁定文件】
+#   1. 编辑本文件（增删包或调整版本范围）
+#   2. 在仓库根目录执行：
+#        ./scripts/ci/compile-requirements.sh
+#      或手动：
+#        uv pip compile requirements-dev.in -o requirements-dev.txt \
+#          --python-version 3.12 --annotation-style line
+#      （--python-version 3.12 与 .github/workflows/ci.yml 中 PYTHON_VERSION 一致）
+#   3. 提交 requirements-dev.in 与 requirements-dev.txt 一并 PR
+#
+# 【不在此文件中的依赖】
+#   - Ansible Galaxy collections → ansible/requirements.yml（install-deps.sh 单独安装）
+#   - gitleaks CLI               → 二进制，install-deps.sh profile gitleaks 下载
+#   - shellcheck / docker          → 系统包或 GitHub Action，非 pip
+#
+# 【消费者】
+#   - scripts/ci/install-deps.sh  → uv pip sync / pip install -r requirements-dev.txt
+#   - 本地 make setup（若已添加）   → 同上
+#   - GitHub Actions ci.yml       → 各 job 调用 install-deps.sh
+#
+# =============================================================================
+
+# YAML 格式检查（scripts/ci/yamllint.sh）
+yamllint>=1.35.0,<2
+
+# Ansible 核心 + Playbook 语法检查（scripts/ci/ansible-syntax.sh）
+ansible>=9.10.0,<10
+
+# Ansible 规范检查（scripts/ci/ansible-lint.sh；会连带安装 ansible，上条可视为下限对齐）
+ansible-lint>=24.12.0,<26
