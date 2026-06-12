@@ -62,6 +62,11 @@
 #
 #   ⚠ 若先 users 后 docker，deploy 用户无法加入尚不存在的 docker 组。
 #
+# 【同名 role 引用两次】
+#   common 先后以 tasks_from: base / users 各执行一次。Ansible 默认对同名 role
+#   去重（只跑第一次），须在第二次引用上设置 allow_duplicates: true，否则
+#   users.yml（jump_ops、deploy、目录、SSH）不会执行。
+#
 # 【目标主机 hosts: dev】
 #   对应 inventory/hosts.yml 中 dev 组（含 dev_app 的 dev-01、dev_worker 的 dev-02）。
 #   用 --limit dev-01 可只跑单台。
@@ -124,6 +129,7 @@
       #    变量：bootstrap_users、deploy_authorized_keys、ssh_phase、bootstrap_dirs
     - role: common
       tasks_from: users
+      allow_duplicates: true
       tags: [common, bootstrap]
 
   # ---------------------------------------------------------------------------
