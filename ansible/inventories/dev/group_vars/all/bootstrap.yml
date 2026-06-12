@@ -63,6 +63,7 @@ bootstrap_base_packages:
   - jq                   # 脚本/调试解析 JSON
   - netcat-openbsd       # nc，verify 测 RDS:3306
   - locales              # 与 main.yml 中 locale 配合
+  - systemd-timesyncd    # NTP 客户端（阿里云最小镜像常未预装）
 
 # -----------------------------------------------------------------------------
 # bootstrap_users — 操作系统账号定义

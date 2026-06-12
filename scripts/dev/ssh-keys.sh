@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
-# Dev ECS SSH 密钥体系（阶段 1.3）：generate → distribute → verify → known-hosts → steady
+# =============================================================================
+# ECS SSH 密钥体系（阶段 1.3）：generate → distribute → verify → steady
+# =============================================================================
+#
+# 支持 dev 与 mgmt inventory（ANSIBLE_INVENTORY）。
+# distribute/steady 在同机部署时自动追加 ansible_connection=local。
+#
+# =============================================================================
+
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -8,8 +16,11 @@ PLAYBOOK="${ROOT}/ansible/playbooks/ssh-keys.yml"
 KEY_DIR="${ROOT}/ansible/keys"
 PRIVATE_KEY="${KEY_DIR}/infra-ci-deploy"
 PUBLIC_KEY="${KEY_DIR}/infra-ci-deploy.pub"
-KEY_COMMENT="${SSH_CI_KEY_COMMENT:-infra-ci-deploy@47.98.161.33}"
+KEY_COMMENT="${SSH_CI_KEY_COMMENT:-infra-ci-deploy@121.41.58.20}"
 LIMIT="${ANSIBLE_LIMIT:-dev-01}"
+
+# shellcheck source=scripts/dev/lib/inventory-resolve.sh
+source "${ROOT}/scripts/dev/lib/inventory-resolve.sh"
 
 SSH_OPTS=(
   -o BatchMode=yes
@@ -29,53 +40,33 @@ Commands:
   known-hosts   输出 GitHub Secret ANSIBLE_SSH_KNOWN_HOSTS 内容
   github-hints  输出 GitHub Secrets 配置说明（私钥勿提交 Git）
   steady        收紧 SSH（禁止 root），并切换 inventory 为 deploy 用户
-  mark-done     更新台账 bootstrap_status / ssh_keys_configured（可选）
+  mark-done     更新台账 bootstrap_status（可选）
   all           preflight → distribute → verify → known-hosts → github-hints
 
 Environment:
   ANSIBLE_INVENTORY   默认 ansible/inventories/dev/
   ANSIBLE_LIMIT       默认 dev-01
-  SSH_CI_KEY_COMMENT  公钥注释，默认 infra-ci-deploy@47.98.161.33
+  SSH_CI_KEY_COMMENT  公钥注释
 
 Examples:
   $(basename "$0") generate
   $(basename "$0") all dev-01
-  $(basename "$0") steady dev-01
+  ANSIBLE_INVENTORY=ansible/inventories/mgmt/ $(basename "$0") all hub-01
 EOF
 }
 
-inventory_host_json() {
-  ansible-inventory -i "$INVENTORY" --host "$LIMIT" 2>/dev/null
-}
-
 host_var() {
-  local key="$1"
-  inventory_host_json | python3 -c "
-import json, sys
-data = json.load(sys.stdin)
-key = '''${key}'''
-val = data
-for part in key.split('.'):
-    if isinstance(val, dict):
-        val = val.get(part, '')
-    else:
-        val = ''
-        break
-if isinstance(val, bool):
-    print(str(val).lower())
-elif isinstance(val, (dict, list)):
-    print(json.dumps(val))
-elif val is None:
-    print('')
-else:
-    print(val)
-"
+  resolve_inventory_var "$INVENTORY" "$LIMIT" "$1"
 }
 
 resolve_ansible_host() {
   local host
   host="$(host_var ansible_host)"
   [[ -n "$host" ]] || { echo "ERROR: cannot resolve ansible_host for ${LIMIT}"; exit 1; }
+  [[ "$host" != *"{{"* ]] || {
+    echo "ERROR: ansible_host not rendered for ${LIMIT}" >&2
+    exit 1
+  }
   echo "$host"
 }
 
@@ -83,6 +74,10 @@ resolve_ansible_user() {
   local user
   user="$(host_var ansible_user)"
   echo "${user:-root}"
+}
+
+ssh_yml_file() {
+  echo "${INVENTORY%/}/group_vars/all/ssh.yml"
 }
 
 asset_file() {
@@ -96,7 +91,7 @@ check_bootstrap_done() {
     echo "WARN: missing ${asset}; ensure step 1.2 bootstrap completed"
     return 0
   fi
-  if ! grep -qE 'bootstrap_status: "(bootstrap_done|sg_done)"' "$asset"; then
+  if ! grep -qE 'bootstrap_status:\s*"? *(bootstrap_done|sg_done)"?' "$asset"; then
     echo "WARN: ${LIMIT} may not have completed 1.2 (bootstrap_status not bootstrap_done/sg_done)"
   fi
 }
@@ -118,17 +113,30 @@ cmd_generate() {
 
 cmd_preflight() {
   check_bootstrap_done
-  command -v ansible-playbook >/dev/null || { echo "ERROR: ansible-playbook not found"; exit 1; }
+  command -v ansible-playbook >/dev/null || { echo "ERROR: ansible-playbook not found" >&2; exit 1; }
+  command -v ansible >/dev/null 2>&1 || { echo "ERROR: ansible not found; run: make setup" >&2; exit 1; }
   [[ -f "$PUBLIC_KEY" ]] || { echo "ERROR: missing ${PUBLIC_KEY}; run: $(basename "$0") generate"; exit 1; }
 
-  echo "Root SSH probe: root@${host_ip} (limit=${LIMIT})"
-  ssh "${SSH_OPTS[@]}" "root@${host_ip}" 'id deploy >/dev/null && echo deploy user OK'
+  local host_ip
+  host_ip="$(resolve_ansible_host)"
+
+  if is_colocated_target "$host_ip"; then
+    echo "Colocated: checking deploy user locally (limit=${LIMIT})"
+    id deploy >/dev/null && echo "deploy user OK"
+  else
+    echo "Root SSH probe: root@${host_ip} (limit=${LIMIT})"
+    ssh "${SSH_OPTS[@]}" "root@${host_ip}" 'id deploy >/dev/null && echo deploy user OK'
+  fi
   echo "preflight OK"
 }
 
 cmd_distribute() {
+  local -a colocated_args=()
+  mapfile -t colocated_args < <(ansible_colocated_extra_args "$INVENTORY" "$LIMIT" "$@")
+
   ansible-galaxy collection install -r "${ROOT}/ansible/requirements.yml" --force-with-deps 2>/dev/null || true
-  ansible-playbook "$PLAYBOOK" -i "$INVENTORY" --limit "$LIMIT" --tags distribute "$@"
+  ansible-playbook "$PLAYBOOK" -i "$INVENTORY" --limit "$LIMIT" --tags distribute \
+    "${colocated_args[@]}" "$@"
   echo "distribute OK (limit=${LIMIT})"
 }
 
@@ -138,7 +146,8 @@ cmd_verify() {
   host_ip="$(resolve_ansible_host)"
 
   echo "Deploy SSH probe: deploy@${host_ip}"
-  ssh "${SSH_OPTS[@]}" -i "$PRIVATE_KEY" "deploy@${host_ip}" 'whoami && id && test -d /opt/app/compose'
+  ssh "${SSH_OPTS[@]}" -i "$PRIVATE_KEY" "deploy@${host_ip}" \
+    'whoami && id && (test -d /opt/app/compose || test -d /opt/mgmt)'
   echo "verify OK"
 }
 
@@ -175,7 +184,8 @@ EOF
 update_ssh_yml() {
   local key="$1"
   local value="$2"
-  local file="${ROOT}/ansible/inventories/dev/group_vars/all/ssh.yml"
+  local file
+  file="$(ssh_yml_file)"
   python3 - "$file" "$key" "$value" <<'PY'
 import pathlib, re, sys
 path, key, value = sys.argv[1:4]
@@ -191,8 +201,12 @@ PY
 }
 
 cmd_steady() {
+  local -a colocated_args=()
+  mapfile -t colocated_args < <(ansible_colocated_extra_args "$INVENTORY" "$LIMIT" "$@")
+
   cmd_verify
-  ansible-playbook "$PLAYBOOK" -i "$INVENTORY" --limit "$LIMIT" --tags steady -e ssh_phase=steady "$@"
+  ansible-playbook "$PLAYBOOK" -i "$INVENTORY" --limit "$LIMIT" --tags steady \
+    -e ssh_phase=steady "${colocated_args[@]}" "$@"
   update_ssh_yml "ssh_phase" "steady"
   update_ssh_yml "ssh_inventory_user" "deploy"
   update_ssh_yml "ssh_keys_configured" "true"
