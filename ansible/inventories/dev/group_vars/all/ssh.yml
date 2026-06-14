@@ -14,6 +14,11 @@
 # 【执行入口】
 #   ./scripts/dev/ssh-keys.sh generate
 #   ./scripts/dev/ssh-keys.sh all dev-01
+#   ./scripts/dev/ssh-keys.sh steady dev-01
+#
+# 【阶段 B 完成态（2026-06-14）】
+#   与 hub-01 共用 infra-ci-deploy；ci-01 与 dev-01 同 ECS，steady 后 Ansible 用 deploy。
+#   控制面环境：scripts/dev/setup-control-plane-env.sh all
 #
 # =============================================================================
 
@@ -32,19 +37,17 @@ ssh_ci_private_key_file: "{{ inventory_dir }}/../../keys/infra-ci-deploy"
 # 额外公钥（如个人应急密钥）；与文件公钥合并后写入 deploy authorized_keys
 deploy_authorized_keys_extra: []
 
-# Ansible inventory 连接用户：1.2/1.3 分发前为 root；verify 通过后改为 deploy
-ssh_inventory_user: root
+# Ansible 连接用户（steady 后固定 deploy）
+ssh_inventory_user: deploy
 
 # 默认空列表；1.3 由 infra-ci-deploy.pub 或 playbook 注入
 deploy_authorized_keys: []
 
 # SSH 加固阶段，见 roles/common/templates/sshd-dev-bootstrap.conf.j2
-# bootstrap：允许 root+deploy 密钥登录（过渡）
-# steady   ：仅 deploy，禁止 root（1.3 verify 后执行 ssh-keys.sh steady）
-ssh_phase: bootstrap
+ssh_phase: steady
 
-# 1.3 完成标记；steady 成功后 scripts 可改为 true
-ssh_keys_configured: false
+# 1.3 完成（与 hub-01 mgmt/ssh.yml 对齐）
+ssh_keys_configured: true
 
 # GitHub Actions deploy.yml 使用的 Secret 名称（文档化，非 Ansible 变量消费）
 github_secrets:

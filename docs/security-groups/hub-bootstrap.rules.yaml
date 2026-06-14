@@ -6,20 +6,26 @@
 #   Ansible Bootstrap 优先使用 Hub 私网 172.21.127.123 → 须放行 CI 私网 SSH
 #   须与 docs/assets/hub-01.yaml、inventories/mgmt/group_vars/all/network.yml 一致
 #
+# 【2026-06-14 控制台事实】
+#   Hub 实例当前绑定与 Dev 相同的安全组 id：sg-bp122tjy3h95um8kv4f9
+#   （控制台名称可能为 sg-dev-ecs-bootstrap）。
+#   UDP 51820 规则已合并写入 dev-ecs-bootstrap.rules.yaml（IN-WG-*），
+#   绑定该 id 的 Hub 与 Dev 共享同一套入站规则。
+#
 # 【控制台操作】
-#   1. 创建安全组 sg-hub-bootstrap（或复用现有组并记录 id）
-#   2. 绑定到实例 i-bp13u0d90uicmwrh4kb
-#   3. 将 security_group.id 回填 hub-01.yaml
+#   若将来 Hub 独立建组：创建 sg-hub-bootstrap → 绑定 hub-01 → 回填 id
 #
 schema_version: "1"
 phase: bootstrap
-updated_at: "2026-06-08"
+updated_at: "2026-06-14"
 security_group:
-  name: sg-hub-bootstrap
-  id: null
-  description: "Hub Bootstrap 临时策略；WG 完成后迁移 sg-hub-wg"
+  name: sg-dev-ecs-bootstrap
+  id: sg-bp122tjy3h95um8kv4f9
+  description: "Hub 当前与 Dev 共用此 id；WG 完成后 Hub 可迁移 sg-hub-wg"
   region: cn-hangzhou
   vpc_id: vpc-bp1jmugctnhj97dbjyx31
+  shared_with_hosts: [hub-01, dev-01, dev-02, ci-01]
+  udp_rules_authoritative_file: docs/security-groups/dev-ecs-bootstrap.rules.yaml
 
 rules:
   inbound:

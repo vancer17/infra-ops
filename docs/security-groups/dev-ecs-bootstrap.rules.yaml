@@ -1,13 +1,17 @@
 # Dev ECS Bootstrap 阶段安全组规则
-# 适用：dev-01, dev-02（Dev-02 替代机 112.124.104.223 绑定同一安全组）
+# 适用：dev-01, dev-02, hub-01（当前控制台均绑定 id sg-bp122tjy3h95um8kv4f9）
 #
 # 【2026-06-08 资产台账修订】
 #   CI 源 IP：47.98.161.33（已退役）→ 121.41.58.20（ci-01 替代机，与 dev-01 同 ECS）
 #   须与 docs/assets/registry.yaml、network.yml security_whitelist 保持一致
 #
+# 【2026-06-14 Hub 共用本组】
+#   hub-01 绑定同一 security_group id；Hub SSH 私网来源见 IN-SSH-CI-PRIVATE-HUB。
+#   WireGuard UDP 51820（IN-WG-*）为 Hub WG Server 预置；阶段 F 前须在控制台确认已添加。
+#
 schema_version: "1"
 phase: bootstrap
-updated_at: "2026-06-08"
+updated_at: "2026-06-14"
 security_group:
   name: sg-dev-ecs-bootstrap
   id: sg-bp122tjy3h95um8kv4f9
@@ -104,6 +108,42 @@ rules:
       expires_at_phase: wireguard
       optional: false
       note: "CI 私网地址；dev-01 与 CI 同 ECS 时等效 SSH 本机"
+
+    # Hub-01 私网 SSH（ci-01 → hub-01，172.21.127.123）；与 Dev 同安全组 id 时必需
+    - id: IN-SSH-CI-PRIVATE-HUB
+      enabled: true
+      priority: 4
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "172.21.226.38/32"
+      description: "Bootstrap-CI-to-Hub-Private-SSH"
+      note: "ci-01 私网访问 hub-01；与 IN-SSH-CI-PRIVATE 同源 IP"
+      expires_at_phase: wireguard
+      applicable_hosts: [hub-01]
+
+    # WireGuard Server（hub-01 监听 UDP 51820）；阶段 E 仅本地生成密钥，阶段 F 需控制台已放行
+    - id: IN-WG-UDP-OFFICE
+      priority: 30
+      policy: accept
+      protocol: udp
+      port_range: "51820/51820"
+      source: "115.195.216.251/32"
+      description: "WireGuard-Hub-Office"
+      note: "Hub WG Server；实施 WG 时启用"
+      expires_at_phase: wireguard
+      applicable_hosts: [hub-01]
+
+    - id: IN-WG-UDP-CI
+      priority: 31
+      policy: accept
+      protocol: udp
+      port_range: "51820/51820"
+      source: "121.41.58.20/32"
+      description: "WireGuard-Hub-CI"
+      note: "ci-01 作为 WG Peer 连 Hub"
+      expires_at_phase: wireguard
+      applicable_hosts: [hub-01]
 
     # 同 VPC 内 Dev-02 → Dev-01（应用后期内网互访，Bootstrap 可先不加）
     - id: IN-APP-DEV-SUBNET

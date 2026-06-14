@@ -14,20 +14,27 @@
 
 ## 执行用户（控制机）
 
-在 **yax** 上以 **`deploy` 用户**跑 Ansible（无需控制机 sudo）：
+在 **yax** 上以 **`deploy` 用户**跑 Ansible（无需控制机 sudo）。
+
+**steady 之后（当前）**：Ansible / CI 使用 `deploy` + `ansible/keys/infra-ci-deploy`：
 
 ```bash
 cd ~/infra-ops
 make setup
 source .venv/bin/activate
 
+# 一次性：修正 ~/.bashrc（替换 hub-root 默认密钥）
+./scripts/dev/setup-control-plane-env.sh all
+source ~/.bashrc
+
 export ANSIBLE_INVENTORY=ansible/inventories/mgmt/
-export ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/hub-root   # Bootstrap 1.2 期连接 Hub root
+# ANSIBLE_PRIVATE_KEY_FILE 由 bashrc 指向 infra-ci-deploy
+ansible hub-01 -i ansible/inventories/mgmt/ -m ping -u deploy
 ```
 
-Playbook 对 **远程 Hub** 仍使用 `become: true`（装包、建用户等需 root）；仅在控制机读仓库公钥的 task 显式 `become: false`，避免 `sudo: a password is required`。
+GitHub Secret：`ANSIBLE_SSH_PRIVATE_KEY` = `infra-ci-deploy` 私钥内容。
 
-**steady 之后**：Ansible / CI 使用 `deploy` + `ansible/keys/infra-ci-deploy`（或 GitHub Secret `ANSIBLE_SSH_PRIVATE_KEY`）。
+**Bootstrap 历史**：初次 apply 曾用 `~/.ssh/hub-root` 连 root；steady 后勿再作为默认密钥。
 
 ## Step 0 — 静态检查（控制机上）
 
@@ -96,9 +103,30 @@ GitHub Environment Secrets（已配置）：
 ## Step 3 — 回填台账
 
 - [x] `docs/assets/hub-01.yaml` → `bootstrap_status: ssh_done`
-- [ ] `hub-01.yaml` → 安全组 `id`（控制台创建后填入 `sg-hub-bootstrap` 的 id）
+- [x] 安全组 id `sg-bp122tjy3h95um8kv4f9`（与 Dev 共用；UDP 见 dev-ecs-bootstrap IN-WG-*）
 - [x] `ansible/inventories/mgmt/group_vars/all/network.yml` → `mgmt_hosts.hub-01.bootstrap_status`
 - [x] `ansible/inventories/mgmt/group_vars/all/ssh.yml` → `deploy` / `steady` / `ssh_keys_configured: true`
+- [x] 控制面：`scripts/dev/setup-control-plane-env.sh all`（阶段 E 前）
+
+## 阶段 E 前检查（交叉检查修复项）
+
+在 yax 上执行：
+
+```bash
+cd ~/infra-ops
+git pull
+./scripts/dev/setup-control-plane-env.sh all
+source ~/.bashrc
+make inventory-mgmt
+sudo apt install -y wireguard-tools   # 若 check-wireguard 提示缺失
+./scripts/wireguard/wg-keys.sh check-deps
+```
+
+Dev inventory 应与 Hub 一致（`deploy` / `steady`）：
+
+```bash
+grep -E 'ssh_inventory_user|ssh_phase' ansible/inventories/dev/group_vars/all/ssh.yml
+```
 
 ## 验收（2026-06-14 已通过）
 
@@ -127,9 +155,10 @@ REMOTE
 
 ## 下一步
 
+- 控制面环境：`./scripts/dev/setup-control-plane-env.sh all`
 - WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
 - WG Server：`wireguard-hub.yml`（待实现）
-- 控制台安全组 id 回填 `hub-01.yaml`（若尚未写入）
+- 控制台确认 UDP 51820 已按 `dev-ecs-bootstrap.rules.yaml` IN-WG-* 添加
 
 ## 故障排查
 

@@ -63,10 +63,10 @@ host:
   security_groups:
     bootstrap:
       - id: sg-bp122tjy3h95um8kv4f9
-        name: "sg-hub-bootstrap"
+        name: sg-dev-ecs-bootstrap
         phase: bootstrap
-        rules_file: "docs/security-groups/hub-bootstrap.rules.yaml"
-        note: "须放行 CI 私网 172.21.226.38/32 SSH；UDP 51820 可预置"
+        rules_file: docs/security-groups/dev-ecs-bootstrap.rules.yaml
+        note: "与 Dev 共用 id；UDP 51820 见 dev-ecs-bootstrap IN-WG-*"
     target:
       - id: null
         name: "sg-hub-wg"

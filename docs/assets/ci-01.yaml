@@ -80,5 +80,13 @@ host:
 
   lifecycle:
     os: "Debian 12"
-    bootstrap_status: bootstrap_done
+    bootstrap_status: ssh_done
+    bootstrap_completed_at: "2026-06-14"
+    ssh_phase: steady
+    ssh_keys_configured: true
     runner_status: not_registered
+
+  control_plane:
+    setup_script: scripts/dev/setup-control-plane-env.sh
+    ansible_private_key: ansible/keys/infra-ci-deploy
+    note: "阶段 E 前运行 setup-control-plane-env.sh all"
