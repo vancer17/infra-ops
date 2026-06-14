@@ -109,20 +109,34 @@ check_asset_ledger() {
   fi
 }
 
+# 读取 inventory 中 docker_install（Hub 为 false，Dev 为 true）
+resolve_docker_install() {
+  local v
+  v="$(host_var docker_install 2>/dev/null || true)"
+  if [[ -z "$v" ]]; then
+    echo "true"
+  else
+    echo "$v"
+  fi
+}
+
 run_verify_checks() {
   local rds_host="${1:-}"
+  local docker_install="${2:-true}"
   timedatectl | grep -q 'Time zone: Asia/Shanghai'
   id deploy >/dev/null
   id jump_ops >/dev/null
-  if [[ -f /var/run/docker.sock ]] || command -v docker >/dev/null 2>&1; then
-    docker run --rm hello-world >/dev/null
+  if [[ "$docker_install" == "true" ]]; then
+    if [[ -f /var/run/docker.sock ]] || command -v docker >/dev/null 2>&1; then
+      docker run --rm hello-world >/dev/null
+    fi
   fi
   test -d /opt/app/compose || test -d /opt/mgmt
   if command -v ufw >/dev/null 2>&1; then ufw status | grep -qi inactive; fi
   if [[ -n "$rds_host" ]]; then
     nc -z -w 5 "$rds_host" 3306
   fi
-  echo "verify OK on $(hostname)"
+  echo "verify OK on $(hostname) (docker_install=${docker_install})"
 }
 
 preflight() {
@@ -164,24 +178,31 @@ apply() {
 }
 
 verify() {
-  local host_ip user rds_host
+  local host_ip user rds_host docker_install
   host_ip="$(resolve_ansible_host)"
   user="$(resolve_ansible_user)"
   rds_host="$(host_var rds.host 2>/dev/null || true)"
+  docker_install="$(resolve_docker_install)"
 
   if is_colocated_target "$host_ip"; then
-    echo "Colocated verify on ${host_ip}"
-    run_verify_checks "$rds_host"
+    echo "Colocated verify on ${host_ip} (docker_install=${docker_install})"
+    run_verify_checks "$rds_host" "$docker_install"
     return 0
   fi
 
-  ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$rds_host" <<'REMOTE'
+  echo "Remote verify: ${user}@${host_ip} (docker_install=${docker_install})"
+  ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$rds_host" "$docker_install" <<'REMOTE'
 set -euo pipefail
 rds_host="${1:-}"
+docker_install="${2:-true}"
 timedatectl | grep -q 'Time zone: Asia/Shanghai'
 id deploy >/dev/null
 id jump_ops >/dev/null
-docker run --rm hello-world >/dev/null
+if [[ "$docker_install" == "true" ]]; then
+  if command -v docker >/dev/null 2>&1; then
+    docker run --rm hello-world >/dev/null
+  fi
+fi
 test -d /opt/app/compose || test -d /opt/mgmt
 if command -v ufw >/dev/null 2>&1; then ufw status | grep -qi inactive; fi
 if [[ -n "$rds_host" ]]; then

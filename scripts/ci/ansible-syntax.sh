@@ -70,6 +70,14 @@ if [[ -d "${playbooks_dir}" ]]; then
       # 传入相对 repo root 的路径，与 CI 原逻辑一致
       rel="${playbook#"${CI_REPO_ROOT}/"}"
       syntax_check_playbook "${rel}"
+      # bootstrap / ssh-keys 使用 dev:mgmt，额外用 mgmt inventory 做 syntax-check
+      if [[ -d "${CI_ANSIBLE_INVENTORY_MGMT}" ]] \
+        && [[ "${rel}" == ansible/playbooks/bootstrap.yml || "${rel}" == ansible/playbooks/ssh-keys.yml ]]; then
+        ci_log "Syntax check (mgmt inventory): ${rel}"
+        ci_cd ansible-playbook "${rel}" \
+          --syntax-check \
+          -i "${CI_ANSIBLE_INVENTORY_MGMT}"
+      fi
     done
   fi
 else

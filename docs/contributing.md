@@ -165,9 +165,11 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 ## 7. 密钥与敏感信息
 
 - **勿提交**：私钥、`.env`、vault 明文、`ansible/keys/infra-ci-deploy`
+- **勿写入** `logs/` 或临时文件：SSH/WG 私钥（`logs/` 虽在 gitignore，仍可能被误复制）
 - **可提交**：`.pub` 公钥、`*.example` 模板
 - `make secret-scan` / CI `secret-scan` job 扫描 Git 历史（gitleaks）
 - 数据库密码等放 GitHub Environment Secrets 或 ansible-vault
+- 若私钥曾泄露：轮换密钥并更新 GitHub Secret `ANSIBLE_SSH_PRIVATE_KEY`
 
 ## 8. 实机 Bootstrap 与静态检查的关系
 
