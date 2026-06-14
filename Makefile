@@ -36,6 +36,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 # CI 脚本目录（与 scripts/ci/lib/common.sh 中路径约定一致）
 SCRIPTS_CI := $(REPO_ROOT)/scripts/ci
 SCRIPTS_WG := $(REPO_ROOT)/scripts/wireguard
+SCRIPTS_MGMT := $(REPO_ROOT)/scripts/mgmt
 
 # 本地工具路径：install-deps.sh 创建的 venv 与 gitleaks 安装目录
 VENV_BIN := $(REPO_ROOT)/.venv/bin
@@ -48,7 +49,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
 .PHONY: help setup lint syntax inventory inventory-mgmt ci \
         yamllint shellcheck ansible-lint ansible-syntax \
         docker-validate secret-scan \
-        wg-keys-check wg-keys-list
+        wg-keys-check wg-keys-list stage-e-preflight control-plane-setup
 
 # -----------------------------------------------------------------------------
 # help — 默认目标；make 无参数时显示可用命令
@@ -67,7 +68,8 @@ help:
 	@echo "  make inventory-mgmt Mgmt inventory parse (hub-01 ansible_host check)"
 	@echo ""
 	@echo "Control plane (ci-01, on yax as deploy):"
-	@echo "  scripts/dev/setup-control-plane-env.sh all"
+	@echo "  make control-plane-setup     Fix bashrc + ansible ping (黄灯 1)"
+	@echo "  make stage-e-preflight       Full preflight before WireGuard keys"
 	@echo ""
 	@echo "WireGuard keys (on CI machine with wireguard-tools):"
 	@echo "  make wg-keys-check   Check wg/ansible-vault deps"
@@ -170,3 +172,21 @@ wg-keys-check:
 
 wg-keys-list:
 	bash "$(SCRIPTS_WG)/wg-keys.sh" list
+
+# -----------------------------------------------------------------------------
+# control-plane-setup — 修正 ci-01 控制面 bashrc（黄灯 1）
+# -----------------------------------------------------------------------------
+control-plane-setup:
+	bash "$(REPO_ROOT)/scripts/dev/setup-control-plane-env.sh" all
+	@echo "[make] control-plane-setup OK — run: source ~/.bashrc"
+
+# -----------------------------------------------------------------------------
+# stage-e-preflight — 阶段 E 前全量预检（黄灯 1–3 + Hub 远程验收）
+# -----------------------------------------------------------------------------
+# 在 yax 上：make stage-e-preflight
+# 自动安装 wireguard-tools：make stage-e-preflight INSTALL_WG=1
+stage-e-preflight:
+	bash "$(SCRIPTS_MGMT)/stage-e-preflight.sh" \
+		$(if $(INSTALL_WG),--install-wireguard,) \
+		$(if $(SKIP_REMOTE),--skip-remote,)
+	@echo "[make] stage-e-preflight OK"
