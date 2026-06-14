@@ -55,23 +55,6 @@ host_var() {
   resolve_inventory_var "$INVENTORY" "$LIMIT" "$1"
 }
 
-resolve_ansible_host() {
-  local host
-  host="$(host_var ansible_host)"
-  [[ -n "$host" ]] || { echo "ERROR: cannot resolve ansible_host for ${LIMIT}"; exit 1; }
-  [[ "$host" != *"{{"* ]] || {
-    echo "ERROR: ansible_host not rendered for ${LIMIT}; check inventory" >&2
-    exit 1
-  }
-  echo "$host"
-}
-
-resolve_ansible_user() {
-  local user
-  user="$(host_var ansible_user)"
-  echo "${user:-root}"
-}
-
 check_cross_vpc_host() {
   local host="$1"
   local same_vpc
@@ -167,8 +150,8 @@ preflight() {
   ansible-galaxy collection install -r "${ROOT}/ansible/requirements.yml" --force-with-deps 2>/dev/null || true
 
   local host_ip user
-  host_ip="$(resolve_ansible_host)"
-  user="$(resolve_ansible_user)"
+  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
+  user="$(resolve_ansible_user "$INVENTORY" "$LIMIT")"
   check_cross_vpc_host "$host_ip"
 
   if is_colocated_target "$host_ip"; then
@@ -198,8 +181,8 @@ apply() {
 
 verify() {
   local host_ip user rds_host docker_install rds_verify
-  host_ip="$(resolve_ansible_host)"
-  user="$(resolve_ansible_user)"
+  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
+  user="$(resolve_ansible_user "$INVENTORY" "$LIMIT")"
   rds_verify="$(resolve_rds_verify)"
   rds_host="$(resolve_rds_host_for_verify)"
   docker_install="$(resolve_docker_install)"

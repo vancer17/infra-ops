@@ -59,23 +59,6 @@ host_var() {
   resolve_inventory_var "$INVENTORY" "$LIMIT" "$1"
 }
 
-resolve_ansible_host() {
-  local host
-  host="$(host_var ansible_host)"
-  [[ -n "$host" ]] || { echo "ERROR: cannot resolve ansible_host for ${LIMIT}"; exit 1; }
-  [[ "$host" != *"{{"* ]] || {
-    echo "ERROR: ansible_host not rendered for ${LIMIT}" >&2
-    exit 1
-  }
-  echo "$host"
-}
-
-resolve_ansible_user() {
-  local user
-  user="$(host_var ansible_user)"
-  echo "${user:-root}"
-}
-
 ssh_yml_file() {
   echo "${INVENTORY%/}/group_vars/all/ssh.yml"
 }
@@ -118,7 +101,7 @@ cmd_preflight() {
   [[ -f "$PUBLIC_KEY" ]] || { echo "ERROR: missing ${PUBLIC_KEY}; run: $(basename "$0") generate"; exit 1; }
 
   local host_ip
-  host_ip="$(resolve_ansible_host)"
+  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
 
   if is_colocated_target "$host_ip"; then
     echo "Colocated: checking deploy user locally (limit=${LIMIT})"
@@ -143,7 +126,7 @@ cmd_distribute() {
 cmd_verify() {
   [[ -f "$PRIVATE_KEY" ]] || { echo "ERROR: missing ${PRIVATE_KEY}"; exit 1; }
   local host_ip
-  host_ip="$(resolve_ansible_host)"
+  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
 
   echo "Deploy SSH probe: deploy@${host_ip}"
   ssh "${SSH_OPTS[@]}" -i "$PRIVATE_KEY" "deploy@${host_ip}" \
@@ -153,7 +136,7 @@ cmd_verify() {
 
 cmd_known_hosts() {
   local host_ip
-  host_ip="$(resolve_ansible_host)"
+  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
   echo "# Paste into GitHub Environment dev → Secret ANSIBLE_SSH_KNOWN_HOSTS"
   echo "# Host: ${LIMIT} (${host_ip})"
   ssh-keyscan -H "$host_ip" 2>/dev/null
