@@ -274,7 +274,7 @@ cmd_vault_encrypt_hub() {
 
   mkdir -p "$(dirname "$WG_VAULT_FILE")"
   tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' RETURN
+  rm -f "$tmp"
 
   # 明文结构仅存在于临时文件，随即被 ansible-vault 加密
   cat >"$tmp" <<EOF
