@@ -26,6 +26,8 @@ make inventory   # 若同时改了 inventories/dev/
 
 在 **CI 替代机 yax**（`121.41.58.20`）上执行；须已 `make setup` 且 `source .venv/bin/activate`。
 
+以 **`deploy` 用户**运行即可；读控制机公钥文件的 task 已 `become: false`，**不要求**控制机 sudo。远程 ECS 上的 distribute/steady 仍通过 `become` 写入 `authorized_keys` 与 `sshd_config`。
+
 同机部署（dev-01 与 ci-01 同 ECS）时，`ssh-keys.sh` 会自动使用 `ansible_connection=local`，**勿**手动传 `-e ansible_connection=local`。
 
 ## 步骤
