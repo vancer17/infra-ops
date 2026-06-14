@@ -68,3 +68,10 @@ docker_compose_plugin: false
 # Hub 不绑定 OSS 访问 RAM 角色
 ram_role_name: null
 ram_role_verify: false
+
+# -----------------------------------------------------------------------------
+# rds_verify — bootstrap.sh verify 是否探测 RDS 3306
+# -----------------------------------------------------------------------------
+# Hub 不连接业务 RDS；须为 false，避免 verify 误读未定义的 rds.host
+# 消费者：scripts/dev/bootstrap.sh → resolve_rds_host_for_verify
+rds_verify: false

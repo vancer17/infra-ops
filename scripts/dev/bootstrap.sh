@@ -120,6 +120,25 @@ resolve_docker_install() {
   fi
 }
 
+# 是否执行 verify 阶段的 RDS 3306 探测（Hub：false；Dev：true，见 group_vars/bootstrap.yml）
+resolve_rds_verify() {
+  local v
+  v="$(host_var rds_verify 2>/dev/null || true)"
+  case "${v,,}" in
+    true|yes|1) echo "true" ;;
+    *) echo "false" ;;
+  esac
+}
+
+# 仅在 rds_verify=true 且 rds.host 为合法 FQDN 时返回主机名，否则空
+resolve_rds_host_for_verify() {
+  local rds_host
+  [[ "$(resolve_rds_verify)" == "true" ]] || return 0
+  rds_host="$(host_var rds.host 2>/dev/null || true)"
+  is_valid_inventory_value "$rds_host" || return 0
+  echo "$rds_host"
+}
+
 run_verify_checks() {
   local rds_host="${1:-}"
   local docker_install="${2:-true}"
@@ -178,19 +197,23 @@ apply() {
 }
 
 verify() {
-  local host_ip user rds_host docker_install
+  local host_ip user rds_host docker_install rds_verify
   host_ip="$(resolve_ansible_host)"
   user="$(resolve_ansible_user)"
-  rds_host="$(host_var rds.host 2>/dev/null || true)"
+  rds_verify="$(resolve_rds_verify)"
+  rds_host="$(resolve_rds_host_for_verify)"
   docker_install="$(resolve_docker_install)"
 
   if is_colocated_target "$host_ip"; then
-    echo "Colocated verify on ${host_ip} (docker_install=${docker_install})"
+    echo "Colocated verify on ${host_ip} (docker_install=${docker_install}, rds_verify=${rds_verify})"
     run_verify_checks "$rds_host" "$docker_install"
     return 0
   fi
 
-  echo "Remote verify: ${user}@${host_ip} (docker_install=${docker_install})"
+  echo "Remote verify: ${user}@${host_ip} (docker_install=${docker_install}, rds_verify=${rds_verify})"
+  if [[ -n "$rds_host" ]]; then
+    echo "RDS check: ${rds_host}:3306"
+  fi
   ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$rds_host" "$docker_install" <<'REMOTE'
 set -euo pipefail
 rds_host="${1:-}"
