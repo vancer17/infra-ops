@@ -77,7 +77,7 @@ mgmt_hosts:
     wg_listen_port: 51820
     ansible_host_from_ci: "121.43.49.58"
     ansible_host_internal: "172.21.127.123"
-    bootstrap_status: pending
+    bootstrap_status: ssh_done
     wireguard_status: not_started
 
 # -----------------------------------------------------------------------------

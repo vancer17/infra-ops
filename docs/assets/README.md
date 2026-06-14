@@ -7,7 +7,7 @@
 | 原则 | 说明 |
 |------|------|
 | **一处登记、多处引用** | 主机级细节在 `docs/assets/<host>.yaml`；总览与角色映射在 `registry.yaml` |
-| **与 Ansible 对齐** | `ansible/inventories/dev/group_vars/all/network.yml` 中的 `dev_hosts`、`platform_hosts` 须与本目录保持一致（IP、WG 地址、角色） |
+| **与 Ansible 对齐** | `inventories/dev/`、`inventories/mgmt/` 的 `network.yml` 须与本目录 IP、WG、bootstrap_status 一致 |
 | **与安全组对齐** | `docs/security-groups/*.rules.yaml` 中的源 IP 须与 `security_whitelist` / 各主机 `access_whitelist` 一致 |
 | **原规划 vs 当前现实** | 企业方案中的 10 台规划 IP 可能不可用；`registry.yaml` 的 `replacements` 记录**谁替代谁** |
 | **控制台变更必须回写** | 在阿里云改了 IP、安全组、实例规格后，先更新本目录，再改 Inventory |
@@ -29,21 +29,32 @@
 docs/assets/*.yaml          ← 人工台账（含实例 ID、控制台名称、备注）
         │ 同步 IP / 角色 / WG
         ▼
-network.yml (group_vars)    ← Ansible 运行时 SSOT（dev_hosts、platform_hosts）
+network.yml (group_vars)    ← Ansible 运行时 SSOT（dev_hosts / mgmt_hosts / platform_hosts）
         │ Jinja2 计算
         ▼
-host_vars/dev-*.yml         ← 每台 Dev 的 ansible_host 表达式
+host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 ```
 
-**管理面节点**（hub-01、ci-01）当前**不在** `inventories/dev/hosts.yml` 中；待 WireGuard / JumpServer playbook 就绪后，可新增 `inventories/mgmt/`。
+- **dev** 应用节点：`ansible/inventories/dev/`（dev-01、dev-02）
+- **mgmt** 管理面：`ansible/inventories/mgmt/`（hub-01）
+- ci-01 与 dev-01 同机，不在 mgmt hosts 列表中（见 `control_plane_hosts`）
+
+## Bootstrap 进度（2026-06-14）
+
+| 主机 | bootstrap_status | Inventory |
+|------|------------------|-----------|
+| ci-01 / dev-01 | `bootstrap_done` | dev / 同机 |
+| hub-01 | `ssh_done` | mgmt |
+| dev-02 | `pending` | dev |
+| test-01 | `pending` | 未纳入 |
 
 ## 维护流程
 
 1. 阿里云控制台确认：公网 IP、私网 IP、实例 ID、安全组 ID、可用区。
 2. 更新对应 `docs/assets/<host>.yaml` 与 `registry.yaml`。
-3. 同步 `ansible/inventories/dev/group_vars/all/network.yml`。
-4. 若涉及 SSH 白名单：同步 `docs/security-groups/dev-ecs-bootstrap.rules.yaml`。
-5. 本地执行 `make inventory`（改 inventory 后）与 `make ci`（若改 YAML 规范）。
+3. 同步 `ansible/inventories/dev/group_vars/all/network.yml` 与（Hub 时）`ansible/inventories/mgmt/group_vars/all/network.yml`。
+4. 若涉及 SSH 白名单：同步 `docs/security-groups/*-bootstrap.rules.yaml`。
+5. 本地执行 `make inventory` / `make inventory-mgmt` 与 `make ci`。
 
 ## 当前网络阶段
 
@@ -57,4 +68,5 @@ host_vars/dev-*.yml         ← 每台 Dev 的 ansible_host 表达式
 
 - [安全组策略](../security-groups/README.md)
 - [Dev Bootstrap Runbook](../bootstrap/dev-01-bootstrap.runbook.md)
+- [Hub Bootstrap Runbook](../bootstrap/hub-01-bootstrap.runbook.md)（hub-01：`ssh_done`，2026-06-14）
 - [企业环境实施方案](../20260608-ECS%20企业环境实施方案.md) §4 网络与 WireGuard
