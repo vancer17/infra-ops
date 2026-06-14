@@ -11,6 +11,21 @@
 - [ ] Hub 安全组已按 [hub-bootstrap.rules.yaml](../security-groups/hub-bootstrap.rules.yaml) 配置并绑定实例
 - [ ] 从控制机验证：`ssh root@172.21.127.123`（优先私网）
 
+## 执行用户（控制机）
+
+在 **yax** 上以 **`deploy` 用户**跑 Ansible（无需控制机 sudo）：
+
+```bash
+cd ~/infra-ops
+make setup
+source .venv/bin/activate
+
+export ANSIBLE_INVENTORY=ansible/inventories/mgmt/
+export ANSIBLE_PRIVATE_KEY_FILE=~/.ssh/hub-root   # 连接 Hub 的 root 密钥
+```
+
+Playbook 对 **远程 Hub** 仍使用 `become: true`（装包、建用户等需 root）；仅在控制机读仓库公钥的 task 显式 `become: false`，避免 `sudo: a password is required`。
+
 ## Step 0 — 静态检查（控制机上）
 
 ```bash
@@ -94,6 +109,7 @@ ssh -i ansible/keys/infra-ci-deploy deploy@172.21.127.123 'whoami'
 | 现象 | 处理 |
 |------|------|
 | `--list-hosts` 无 hub-01 | 确认 `bootstrap.yml` 使用 `hosts: dev:mgmt` |
-| preflight SSH 失败 | 查 Hub 安全组是否放行 `172.21.226.38/32` |
+| preflight SSH 失败 | 查 Hub 安全组是否放行 `172.21.226.38/32`；确认 `~/.ssh/config` 对 Hub IP 指定 `IdentityFile` |
+| `sudo: a password is required`（`delegate_to: localhost`） | 控制机 task 须 `become: false`；用 `deploy` 跑 Ansible 时**不要**在控制机 sudo。更新仓库后重新 `apply` |
 | verify 要求 docker | 确认 `mgmt/bootstrap.yml` 中 `docker_install: false` |
 | steady 后 root 不可用 | 预期行为；使用 `deploy` + infra-ci-deploy 私钥 |

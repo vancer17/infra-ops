@@ -66,7 +66,7 @@ git push → 开 PR → 等待 GitHub CI Gate 绿 → 合并
 
 | 场景 | 入口 |
 |------|------|
-| Dev ECS Bootstrap（1.2） | `./scripts/dev/bootstrap.sh all dev-01`（在 yax 控制机上） |
+| Dev ECS Bootstrap（1.2） | `./scripts/dev/bootstrap.sh all dev-01`（在 yax 控制机上，**deploy 用户**，无需控制机 sudo） |
 | Hub Bootstrap（1.2） | `ANSIBLE_INVENTORY=ansible/inventories/mgmt/ ./scripts/dev/bootstrap.sh all hub-01` |
 | SSH 密钥（1.3） | `./scripts/dev/ssh-keys.sh all dev-01`（mgmt 同理换 inventory） |
 | 远程部署 | GitHub `deploy.yml`（Self-hosted Runner，CI 替代机 `121.41.58.20`） |
@@ -210,6 +210,10 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 ### `apply OK` 但缺少 jump_ops、`/opt/app/compose`
 
 `bootstrap.yml` 须用 `tasks` + `import_role` 分别导入 `common`（base/users），勿在 `roles:` 中重复同名 `common`（Ansible 2.16 可能两次都跑 base）。修复后重新 `apply`。
+
+### `sudo: a password is required`（控制机 localhost task）
+
+Bootstrap / ssh-keys 在控制机读 `ansible/keys/*.pub` 时使用 `delegate_to: localhost` + `become: false`。以 `deploy` 跑 Ansible 时控制机不应 sudo；远程 ECS task 仍正常 `become: true`。
 
 ### 能否用 pre-commit / pre-push hook？
 
