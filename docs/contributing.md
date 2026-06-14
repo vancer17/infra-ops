@@ -58,9 +58,11 @@ git push → 开 PR → 等待 GitHub CI Gate 绿 → 合并
 | 检查 | Make target | 脚本 | 何时跑 |
 |------|-------------|------|--------|
 | Inventory 深度校验（dev） | `make inventory` | `scripts/ci/inventory-check.sh` | 修改 `inventories/dev/` 后 |
-| Inventory 深度校验（mgmt） | `make inventory-mgmt` | `scripts/ci/inventory-check-mgmt.sh` | 修改 `inventories/mgmt/`、Hub 台账后 |
+| Inventory 深度校验（mgmt） | `make inventory-mgmt` | `scripts/ci/inventory-check-mgmt.sh` | 修改 `inventories/mgmt/`、Hub 台账、**阶段 E vault 后** |
 
-原因：`ansible-syntax.sh` 已含轻量 inventory 抽查；跨 VPC `ansible_host` 校验留本地，避免 CI 与 Jinja 渲染差异导致误报。改 inventory 后务必 `make inventory`。
+**Mgmt + Vault**：存在 `inventories/mgmt/group_vars/all/wireguard_vault.yml` 时，`inventory-check-mgmt.sh` 需解密 inventory 变量。在仓库根准备 `.vault_pass`（与 GitHub `ANSIBLE_VAULT_PASSWORD` 相同）；脚本会自动加 `--vault-password-file`。未带密码时 Ansible 报错：`Attempting to decrypt but no vault secrets found`。详见 [wg-keys.runbook.md §五](wireguard/wg-keys.runbook.md#五vault-与-ansible--inventory-检查)。
+
+原因：`ansible-syntax.sh` 已含轻量 inventory 抽查；跨 VPC `ansible_host` 校验留本地，避免 CI 与 Jinja 渲染差异导致误报。改 inventory 后务必 `make inventory` / `make inventory-mgmt`。
 
 ### 2.3 L3：实机操作（不在 `make ci` 内）
 
@@ -164,11 +166,12 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 
 ## 7. 密钥与敏感信息
 
-- **勿提交**：私钥、`.env`、vault 明文、`ansible/keys/infra-ci-deploy`
+- **勿提交**：私钥、`.env`、vault 明文、`ansible/keys/infra-ci-deploy`、`ansible/keys/wireguard/*.private`、**`.vault_pass`**
 - **勿写入** `logs/` 或临时文件：SSH/WG 私钥（`logs/` 虽在 gitignore，仍可能被误复制）
-- **可提交**：`.pub` 公钥、`*.example` 模板
+- **可提交**：`.pub` 公钥、`wireguard_vault.yml`（**ansible-vault 加密后**）、`*.example` 模板
 - `make secret-scan` / CI `secret-scan` job 扫描 Git 历史（gitleaks）
 - 数据库密码等放 GitHub Environment Secrets 或 ansible-vault
+- **WireGuard Hub 私钥**：明文仅 `hub.private`（gitignore）；密文 `wireguard_vault.yml` 可提交；本地 `.vault_pass` 同步到 GitHub `ANSIBLE_VAULT_PASSWORD`
 - 若私钥曾泄露：轮换密钥并更新 GitHub Secret `ANSIBLE_SSH_PRIVATE_KEY`
 
 ## 8. 实机 Bootstrap 与静态检查的关系
@@ -216,6 +219,17 @@ Hub 验收用 `verify hub-01`；其 inventory 设 `rds_verify: false`，**不会
 ### `sudo: a password is required`（控制机 localhost task）
 
 Bootstrap / ssh-keys 在控制机读 `ansible/keys/*.pub` 时使用 `delegate_to: localhost` + `become: false`。以 `deploy` 跑 Ansible 时控制机不应 sudo；远程 ECS task 仍正常 `become: true`。
+
+### `Attempting to decrypt but no vault secrets found` / `make inventory-mgmt` 失败
+
+阶段 E 生成 `wireguard_vault.yml` 后，mgmt inventory 加载需 vault 密码。在仓库根创建 `.vault_pass`（与 GitHub `ANSIBLE_VAULT_PASSWORD` 一致），然后：
+
+```bash
+export ANSIBLE_VAULT_PASSWORD_FILE="${PWD}/.vault_pass"
+make inventory-mgmt
+```
+
+或运行 `./scripts/dev/setup-control-plane-env.sh apply-bashrc && source ~/.bashrc`。详见 [wg-keys.runbook.md §五](wireguard/wg-keys.runbook.md#五vault-与-ansible--inventory-检查)。
 
 ### 能否用 pre-commit / pre-push hook？
 

@@ -60,6 +60,10 @@ CI_VENV_DIR="${CI_VENV_DIR:-${CI_REPO_ROOT}/.venv}"
 # ShellCheck 扫描目录
 CI_SHELLCHECK_DIR="${CI_SHELLCHECK_DIR:-${CI_REPO_ROOT}/scripts}"
 
+# Ansible Vault（与 deploy.yml、wg-keys.sh 对齐；.vault_pass 在 .gitignore）
+CI_VAULT_PASS_FILE="${CI_VAULT_PASS_FILE:-${CI_REPO_ROOT}/.vault_pass}"
+CI_MGMT_WIREGUARD_VAULT="${CI_MGMT_WIREGUARD_VAULT:-${CI_REPO_ROOT}/ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml}"
+
 # Docker Compose 待校验文件（不存在则 skip）
 CI_COMPOSE_FILES=(
   "${CI_REPO_ROOT}/jumpserver/docker-compose.yml"
@@ -107,4 +111,26 @@ ci_glob_exists() {
   local pattern="$1"
   # shellcheck disable=SC2086
   compgen -G "$pattern" >/dev/null 2>&1
+}
+
+# -----------------------------------------------------------------------------
+# ci_ansible_vault_args — 若 mgmt 存在加密 wireguard_vault.yml，返回 vault 参数数组
+# -----------------------------------------------------------------------------
+# 阶段 E 后 group_vars/all/wireguard_vault.yml 会被 Ansible 自动加载；
+# 未提供密码时 ansible ad-hoc / inventory-check 报错：
+#   ERROR! Attempting to decrypt but no vault secrets found
+#
+# 用法（caller 须已 declare -a vault_args; ci_ansible_vault_args vault_args）：
+#   ci_cd ansible ... "${vault_args[@]}" ...
+ci_ansible_vault_args() {
+  local -n _out_arr="${1:?array name required}"
+  _out_arr=()
+  if [[ ! -f "${CI_MGMT_WIREGUARD_VAULT}" ]]; then
+    return 0
+  fi
+  if [[ -f "${CI_VAULT_PASS_FILE}" ]]; then
+    _out_arr=(--vault-password-file "${CI_VAULT_PASS_FILE}")
+    return 0
+  fi
+  ci_die "found encrypted ${CI_MGMT_WIREGUARD_VAULT#${CI_REPO_ROOT}/} but missing ${CI_VAULT_PASS_FILE#${CI_REPO_ROOT}/}; run vault-encrypt-hub after creating .vault_pass (see docs/wireguard/wg-keys.runbook.md §3.5)"
 }

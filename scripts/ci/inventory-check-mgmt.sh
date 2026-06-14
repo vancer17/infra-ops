@@ -9,6 +9,12 @@
 #     2. hub-01 的 ansible_host / ansible_user 经 Jinja2 展开后为预期值
 #     3. CI 与 Hub 同 VPC 时 ansible_host 优先私网；跨 VPC 时禁止误用私网
 #
+# 【Vault 说明（阶段 E 后）】
+#   group_vars/all/wireguard_vault.yml 为 ansible-vault 加密文件，Ansible 加载
+#   inventory 变量时必须提供密码，否则：
+#     ERROR! Attempting to decrypt but no vault secrets found
+#   本脚本在存在 .vault_pass 时自动加 --vault-password-file（见 ci_ansible_vault_args）。
+#
 # 【与 inventory-check.sh 的分工】
 #   inventory-check.sh      → inventories/dev/
 #   inventory-check-mgmt.sh → inventories/mgmt/（本脚本）
@@ -30,19 +36,28 @@ ci_require_cmd ansible
 
 MGMT_INVENTORY="${CI_ANSIBLE_INVENTORY_MGMT}"
 
+declare -a CI_VAULT_ARGS=()
+ci_ansible_vault_args CI_VAULT_ARGS
+if [[ ${#CI_VAULT_ARGS[@]} -gt 0 ]]; then
+  ci_log "Using vault password file for mgmt inventory checks"
+fi
+
 # -----------------------------------------------------------------------------
 # resolved_host_var — 获取已渲染的 inventory 变量（与 dev 版脚本同源逻辑）
 # -----------------------------------------------------------------------------
 resolved_host_var() {
   local host_name="$1"
   local var_name="$2"
+  local err_file
+  err_file="$(mktemp)"
 
-  ci_cd ansible "${host_name}" \
+  if ! ci_cd ansible "${host_name}" \
     -i "${MGMT_INVENTORY}" \
+    "${CI_VAULT_ARGS[@]}" \
     -m ansible.builtin.debug \
     -a "var=${var_name}" \
     -c local \
-    2>/dev/null | python3 -c "
+    2>"${err_file}" | python3 -c "
 import json, re, sys
 
 host = '''${host_name}'''
@@ -61,7 +76,10 @@ elif val is None:
     print('')
 else:
     print(val)
-"
+"; then
+    ci_die "host ${host_name}: failed to resolve var ${var_name} (ansible debug). stderr: $(tr '\n' ' ' <"${err_file}")"
+  fi
+  rm -f "${err_file}"
 }
 
 is_private_ip() {
@@ -149,6 +167,7 @@ bootstrap_playbook="${CI_REPO_ROOT}/ansible/playbooks/bootstrap.yml"
 if [[ -f "${bootstrap_playbook}" ]]; then
   list_out="$(ci_cd ansible-playbook "${bootstrap_playbook}" \
     -i "${MGMT_INVENTORY}" \
+    "${CI_VAULT_ARGS[@]}" \
     --limit hub-01 \
     --list-hosts 2>/dev/null || true)"
   if grep -q 'hub-01' <<<"${list_out}"; then

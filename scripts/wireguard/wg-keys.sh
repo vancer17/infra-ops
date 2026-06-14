@@ -274,7 +274,7 @@ cmd_vault_encrypt_hub() {
 
   mkdir -p "$(dirname "$WG_VAULT_FILE")"
   tmp="$(mktemp)"
-  trap 'rm -f "$tmp"' RETURN
+  # 勿用 trap RETURN + local tmp（函数 return 时 local 已销毁，set -u 报 tmp unbound）
 
   # 明文结构仅存在于临时文件，随即被 ansible-vault 加密
   cat >"$tmp" <<EOF
@@ -296,6 +296,7 @@ EOF
   # 从临时明文加密输出到 vault 文件（覆盖旧密文）
   # shellcheck disable=SC2046
   ansible-vault encrypt $(vault_password_args) "$tmp" --output "$WG_VAULT_FILE"
+  rm -f "$tmp"
 
   wg_log "vault-encrypt-hub OK"
   wg_log "  Commit: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml"

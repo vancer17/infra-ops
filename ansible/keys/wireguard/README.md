@@ -24,7 +24,12 @@ chmod +x scripts/wireguard/wg-keys.sh
 # Hub 密钥（本期）
 ./scripts/wireguard/wg-keys.sh check-deps
 ./scripts/wireguard/wg-keys.sh all-hub
+openssl rand -base64 32 > .vault_pass && chmod 600 .vault_pass
 ./scripts/wireguard/wg-keys.sh vault-encrypt-hub
+
+# vault 文件存在后，Ansible 需要密码（见 runbook §五）
+export ANSIBLE_VAULT_PASSWORD_FILE="${PWD}/.vault_pass"
+make inventory-mgmt
 
 # Peer 密钥（实施各 Peer 时）
 ./scripts/wireguard/wg-keys.sh generate-peer ci-01
@@ -55,7 +60,17 @@ Peer 公钥
 
 | Secret | 内容 |
 |--------|------|
-| `ANSIBLE_VAULT_PASSWORD` | 与仓库根目录 `.vault_pass` 相同，供 `deploy.yml` 解密 vault |
+| `ANSIBLE_VAULT_PASSWORD` | 与仓库根目录 `.vault_pass` 相同；解密 `wireguard_vault.yml` |
+
+## Vault 与 Ansible
+
+`vault-encrypt-hub` 后，`group_vars/all/wireguard_vault.yml` 会被 Ansible 自动加载。未提供密码时：
+
+```text
+ERROR! Attempting to decrypt but no vault secrets found
+```
+
+处理：设置 `ANSIBLE_VAULT_PASSWORD_FILE` 或 `--vault-password-file .vault_pass`。详见 [wg-keys.runbook.md §五](../../../docs/wireguard/wg-keys.runbook.md#五vault-与-ansible--inventory-检查)。
 
 ## 相关文档
 

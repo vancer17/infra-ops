@@ -27,7 +27,7 @@
 | `ansible-lint.sh` | Ansible 规范 |
 | `ansible-syntax.sh` | Playbook syntax-check + 轻量 inventory |
 | `inventory-check.sh` | Dev inventory 深度校验（**仅本地** `make inventory`） |
-| `inventory-check-mgmt.sh` | Mgmt inventory 深度校验（**仅本地** `make inventory-mgmt`） |
+| `inventory-check-mgmt.sh` | Mgmt inventory 深度校验（**仅本地** `make inventory-mgmt`）；存在 `wireguard_vault.yml` 时自动使用 `.vault_pass` |
 | `docker-validate.sh` | docker compose config |
 | `secret-scan.sh` | gitleaks |
 | `lib/common.sh` | 路径常量、日志、die |
@@ -39,7 +39,7 @@
 | `make setup` | 各 job 内 `install-deps.sh <profile>` |
 | `make ci` | jobs 1–6 并行 + **CI Gate** |
 | `make inventory` | 未纳入 CI（见 contributing.md） |
-| `make inventory-mgmt` | 未纳入 CI（改 inventories/mgmt/ 后本地运行） |
+| `make inventory-mgmt` | 未纳入 CI（改 inventories/mgmt/ 后本地运行；**需 `.vault_pass` 若已有 `wireguard_vault.yml`**） |
 
 ## 依赖文件
 

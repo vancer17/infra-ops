@@ -60,6 +60,10 @@ fi
 
 export ANSIBLE_INVENTORY="${INFRA_OPS_ROOT}/ansible/inventories/mgmt/"
 export ANSIBLE_PRIVATE_KEY_FILE="${INFRA_OPS_ROOT}/ansible/keys/infra-ci-deploy"
+# 阶段 E 后 wireguard_vault.yml 存在时，Ansible 加载 mgmt inventory 需 vault 密码
+if [ -f "${INFRA_OPS_ROOT}/.vault_pass" ]; then
+  export ANSIBLE_VAULT_PASSWORD_FILE="${INFRA_OPS_ROOT}/.vault_pass"
+fi
 
 _infra_ops_auto_venv() {
   if [ -d "${INFRA_OPS_ROOT}/.venv" ]; then
@@ -163,8 +167,14 @@ cmd_verify_ansible() {
     exit 1
   }
 
+  local -a vault_args=()
+  # shellcheck source=scripts/ci/lib/common.sh
+  source "${ROOT}/scripts/ci/lib/common.sh"
+  ci_ansible_vault_args vault_args
+
   echo "=== hub-01 (mgmt, deploy) ==="
-  ANSIBLE_INVENTORY="$MGMT_INV" ansible hub-01 -i "$MGMT_INV" -m ping -u deploy
+  ANSIBLE_INVENTORY="$MGMT_INV" ansible hub-01 -i "$MGMT_INV" -m ping -u deploy \
+    "${vault_args[@]}"
 
   echo "=== dev-01 (dev, deploy, colocated → local) ==="
   ANSIBLE_INVENTORY="$DEV_INV" ansible dev-01 -i "$DEV_INV" -m ping -u deploy \

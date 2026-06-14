@@ -15,6 +15,10 @@
 #   2. group_vars/all/wireguard_vault.yml     ansible-vault 加密，提交 Git
 #   3. Hub /etc/wireguard/wg0.conf            wireguard-hub playbook 部署后落盘
 #
+# 【Vault 与 inventory-mgmt】
+#   wireguard_vault.yml 存在时，Ansible 加载 mgmt inventory 须 .vault_pass；
+#   make inventory-mgmt 会自动附加 --vault-password-file（见 inventory-check-mgmt.sh）
+#
 # 【维护】
 #   生成密钥：./scripts/wireguard/wg-keys.sh generate-hub
 #   同步公钥：./scripts/wireguard/wg-keys.sh sync-inventory
