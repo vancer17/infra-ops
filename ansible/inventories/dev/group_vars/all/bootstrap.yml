@@ -123,3 +123,11 @@ docker_compose_plugin: true
 # 注意：RAM 绑定在阿里云控制台操作，Ansible 只做「是否已绑定」验收，不能代替绑定
 ram_role_name: Dev-ECS-Role
 ram_role_verify: false
+
+# -----------------------------------------------------------------------------
+# rds_verify — bootstrap.sh verify 是否探测 RDS 3306
+# -----------------------------------------------------------------------------
+# true：verify 读取 network.yml 中 rds.host 并对目标机执行 nc 探测
+# false：跳过（管理面 / 无 RDS 的主机）
+# 消费者：scripts/dev/bootstrap.sh → resolve_rds_host_for_verify
+rds_verify: true

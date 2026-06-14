@@ -102,10 +102,10 @@ chmod +x scripts/dev/bootstrap.sh
 | 3 | jump_ops | `id jump_ops` |
 | 4 | 目录 | `test -d /opt/app/compose && echo OK` |
 | 5 | Docker | `docker run --rm hello-world`（需等待镜像拉取完成） |
-| 6 | RDS | `nc -z -w 5 rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com 3306` |
+| 6 | RDS | `nc -z -w 5 rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com 3306`（须 `rds_verify: true`，见 `bootstrap.yml`） |
 | 7 | ufw | `ufw status` → inactive（若已安装） |
 
-也可：`./scripts/dev/bootstrap.sh verify dev-01`（同机时在本地执行检查）。
+也可：`./scripts/dev/bootstrap.sh verify dev-01`（同机时在本地执行检查；RDS 探测由 `rds_verify` + `network.yml` 的 `rds.host` 控制）。
 
 ### 2.6 回填台账
 
@@ -140,6 +140,10 @@ chmod +x scripts/dev/bootstrap.sh
 ### `community.general does not support Ansible version 2.16.18`
 
 兼容性警告，可暂时忽略。
+
+### verify 报 `nc: getaddrinfo for host "VARIABLE"`
+
+mgmt（Hub）inventory 未定义 `rds.host` 且 `rds_verify` 未设为 `false` 时，旧版脚本会把 Ansible 的 `VARIABLE IS NOT DEFINED!` 当成主机名。Hub 须在 `mgmt/group_vars/all/bootstrap.yml` 设 `rds_verify: false`；Dev 保持 `rds_verify: true` 并确保 `network.yml` 含 `rds.host`。
 
 ### `sudo: a password is required`（`Stat CI deploy public key file on controller`）
 

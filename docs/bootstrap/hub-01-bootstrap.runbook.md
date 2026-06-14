@@ -62,7 +62,8 @@ Hub 特性（与 dev 差异）：
 |----|-----|
 | Docker | **不安装**（`docker_install: false`） |
 | 目录 | `/opt/mgmt`、`/opt/wireguard`、`/var/log/mgmt` |
-| RAM 角色 | 不验证 |
+| RAM 角色 | 不验证（`ram_role_verify: false`） |
+| RDS | **不探测**（`rds_verify: false`；Hub 无 `rds.host`） |
 | verify | **不**要求 `docker hello-world` |
 
 ## Step 2 — SSH 密钥（1.3）
@@ -112,4 +113,5 @@ ssh -i ansible/keys/infra-ci-deploy deploy@172.21.127.123 'whoami'
 | preflight SSH 失败 | 查 Hub 安全组是否放行 `172.21.226.38/32`；确认 `~/.ssh/config` 对 Hub IP 指定 `IdentityFile` |
 | `sudo: a password is required`（`delegate_to: localhost`） | 控制机 task 须 `become: false`；用 `deploy` 跑 Ansible 时**不要**在控制机 sudo。更新仓库后重新 `apply` |
 | verify 要求 docker | 确认 `mgmt/bootstrap.yml` 中 `docker_install: false` |
+| verify 报 `nc ... VARIABLE` / RDS | 确认 `mgmt/bootstrap.yml` 中 `rds_verify: false`；更新仓库后重跑 verify |
 | steady 后 root 不可用 | 预期行为；使用 `deploy` + infra-ci-deploy 私钥 |
