@@ -128,6 +128,16 @@ for host_name in "${mgmt_hosts[@]}"; do
   ci_log "  ${host_name}: ansible_user=${ansible_user:-<unset>} ansible_host=${ansible_host} planned_wg=${planned_wg:-<unset>}"
   check_ci_hub_connectivity "${host_name}" "${ansible_host}"
 
+  # steady 阶段门禁：inventory 须使用 deploy，避免仍指向 root（交叉检查黄灯 3）
+  ssh_phase="$(resolved_host_var "${host_name}" "ssh_phase")"
+  ssh_keys_configured="$(resolved_host_var "${host_name}" "ssh_keys_configured")"
+  if [[ "${ssh_phase}" == "steady" ]]; then
+    if [[ "${ansible_user}" != "deploy" ]]; then
+      ci_die "host ${host_name}: ssh_phase=steady 但 ansible_user=${ansible_user:-<unset>}，应为 deploy（检查 group_vars/all/ssh.yml）"
+    fi
+    ci_log "  ${host_name}: ssh_phase=steady ssh_keys_configured=${ssh_keys_configured:-<unset>} OK"
+  fi
+
   wireguard_enabled="$(resolved_host_var "${host_name}" "wireguard.enabled")"
   ci_log "  ${host_name}: wireguard.enabled=${wireguard_enabled:-<unset>}"
 done

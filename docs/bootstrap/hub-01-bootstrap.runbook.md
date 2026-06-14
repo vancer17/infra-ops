@@ -110,15 +110,22 @@ GitHub Environment Secrets（已配置）：
 
 ## 阶段 E 前检查（交叉检查修复项）
 
-在 yax 上执行：
+在 **yax（ci-01）** 上执行一条命令即可修复黄灯 1–3 并验收 Hub：
 
 ```bash
 cd ~/infra-ops
 git pull
-./scripts/dev/setup-control-plane-env.sh all
+make stage-e-preflight INSTALL_WG=1
 source ~/.bashrc
-make inventory-mgmt
-sudo apt install -y wireguard-tools   # 若 check-wireguard 提示缺失
+```
+
+或分步：
+
+```bash
+make control-plane-setup    # 黄灯 1：bashrc → infra-ci-deploy
+make inventory-mgmt         # 黄灯 3：steady → deploy 门禁
+sudo apt install -y wireguard-tools   # 黄灯 2
+./scripts/mgmt/verify-hub-remote.sh   # 远程验收（修复 set -e 问题）
 ./scripts/wireguard/wg-keys.sh check-deps
 ```
 
@@ -139,7 +146,13 @@ grep -E 'ssh_inventory_user|ssh_phase' ansible/inventories/dev/group_vars/all/ss
 | 5 | 连续两次 `apply` 幂等 | 建议保留为运维习惯 |
 | 6 | **无** Docker | OK |
 
-远程验收命令（存档）：
+远程验收（推荐脚本，避免 `ls /opt/wireguard` 权限导致 set -e 退出）：
+
+```bash
+./scripts/mgmt/verify-hub-remote.sh hub-01
+```
+
+或手动：
 
 ```bash
 ssh -i ~/infra-ops/ansible/keys/infra-ci-deploy deploy@172.21.127.123 <<'REMOTE'

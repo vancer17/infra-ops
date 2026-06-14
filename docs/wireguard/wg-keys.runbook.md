@@ -27,15 +27,11 @@
 cd ~/infra-ops
 git pull
 
-# 修正控制面 bashrc + 验证 Ansible + 检查 wireguard-tools
-chmod +x scripts/dev/setup-control-plane-env.sh
-./scripts/dev/setup-control-plane-env.sh all
+# 修复交叉检查黄灯项（bashrc、inventory、wireguard-tools、Hub 远程验收）
+make stage-e-preflight INSTALL_WG=1
 source ~/.bashrc
 
-# 若 wireguard-tools 未安装
-./scripts/dev/setup-control-plane-env.sh install-wireguard
-
-# 仓库：Ansible、PyYAML、ansible-vault
+# 仓库：Ansible、PyYAML、ansible-vault（若尚未 setup）
 make setup
 ```
 
