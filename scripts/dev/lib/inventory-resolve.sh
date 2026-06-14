@@ -67,12 +67,25 @@ sys.exit(1)
 "
 }
 
+# 判断 Ansible debug 返回值是否为「有效变量」（非未定义/未渲染模板）
+# shellcheck disable=SC2034  # 供 bootstrap.sh 等 source 方使用
+is_valid_inventory_value() {
+  local val="${1:-}"
+  [[ -n "$val" ]] || return 1
+  [[ "$val" == *"{{"* ]] && return 1
+  [[ "$val" == *"VARIABLE IS NOT DEFINED!"* ]] && return 1
+  [[ "$val" == *"<< error"* ]] && return 1
+  return 0
+}
+
 # 读取 hostvars 中的键；支持点号路径，如 rds.host、ci_connectivity.same_vpc_as_dev
+# 未定义或 Jinja 未渲染时返回空（stdout 无输出），避免脚本把 Ansible 占位符当实值使用
 resolve_inventory_var() {
   local inventory="$1"
   local limit="$2"
   local key="$3"
   local var_expr="hostvars['${limit}']"
+  local raw
 
   local part
   IFS='.' read -ra parts <<<"$key"
@@ -80,7 +93,11 @@ resolve_inventory_var() {
     var_expr="${var_expr}['${part}']"
   done
 
-  _resolve_debug_var "$inventory" "$limit" "$var_expr"
+  raw="$(_resolve_debug_var "$inventory" "$limit" "$var_expr" 2>/dev/null || true)"
+  if is_valid_inventory_value "$raw"; then
+    printf '%s' "$raw"
+  fi
+  return 0
 }
 
 # 控制机 IP 列表是否包含目标 ansible_host（CI 与 dev-01 同机时为 true）

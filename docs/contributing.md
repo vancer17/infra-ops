@@ -183,6 +183,8 @@ Galaxy collections 独立维护于 `ansible/requirements.yml`，由 `install-dep
 6. `./scripts/dev/bootstrap.sh verify dev-01`
 7. 第二次 `apply` 验证幂等；确认日志含 `Create jump_ops user`（`bootstrap.yml` 使用 `import_role` 分别导入 base/users）
 
+Hub 验收用 `verify hub-01`；其 inventory 设 `rds_verify: false`，**不会**探测 RDS（与 Dev 的 `rds_verify: true` + `network.yml` 中 `rds.host` 区分）。
+
 详见 [dev-01-bootstrap.runbook.md](bootstrap/dev-01-bootstrap.runbook.md)、[hub-01-bootstrap.runbook.md](bootstrap/hub-01-bootstrap.runbook.md)。
 
 ## 9. 常见问题
