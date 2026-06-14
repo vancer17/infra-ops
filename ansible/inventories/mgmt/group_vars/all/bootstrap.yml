@@ -9,10 +9,10 @@
 #   因此 docker_install: false，不拉取 Docker CE 软件源。
 #
 # 【消费者】
-#   复用 ansible/playbooks/bootstrap.yml + roles/common
+#   复用 ansible/playbooks/bootstrap.yml（hosts: dev:mgmt）+ roles/common
 #   执行示例：
-#     ansible-playbook ansible/playbooks/bootstrap.yml \
-#       -i ansible/inventories/mgmt/ --limit hub-01
+#     ANSIBLE_INVENTORY=ansible/inventories/mgmt/ \
+#     ./scripts/dev/bootstrap.sh apply hub-01
 #
 # 【RAM 角色】
 #   Hub 通常不访问 OSS；ram_role_name 留空，跳过 RAM 验收任务。

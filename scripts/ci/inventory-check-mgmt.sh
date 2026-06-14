@@ -132,4 +132,20 @@ for host_name in "${mgmt_hosts[@]}"; do
   ci_log "  ${host_name}: wireguard.enabled=${wireguard_enabled:-<unset>}"
 done
 
+# -----------------------------------------------------------------------------
+# bootstrap playbook 目标组门禁 — hub-01 须被 dev:mgmt union 选中
+# -----------------------------------------------------------------------------
+bootstrap_playbook="${CI_REPO_ROOT}/ansible/playbooks/bootstrap.yml"
+if [[ -f "${bootstrap_playbook}" ]]; then
+  list_out="$(ci_cd ansible-playbook "${bootstrap_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --limit hub-01 \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'hub-01' <<<"${list_out}"; then
+    ci_log "bootstrap.yml --list-hosts OK for hub-01 (mgmt inventory)"
+  else
+    ci_die "bootstrap.yml does not target hub-01 with mgmt inventory; check hosts: dev:mgmt"
+  fi
+fi
+
 ci_log "inventory-check-mgmt OK"

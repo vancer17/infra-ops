@@ -32,7 +32,7 @@
 # -----------------------------------------------------------------------------
 # security_whitelist — 允许访问 Hub ECS 的来源（与安全组规则对应）
 # -----------------------------------------------------------------------------
-# 修改后须同步 Hub 安全组文档（待建 sg-hub-bootstrap.rules.yaml）
+# 修改后须同步 Hub 安全组文档 docs/security-groups/hub-bootstrap.rules.yaml
 security_whitelist:
   ci_public_ip: "121.41.58.20/32"
   ci_private_ip: "172.21.226.38/32"
