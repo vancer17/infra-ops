@@ -1,25 +1,92 @@
+# =============================================================================
+# Ansible Inventory 变量：WireGuard 隧道规划（阶段 E 密钥已完成）
+# =============================================================================
+#
+# 【状态】
+#   wireguard.status: keys_ready — Hub/ci-01 密钥与 vault 已建立；Server 未安装（阶段 F）
+#   wireguard.enabled: false     — wireguard role 在阶段 F apply 时改为 true
+#
+# 【与 wireguard_keys.yml / wireguard_vault.yml 分工】
+#   本文件     → 地址、端口、Peer 公钥、Hub 公钥（可提交 Git）
+#   vault 文件 → Hub 私钥密文
+#   keys/      → *.pub 与 gitignore 的 *.private
+#
+# 【同机 ci-01 + dev-01（yax）Peer 模型 — 阶段 F 采用方案 A】
+#   Hub wg0.conf 仅登记 ci-01 为 ECS Peer（10.200.0.2/32）。
+#   dev-01 条目不生成 Hub [Peer]；dev-01.wg_ip 仅文档/未来拆分 ECS 时使用。
+#   见 wireguard_peer_model 块。
+#
+# 【维护】
+#   公钥变更：./scripts/wireguard/wg-keys.sh sync-inventory（保留本文件注释，勿手改公钥行）
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# wireguard_peer_model — 同机多角色与 Hub [Peer] 登记策略（SSOT）
+# -----------------------------------------------------------------------------
+wireguard_peer_model:
+  # single_peer_ci_01：yax 上仅一个 wg0 客户端，地址 10.200.0.2
+  decision: single_peer_ci_01
+  colocated_hosts: [ci-01, dev-01]
+  # 阶段 F Hub Server 上必须出现的 [Peer] 名称（对应 wireguard_peers_planned[].name）
+  hub_active_peers:
+    - ci-01
+    - developer-laptop
+  # 仅 inventory/台账文档化，不在 Hub 上建 [Peer]
+  hub_inactive_peers:
+    - dev-01
+
+# -----------------------------------------------------------------------------
+# wireguard — Server 接口参数
+# -----------------------------------------------------------------------------
 wireguard:
+  # false = 不安装 wg0；阶段 F playbook 成功后改为 true
   enabled: false
+
   interface: wg0
-  hub_address: 10.200.0.1/24
+
+  # Hub Server 隧道地址（与 mgmt_hosts.hub-01.wg_ip 一致）
+  hub_address: "10.200.0.1/24"
+
+  # Hub 公钥（与 ansible/keys/wireguard/hub.pub 一致）
   hub_public_key: MNczHi1IQ4l8zkEPIQL1sPxSEPputkPdo2neaZWkFj8=
+
   listen_port: 51820
+
   ip_forward: true
-  status: not_started
+
+  # not_started → keys_ready（阶段 E）→ server_up（阶段 F Hub apply）→ operational（Peer 握手）
+  status: keys_ready
+
+  keys_ready_at: "2026-06-14"
+
+# -----------------------------------------------------------------------------
+# wireguard_peers_planned — Hub [Peer] 规划（公钥可提交 Git；私钥在 keys/*.private）
+# -----------------------------------------------------------------------------
 wireguard_peers_planned:
-- name: ci-01
-  wg_ip: 10.200.0.2
-  public_key: X5SImX/WSFZeC5afnZSY2Q7DAYDp17CeRf/dX76jM0s=
-  note: CI 替代机；实施 WG 时在 ci-01 生成密钥后填入公钥
-- name: dev-01
-  wg_ip: 10.200.1.1
-  public_key: null
-  note: 与 ci-01 同 ECS 时可暂不单独建 Peer
-- name: dev-02
-  wg_ip: 10.200.1.2
-  public_key: null
-  note: Dev-02 替代机 Bootstrap 后纳入
-- name: developer-laptop
-  wg_ip: 10.200.10.1
-  public_key: eQhU5QVENi3gPq4KxjFDqe/orLX75cs73aLOrSaRsnM=
-  note: 运维笔记本；地址从 10.200.10.0/24 分配
+  - name: ci-01
+    wg_ip: "10.200.0.2"
+    public_key: X5SImX/WSFZeC5afnZSY2Q7DAYDp17CeRf/dX76jM0s=
+    hub_peer: true
+    note: "CI 控制机 + 与 dev-01 同 ECS；阶段 F 首个 ECS Client Peer"
+
+  - name: dev-01
+    wg_ip: "10.200.1.1"
+    public_key: null
+    hub_peer: false
+    note: "与 ci-01 同 ECS；不单独建 Hub [Peer]，见 wireguard_peer_model"
+
+  - name: dev-02
+    wg_ip: "10.200.1.2"
+    public_key: null
+    hub_peer: false
+    note: "Dev-02 替代机 Bootstrap 后纳入；届时 hub_peer: true"
+
+  - name: developer-laptop
+    wg_ip: "10.200.10.1"
+    public_key: eQhU5QVENi3gPq4KxjFDqe/orLX75cs73aLOrSaRsnM=
+    hub_peer: true
+    optional: true
+    note: "运维笔记本；公钥见 keys/wireguard/developer-laptop.pub；私钥仅保留在笔记本本地"

@@ -12,9 +12,11 @@
 | 阶段 | 安全组 | SSH 来源 | WG UDP 51820 | 公网 22 |
 |------|--------|----------|--------------|---------|
 | bootstrap | sg-dev-ecs-bootstrap (`sg-bp122tjy3h95um8kv4f9`) | CI 私网 + 公网 + 公司 IP | 可预置（公司 + CI 公网） | 临时开放 |
-
-**2026-06-14**：Hub 控制台当前绑定 **与 Dev 相同** 的安全组 id；UDP 51820 规则以 [dev-ecs-bootstrap.rules.yaml](dev-ecs-bootstrap.rules.yaml) 中 `IN-WG-*` 为准（须在阿里云控制台手动添加）。
 | wireguard | sg-hub-wg | 10.200.0.0/16 | 公司 IP + 已知 Peer | 关闭 |
+
+**2026-06-14**：Hub 控制台当前绑定 **与 Dev 相同** 的安全组 id；UDP 51820 规则以 [dev-ecs-bootstrap.rules.yaml](dev-ecs-bootstrap.rules.yaml) 中 `IN-WG-*` 为准（须在阿里云控制台手动添加，见 [stage-f-console-checklist.md](../wireguard/stage-f-console-checklist.md)）。
+
+**共用安全组注意**：绑定 `sg-bp122tjy3h95um8kv4f9` 的所有 ECS 均继承 UDP 51820 入站；**仅 Hub 应运行 WG Server**。
 
 规则文件：[hub-bootstrap.rules.yaml](hub-bootstrap.rules.yaml)
 

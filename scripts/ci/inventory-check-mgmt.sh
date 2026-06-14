@@ -15,7 +15,11 @@
 #
 # 【用法】
 #   ./scripts/ci/inventory-check-mgmt.sh
-#   make inventory-mgmt
+#   make inventory-mgmt   # 若含 wireguard_vault.yml，需 .vault_pass 或 ANSIBLE_VAULT_PASSWORD_FILE
+#
+# 【Vault】
+#   mgmt/group_vars/all/wireguard_vault.yml 为加密文件；须设置
+#   ANSIBLE_VAULT_PASSWORD_FILE 或仓库根目录 .vault_pass，否则 ansible 无法解析 inventory。
 #
 # =============================================================================
 
@@ -29,6 +33,14 @@ ci_require_cmd ansible-inventory
 ci_require_cmd ansible
 
 MGMT_INVENTORY="${CI_ANSIBLE_INVENTORY_MGMT}"
+
+# 阶段 E 起 mgmt inventory 含 ansible-vault 加密 vars；自动使用 .vault_pass（若存在）
+if [[ -z "${ANSIBLE_VAULT_PASSWORD_FILE:-}" && -f "${CI_REPO_ROOT}/.vault_pass" ]]; then
+  export ANSIBLE_VAULT_PASSWORD_FILE="${CI_REPO_ROOT}/.vault_pass"
+fi
+if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+  ci_log "Ansible vault: ${ANSIBLE_VAULT_PASSWORD_FILE}"
+fi
 
 # -----------------------------------------------------------------------------
 # resolved_host_var — 获取已渲染的 inventory 变量（与 dev 版脚本同源逻辑）
@@ -139,7 +151,16 @@ for host_name in "${mgmt_hosts[@]}"; do
   fi
 
   wireguard_enabled="$(resolved_host_var "${host_name}" "wireguard.enabled")"
-  ci_log "  ${host_name}: wireguard.enabled=${wireguard_enabled:-<unset>}"
+  wg_status="$(resolved_host_var "${host_name}" "wireguard.status")"
+  ci_log "  ${host_name}: wireguard.enabled=${wireguard_enabled:-<unset>} status=${wg_status:-<unset>}"
+
+  if [[ "${wg_status}" == "keys_ready" ]]; then
+    hub_pub="$(resolved_host_var "${host_name}" "wireguard.hub_public_key")"
+    if [[ -z "${hub_pub}" || "${hub_pub}" == "null" ]]; then
+      ci_die "host ${host_name}: wireguard.status=keys_ready 但 hub_public_key 为空"
+    fi
+    ci_log "  ${host_name}: wireguard keys_ready hub_public_key present OK"
+  fi
 done
 
 # -----------------------------------------------------------------------------

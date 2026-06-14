@@ -52,6 +52,7 @@ host:
     private_ip: "172.21.127.123"
     eip_bound: true
     bandwidth_mbps: 2
+    bandwidth_note: "控制面/WG 握手足够；经 Hub 转发大流量为二期升配"
     # WireGuard 规划地址；wg0 接口配置实施后与 registry.yaml wireguard_plan 对齐
     planned_wg_ip: "10.200.0.1"
     wg_listen_port: 51820
@@ -66,12 +67,12 @@ host:
         name: sg-dev-ecs-bootstrap
         phase: bootstrap
         rules_file: docs/security-groups/dev-ecs-bootstrap.rules.yaml
-        note: "与 Dev 共用 id；UDP 51820 见 dev-ecs-bootstrap IN-WG-*"
+        note: "与 Dev 共用 id；UDP 51820 见 dev-ecs-bootstrap IN-WG-*；阶段 F 前须在控制台确认已添加"
     target:
       - id: null
         name: "sg-hub-wg"
         phase: wireguard
-        note: "目标态：仅 UDP 51820 + WG 网段访问 443（JumpServer）"
+        note: "目标态：Hub 独立安全组，避免 Dev 实例继承 UDP 51820 入站"
 
   ram_role:
     name: null
@@ -93,6 +94,9 @@ host:
     github_secrets_configured:
       - ANSIBLE_SSH_PRIVATE_KEY
       - ANSIBLE_SSH_KNOWN_HOSTS
+    github_secrets_required_stage_f:
+      - ANSIBLE_VAULT_PASSWORD
+    github_secrets_note: "VAULT 与 ci-01 .vault_pass 一致；供 deploy.yml 解密 wireguard_vault.yml"
 
   lifecycle:
     os: "Debian 12"
@@ -100,9 +104,28 @@ host:
     bootstrap_status: ssh_done
     bootstrap_completed_at: "2026-06-14"
     bootstrap_control_host: ci-01
-    wireguard_status: not_started
+    wireguard_status: keys_ready
+    wireguard_keys_ready_at: "2026-06-14"
+    wireguard_server_status: not_installed
     jumpserver_status: not_planned
     baota_installed: false
+
+  # 阶段 E 密钥验收（2026-06-14，ci-01 上 wg-keys all-hub + vault-encrypt-hub）
+  wireguard_keys:
+    completed_at: "2026-06-14"
+    hub_public_key_file: ansible/keys/wireguard/hub.pub
+    vault_file: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml
+    peer_model: single_peer_ci_01
+    checks:
+      verify_hub: ok
+      verify_peer_ci_01: ok
+      vault_encrypted: ok
+      gitleaks: ok
+    pending_stage_f:
+      - hub_install_wireguard_package
+      - hub_ip_forward
+      - hub_wg0_listen_51820
+      - console_udp_51820_verified
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   verification:

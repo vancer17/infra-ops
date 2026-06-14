@@ -173,16 +173,17 @@ git add docs/wireguard/wg-keys.runbook.md
 | 2 | 公钥入 inventory | `wireguard.hub_public_key` 非 null |
 | 3 | Vault | `vault-view` 可见 `wireguard_vault.hub_private_key` |
 | 4 | Git 卫生 | `make secret-scan` 通过；无私钥明文提交 |
-| 5 | 台账 | 可选：更新 `hub-01.yaml` 中 `wireguard_status: keys_ready` |
+| 5 | 台账 | `hub-01.yaml` / `wireguard.status` 为 `keys_ready` |
 
 ---
 
 ## 八、下一步（非本 Runbook）
 
+- 阶段 F 前：`make stage-f-preflight`；控制台核对 [stage-f-console-checklist.md](stage-f-console-checklist.md)
 - `wireguard` role + `wireguard-hub.yml`：在 Hub 安装 WG Server
-- `wireguard-peer.yml`：各 ECS 配置客户端
-- 切换 `ci_connectivity.access_mode: wireguard`
-- 安全组从 bootstrap 切到 wireguard 阶段
+- `wireguard-peer.yml`：ci-01 Client（方案 A：同机不单独 dev-01 Peer）
+- **握手成功后**再切换 `ci_connectivity.access_mode: wireguard`
+- 安全组 Hub 迁移 `sg-hub-wg`、关 Bootstrap 公网 SSH
 
 ---
 
@@ -191,7 +192,7 @@ git add docs/wireguard/wg-keys.runbook.md
 | 现象 | 处理 |
 |------|------|
 | `wg: command not found` | `sudo apt install wireguard-tools` |
-| `PyYAML required` | `make setup` 或 `pip install pyyaml` |
+| `PyYAML required` | 已改为 ruamel；`make setup` |
 | `Hub private key already exists` | 勿重复 generate；备份后手动删除再生成 |
 | `ansible-vault not found` | `make setup` |
 | vault 解密失败 | 检查 `.vault_pass` 与 GitHub Secret 是否一致 |

@@ -53,3 +53,4 @@ ssh_keys_configured: true
 github_secrets:
   ansible_ssh_private_key: ANSIBLE_SSH_PRIVATE_KEY
   ansible_ssh_known_hosts: ANSIBLE_SSH_KNOWN_HOSTS
+  ansible_vault_password: ANSIBLE_VAULT_PASSWORD
