@@ -11,7 +11,9 @@
 
 | 阶段 | 安全组 | SSH 来源 | WG UDP 51820 | 公网 22 |
 |------|--------|----------|--------------|---------|
-| bootstrap | sg-hub-bootstrap | CI 私网 `172.21.226.38/32` + CI 公网 + 公司 IP | 可预置（公司 + CI 公网） | 临时开放 |
+| bootstrap | sg-dev-ecs-bootstrap (`sg-bp122tjy3h95um8kv4f9`) | CI 私网 + 公网 + 公司 IP | 可预置（公司 + CI 公网） | 临时开放 |
+
+**2026-06-14**：Hub 控制台当前绑定 **与 Dev 相同** 的安全组 id；UDP 51820 规则以 [dev-ecs-bootstrap.rules.yaml](dev-ecs-bootstrap.rules.yaml) 中 `IN-WG-*` 为准（须在阿里云控制台手动添加）。
 | wireguard | sg-hub-wg | 10.200.0.0/16 | 公司 IP + 已知 Peer | 关闭 |
 
 规则文件：[hub-bootstrap.rules.yaml](hub-bootstrap.rules.yaml)
@@ -20,9 +22,9 @@
 
 1. 规则变更必须同步更新 `*-bootstrap.rules.yaml` 与对应主机 `docs/assets/*.yaml`。
 2. 禁止在控制台直接改规则而不落库。
-3. Dev-01 / Dev-02 共用 `sg-dev-ecs-bootstrap`，不 per-host 建组（减少漂移）。
-4. Hub 使用独立 `sg-hub-bootstrap`（与 Dev 安全组分离）。
-5. Bootstrap 完成后：`bootstrap_status` 改为 `bootstrap_done`（Dev）或 `ssh_done`（Hub，含 1.3 steady）。
+3. Dev-01 / Dev-02 / Hub-01 当前共用 `sg-bp122tjy3h95um8kv4f9`（`sg-dev-ecs-bootstrap`）；Hub 专用组为二期可选项。
+4. Bootstrap 完成后：`bootstrap_status` 为 `bootstrap_done`（仅 1.2）或 `ssh_done`（含 1.3 steady）。
+5. ~~Hub 使用独立 sg-hub-bootstrap~~ → 见上条共用 id 说明。
 6. **2026-06-08 起** CI 替代机（`121.41.58.20`）与 Dev/Hub 在**同一 VPC**：Ansible 优先 **私网 IP**。
 7. 原 CI `47.98.161.33` 已退役，安全组与 `network.yml` 均不再引用。
 8. Inventory：`ansible/inventories/dev/`、`ansible/inventories/mgmt/`。

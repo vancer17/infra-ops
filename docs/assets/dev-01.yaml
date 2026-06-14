@@ -88,5 +88,13 @@ host:
   lifecycle:
     os: Debian 12
     reset_at: "2026-06-08"
-    bootstrap_status: bootstrap_done
+    bootstrap_status: ssh_done
+    bootstrap_completed_at: "2026-06-14"
+    ssh_phase: steady
+    ssh_keys_configured: true
     baota_installed: false
+
+  ansible:
+    inventory: ansible/inventories/dev/
+    inventory_user: deploy
+    ci_deploy_key: infra-ci-deploy

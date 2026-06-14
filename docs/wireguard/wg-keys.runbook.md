@@ -25,16 +25,18 @@
 
 ```bash
 cd ~/infra-ops
+git pull
 
-# 系统：WireGuard 用户态工具
-sudo apt update
-sudo apt install -y wireguard-tools
+# 修正控制面 bashrc + 验证 Ansible + 检查 wireguard-tools
+chmod +x scripts/dev/setup-control-plane-env.sh
+./scripts/dev/setup-control-plane-env.sh all
+source ~/.bashrc
+
+# 若 wireguard-tools 未安装
+./scripts/dev/setup-control-plane-env.sh install-wireguard
 
 # 仓库：Ansible、PyYAML、ansible-vault
 make setup
-
-# 可选：Shell 静态检查
-sudo apt install -y shellcheck
 ```
 
 ---

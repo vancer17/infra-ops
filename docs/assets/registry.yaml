@@ -147,9 +147,9 @@ hosts:
     spec: "8 vCPU / 16 GiB"
     zone: "杭州 可用区 K"
     inventory_group: null
-    bootstrap_status: bootstrap_done
-    colocated_hosts: [dev-01]
-    note: "兼 GitHub Self-hosted Runner 与 Ansible 控制机；与 dev-01 同 ECS"
+    bootstrap_status: ssh_done
+    bootstrap_completed_at: "2026-06-14"
+    note: "阶段 B/C 完成；兼 GitHub Self-hosted Runner；与 dev-01 同 ECS"
 
   dev-01:
     asset_file: dev-01.yaml
@@ -163,9 +163,9 @@ hosts:
     spec: "8 vCPU / 16 GiB"
     zone: "杭州 可用区 K"
     inventory_group: dev_app
-    bootstrap_status: bootstrap_done
+    bootstrap_status: ssh_done
     same_ecs_as: ci-01
-    note: "阶段 1 Bootstrap 已完成；应用层配置待业务栈确定"
+    note: "与 ci-01 同 ECS；SSH steady；应用层待业务栈确定"
 
   dev-02:
     asset_file: dev-02.yaml
