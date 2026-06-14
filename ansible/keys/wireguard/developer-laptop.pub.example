@@ -1,0 +1,4 @@
+# WireGuard Peer developer-laptop 公钥示例（单行 base64）
+# 真实文件：developer-laptop.pub（可提交 Git）
+# 推荐在笔记本本地 generate-peer；若在 CI 机生成须安全拷贝 .private 到笔记本
+pQrStUvW1234567890ExampleLaptopPublicKeyReplaceMe=

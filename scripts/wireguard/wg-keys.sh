@@ -124,7 +124,7 @@ validate_peer_name() {
 }
 
 # -----------------------------------------------------------------------------
-# sync-inventory：把 .pub 公钥写回 wireguard.yml
+# sync-inventory：把 .pub 公钥写回 wireguard.yml（保留 YAML 注释与结构）
 # -----------------------------------------------------------------------------
 cmd_sync_inventory() {
   wg_check_deps
@@ -133,22 +133,38 @@ import sys
 from pathlib import Path
 
 try:
-    import yaml
+    from ruamel.yaml import YAML
 except ImportError as e:
-    raise SystemExit("PyYAML required: pip install pyyaml or use .venv from make setup") from e
+    raise SystemExit(
+        "ruamel.yaml required for sync-inventory (preserves comments); run: make setup"
+    ) from e
 
 wg_file, keys_dir, hub_pub = sys.argv[1:4]
 path = Path(wg_file)
-data = yaml.safe_load(path.read_text()) or {}
+
+yaml = YAML()
+yaml.preserve_quotes = True
+yaml.width = 120
+yaml.indent(mapping=2, sequence=4, offset=2)
+
+with path.open(encoding="utf-8") as fh:
+    data = yaml.load(fh)
+if data is None:
+    data = {}
+
 
 def read_pub(p: Path) -> str | None:
     if not p.is_file():
         return None
-    return p.read_text().strip()
+    return p.read_text(encoding="utf-8").strip()
+
 
 hub_key = read_pub(Path(hub_pub))
 if hub_key:
-    data.setdefault("wireguard", {})["hub_public_key"] = hub_key
+    wg = data.setdefault("wireguard", {})
+    wg["hub_public_key"] = hub_key
+    if wg.get("status") == "not_started":
+        wg["status"] = "keys_ready"
 
 peers = data.get("wireguard_peers_planned") or []
 for peer in peers:
@@ -158,11 +174,11 @@ for peer in peers:
     pub = read_pub(Path(keys_dir) / f"{name}.pub")
     if pub:
         peer["public_key"] = pub
-    elif peer.get("public_key") is None:
-        pass  # 保持 null
 
-path.write_text(yaml.dump(data, allow_unicode=True, default_flow_style=False, sort_keys=False))
-print(f"Updated {path}")
+with path.open("w", encoding="utf-8") as fh:
+    yaml.dump(data, fh)
+
+print(f"Updated {path} (ruamel round-trip, comments preserved)")
 if hub_key:
     print(f"  wireguard.hub_public_key = {hub_key[:16]}...")
 for peer in peers:
