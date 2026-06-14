@@ -114,4 +114,5 @@ ssh -i ansible/keys/infra-ci-deploy deploy@172.21.127.123 'whoami'
 | `sudo: a password is required`（`delegate_to: localhost`） | 控制机 task 须 `become: false`；用 `deploy` 跑 Ansible 时**不要**在控制机 sudo。更新仓库后重新 `apply` |
 | verify 要求 docker | 确认 `mgmt/bootstrap.yml` 中 `docker_install: false` |
 | verify 报 `nc ... VARIABLE` / RDS | 确认 `mgmt/bootstrap.yml` 中 `rds_verify: false`；更新仓库后重跑 verify |
+| verify 报 `nc ... "false"` | 旧版 remote verify 在 `rds_host` 为空时 SSH 丢弃空参数，误把 `docker_install=false` 当 RDS 主机；拉取含参数顺序修复的版本 |
 | steady 后 root 不可用 | 预期行为；使用 `deploy` + infra-ci-deploy 私钥 |

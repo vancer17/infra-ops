@@ -145,6 +145,10 @@ chmod +x scripts/dev/bootstrap.sh
 
 mgmt（Hub）inventory 未定义 `rds.host` 且 `rds_verify` 未设为 `false` 时，旧版脚本会把 Ansible 的 `VARIABLE IS NOT DEFINED!` 当成主机名。Hub 须在 `mgmt/group_vars/all/bootstrap.yml` 设 `rds_verify: false`；Dev 保持 `rds_verify: true` 并确保 `network.yml` 含 `rds.host`。
 
+### verify 报 `nc: getaddrinfo for host "false"`
+
+remote verify 经 SSH 传参时，空字符串 positional argument 会被丢弃；若 `rds_host` 为空而 `docker_install=false` 排在第二位，远程 shell 会把 `false` 当成 `$1`（rds_host）并执行 `nc`。修复后 `docker_install` 在前、`rds_host` 在后；Hub 仍须 `rds_verify: false`。
+
 ### `sudo: a password is required`（`Stat CI deploy public key file on controller`）
 
 Playbook 全局 `become: true`，但 `users.yml` / `ssh-keys.yml` 在控制机读 `ansible/keys/infra-ci-deploy.pub` 的 task 使用 `delegate_to: localhost`，须显式 **`become: false`**。以 `deploy` 跑 Ansible 时控制机不应 sudo。确认仓库已含该修复后重新 `apply`。
