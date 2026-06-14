@@ -21,6 +21,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/dev/lib/bashrc-check.sh
+source "${ROOT}/scripts/dev/lib/bashrc-check.sh"
 PRIVATE_KEY="${ROOT}/ansible/keys/infra-ci-deploy"
 MGMT_INV="${ROOT}/ansible/inventories/mgmt/"
 DEV_INV="${ROOT}/ansible/inventories/dev/"
@@ -49,7 +51,7 @@ write_bashrc_block() {
   local block
   block=$(cat <<'EOF'
 # >>> infra-ops control-plane >>>
-# 由 scripts/dev/setup-control-plane-env.sh 维护；勿手工改 ANSIBLE_PRIVATE_KEY_FILE 为 hub-root
+# 由 setup-control-plane-env.sh 维护；密钥路径须为 ansible/keys/infra-ci-deploy
 INFRA_OPS_ROOT="${HOME}/infra-ops"
 
 if [ -d "${INFRA_OPS_ROOT}/.venv/bin" ]; then
@@ -136,10 +138,9 @@ EOF
     mv "$tmp_old" "$BASHRC"
   fi
 
-  # 兜底：单行 hub-root 残留
-  if grep -q 'ANSIBLE_PRIVATE_KEY_FILE.*hub-root' "$BASHRC" 2>/dev/null; then
-    sed -i '/ANSIBLE_PRIVATE_KEY_FILE.*hub-root/d' "$BASHRC"
-    sed -i '/# Hub Bootstrap：Ansible 连 Hub 的 root 密钥/d' "$BASHRC"
+  # 兜底：删除非注释行中的 hub-root 赋值（与 stage-e-preflight 共用 bashrc-check.sh）
+  if bashrc_has_stale_ansible_hub_root "$BASHRC"; then
+    bashrc_remove_stale_ansible_hub_root "$BASHRC"
   fi
 
   printf '\n%s\n' "$block" >>"$BASHRC"
