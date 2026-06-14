@@ -2,6 +2,8 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
+**hub-01 状态（2026-06-14）**：阶段 C Bootstrap + SSH 1.3 完成（`bootstrap_status: ssh_done`）；Ansible 连接用户 `deploy`；GitHub Secrets `ANSIBLE_SSH_PRIVATE_KEY` / `ANSIBLE_SSH_KNOWN_HOSTS` 已配置。
+
 ## 用途
 
 | 目录/文件 | 说明 |
@@ -29,9 +31,9 @@ make inventory-mgmt
 ./scripts/wireguard/wg-keys.sh all-hub
 ./scripts/wireguard/wg-keys.sh vault-encrypt-hub
 
-# Bootstrap Hub（在 yax 控制机上，需 SSH 可达 Hub 私网）
+# Bootstrap Hub（已完成 2026-06-14；日常用 deploy 密钥）
 export ANSIBLE_INVENTORY=ansible/inventories/mgmt/
-./scripts/dev/bootstrap.sh all hub-01
+ansible hub-01 -m ping -u deploy --private-key=ansible/keys/infra-ci-deploy
 ```
 
 Runbook：`docs/bootstrap/hub-01-bootstrap.runbook.md`  

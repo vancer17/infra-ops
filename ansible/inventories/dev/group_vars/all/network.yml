@@ -91,6 +91,7 @@ platform_hosts:
     instance_id: "i-bp13u0d90uicmwrh4kb"
     replaces_planned_ip: "47.97.19.58"
     wireguard_server: true
+    bootstrap_status: ssh_done
   ci-01:
     public_ip: "121.41.58.20"
     private_ip: "172.21.226.38"

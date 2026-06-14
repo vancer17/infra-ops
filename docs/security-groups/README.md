@@ -22,7 +22,7 @@
 2. 禁止在控制台直接改规则而不落库。
 3. Dev-01 / Dev-02 共用 `sg-dev-ecs-bootstrap`，不 per-host 建组（减少漂移）。
 4. Hub 使用独立 `sg-hub-bootstrap`（与 Dev 安全组分离）。
-5. Bootstrap 完成后，`bootstrap_status` 改为 `sg_done` 或 `bootstrap_done`。
+5. Bootstrap 完成后：`bootstrap_status` 改为 `bootstrap_done`（Dev）或 `ssh_done`（Hub，含 1.3 steady）。
 6. **2026-06-08 起** CI 替代机（`121.41.58.20`）与 Dev/Hub 在**同一 VPC**：Ansible 优先 **私网 IP**。
 7. 原 CI `47.98.161.33` 已退役，安全组与 `network.yml` 均不再引用。
 8. Inventory：`ansible/inventories/dev/`、`ansible/inventories/mgmt/`。

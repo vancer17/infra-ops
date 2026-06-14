@@ -20,7 +20,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-08"
+updated_at: "2026-06-14"
 updated_by: "infra-ops"
 
 host:
@@ -55,14 +55,14 @@ host:
     # WireGuard 规划地址；wg0 接口配置实施后与 registry.yaml wireguard_plan 对齐
     planned_wg_ip: "10.200.0.1"
     wg_listen_port: 51820
-    hostname: null
+    hostname: "iZbp13i3ed90ieamwrb4kbZ"
     ci_same_vpc: true
-    ci_access_from: "private_or_wg"
+    ci_access_from: private
 
   # --- 安全组（控制台创建后填入 id；规则见 docs/security-groups/hub-bootstrap.rules.yaml）---
   security_groups:
     bootstrap:
-      - id: null
+      - id: sg-bp122tjy3h95um8kv4f9
         name: "sg-hub-bootstrap"
         phase: bootstrap
         rules_file: "docs/security-groups/hub-bootstrap.rules.yaml"
@@ -84,10 +84,36 @@ host:
       - "115.195.216.251/32"
     wireguard_future: "10.200.0.0/16"
 
+  ansible:
+    inventory: ansible/inventories/mgmt/
+    inventory_user: deploy
+    ssh_phase: steady
+    ssh_keys_configured: true
+    ci_deploy_key: infra-ci-deploy
+    github_secrets_configured:
+      - ANSIBLE_SSH_PRIVATE_KEY
+      - ANSIBLE_SSH_KNOWN_HOSTS
+
   lifecycle:
     os: "Debian 12"
     reset_at: null
-    bootstrap_status: pending
+    bootstrap_status: ssh_done
+    bootstrap_completed_at: "2026-06-14"
+    bootstrap_control_host: ci-01
     wireguard_status: not_started
     jumpserver_status: not_planned
     baota_installed: false
+
+  # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
+  verification:
+    completed_at: "2026-06-14"
+    method: "ssh deploy@172.21.127.123 + infra-ci-deploy"
+    checks:
+      deploy_user: ok
+      jump_ops_user: ok
+      timezone: "Asia/Shanghai"
+      opt_mgmt: ok
+      opt_wireguard: "exists (mode 0750 root; deploy 无 list 权限为预期)"
+      var_log_mgmt: ok
+      docker_installed: false
+    note: "ping 私网/公网可能丢包（ICMP 禁）；以 SSH/nc 为准"
