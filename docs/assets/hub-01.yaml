@@ -59,13 +59,14 @@ host:
     ci_same_vpc: true
     ci_access_from: "private_or_wg"
 
-  # --- 安全组（控制台确认后填入 id；新建 Hub 专用组或复用需记录）---
+  # --- 安全组（控制台创建后填入 id；规则见 docs/security-groups/hub-bootstrap.rules.yaml）---
   security_groups:
     bootstrap:
       - id: null
         name: "sg-hub-bootstrap"
         phase: bootstrap
-        note: "待创建：入站 UDP 51820（公司 IP + CI 公网）、临时 SSH 公司 IP"
+        rules_file: "docs/security-groups/hub-bootstrap.rules.yaml"
+        note: "须放行 CI 私网 172.21.226.38/32 SSH；UDP 51820 可预置"
     target:
       - id: null
         name: "sg-hub-wg"

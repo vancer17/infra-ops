@@ -68,19 +68,24 @@
 #   改用 import_role 逐步导入，每次 tasks_from 独立生效。验证：
 #     ansible-playbook ... --list-tasks | grep jump_ops
 #
-# 【目标主机 hosts: dev】
-#   对应 inventory/hosts.yml 中 dev 组（含 dev_app 的 dev-01、dev_worker 的 dev-02）。
-#   用 --limit dev-01 可只跑单台。
+# 【目标主机 hosts: dev:mgmt】
+#   dev  → inventories/dev/  下 dev-01、dev-02（应用环境）
+#   mgmt → inventories/mgmt/ 下 hub-01（管理面 / WG Server）
+#   使用 union 语法 dev:mgmt：对 dev inventory 仅匹配 dev 组；对 mgmt 仅匹配 mgmt 组。
+#
+#   示例：
+#     -i inventories/dev/  --limit dev-01
+#     -i inventories/mgmt/ --limit hub-01
 #
 # =============================================================================
 
 ---
 # -----------------------------------------------------------------------------
-# Play 1：Bootstrap Dev ECS hosts
+# Play 1：Bootstrap Dev / Mgmt ECS hosts
 # -----------------------------------------------------------------------------
-- name: Bootstrap Dev ECS hosts
-  # 目标组：inventory 里 dev 组下的所有主机（dev-01、dev-02）
-  hosts: dev
+- name: Bootstrap Dev and Mgmt ECS hosts
+  # 目标组：dev（应用）或 mgmt（Hub）；由 -i 与 --limit 决定实际主机
+  hosts: dev:mgmt
   # become: true → 每个 task 默认以 sudo 执行
   # Bootstrap 期 ansible_user 多为 root（见 host_vars），become 仍建议保留以便统一
   become: true

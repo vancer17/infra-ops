@@ -1,0 +1,80 @@
+# Hub-01 Bootstrap 阶段安全组规则
+# 适用：hub-01（121.43.49.58 / 172.21.127.123）
+#
+# 【2026-06-08 资产台账修订】
+#   CI 替代机：121.41.58.20（公网）/ 172.21.226.38（私网，与 Hub 同 VPC）
+#   Ansible Bootstrap 优先使用 Hub 私网 172.21.127.123 → 须放行 CI 私网 SSH
+#   须与 docs/assets/hub-01.yaml、inventories/mgmt/group_vars/all/network.yml 一致
+#
+# 【控制台操作】
+#   1. 创建安全组 sg-hub-bootstrap（或复用现有组并记录 id）
+#   2. 绑定到实例 i-bp13u0d90uicmwrh4kb
+#   3. 将 security_group.id 回填 hub-01.yaml
+#
+schema_version: "1"
+phase: bootstrap
+updated_at: "2026-06-08"
+security_group:
+  name: sg-hub-bootstrap
+  id: null
+  description: "Hub Bootstrap 临时策略；WG 完成后迁移 sg-hub-wg"
+  region: cn-hangzhou
+  vpc_id: vpc-bp1jmugctnhj97dbjyx31
+
+rules:
+  inbound:
+    - id: IN-SSH-CI-PRIVATE
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "172.21.226.38/32"
+      description: "Bootstrap-CI-Private-SSH"
+      note: "ci-01 私网；同 VPC Ansible 优先路径"
+      expires_at_phase: wireguard
+
+    - id: IN-SSH-CI
+      priority: 2
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "121.41.58.20/32"
+      description: "Bootstrap-CI-Public-SSH"
+      note: "ci-01 公网回退"
+      expires_at_phase: wireguard
+
+    - id: IN-SSH-OFFICE
+      priority: 3
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "115.195.216.251/32"
+      description: "Bootstrap-Office-SSH-Temporary"
+      expires_at_phase: wireguard
+
+    - id: IN-WG-UDP
+      priority: 10
+      policy: accept
+      protocol: udp
+      port_range: "51820/51820"
+      source: "115.195.216.251/32"
+      description: "WireGuard-Server-Office"
+      note: "WG 实施前可预置；Peer 接入后按需追加 CI 公网"
+
+    - id: IN-WG-UDP-CI
+      priority: 11
+      policy: accept
+      protocol: udp
+      port_range: "51820/51820"
+      source: "121.41.58.20/32"
+      description: "WireGuard-Server-CI"
+      note: "Hub WG Server 监听；实施 WG 时启用"
+
+  outbound:
+    - id: OUT-ALL
+      priority: 1
+      policy: accept
+      protocol: all
+      port_range: "-1/-1"
+      destination: "0.0.0.0/0"
+      description: "Allow-all-egress"
