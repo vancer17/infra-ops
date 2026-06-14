@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-08"
+updated_at: "2026-06-14"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -131,8 +131,9 @@ hosts:
     zone: "杭州 可用区 I"
     inventory_group: mgmt_hub
     inventory_path: ansible/inventories/mgmt/
-    bootstrap_status: pending
-    note: "最小 WG 组网时的唯一 WG Server；后续可部署 JumpServer"
+    bootstrap_status: ssh_done
+    bootstrap_completed_at: "2026-06-14"
+    note: "阶段 C Bootstrap + SSH 1.3 完成；WG Server / JumpServer 待实施"
 
   ci-01:
     asset_file: ci-01.yaml
