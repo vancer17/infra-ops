@@ -33,6 +33,7 @@
 #     register:   把模块返回值存进变量，后续 task 用 {{ 变量名.xxx }}
 #     when:       条件为 false 时跳过（显示 skipped）
 #     delegate_to: localhost         # 在控制机（你跑 ansible 的 CI 机）上执行，不在远程 ECS
+#     become: false                  # 控制机读仓库公钥时须显式关闭 become（deploy 用户无 sudo）
 #     run_once: true                 # 多主机时只执行一次（结果通过 set_fact 共享给组内主机）
 #
 # 【常用执行命令】
@@ -115,12 +116,14 @@
     # -------------------------------------------------------------------------
     # stat 模块：查看文件/目录元数据（是否存在、权限、大小等），不修改文件。
     # delegate_to: localhost → 在「跑 ansible 的机器」（CI 机）上 stat，不是 Dev ECS。
+    # become: false → 读控制机仓库文件，deploy 用户无需 sudo（playbook 全局 become: true 不继承到此）。
     # run_once: true → dev 组有多台时也只查一次（公钥文件在 CI 仓库里只有一份）。
     # register → 结果存入 ssh_ci_pubkey_stat，后面用 ssh_ci_pubkey_stat.stat.exists
     - name: Stat CI deploy public key file
       ansible.builtin.stat:
         path: "{{ ssh_ci_pubkey_file }}"
       delegate_to: localhost
+      become: false
       run_once: true
       register: ssh_ci_pubkey_stat
 
@@ -137,6 +140,7 @@
 
     # set_fact 模块：设置/覆盖 Ansible 变量（仅在本次 Playbook 运行期间有效）。
     # lookup('file', path) → 读取控制机本地文件内容为字符串。
+    # delegate_to: localhost + become: false → 在控制机读公钥，不要求 deploy 用户 sudo。
     # | trim → Jinja2 过滤器，去掉首尾空白和换行。
     # [ ... ] + list → 把公钥文件内容包成单元素列表，再与 extra 公钥列表拼接。
     # deploy_authorized_keys_extra → 可在 ssh.yml 里追加个人应急密钥。
@@ -148,6 +152,8 @@
             [lookup('file', ssh_ci_pubkey_file) | trim]
             + (deploy_authorized_keys_extra | default([]))
           }}
+      delegate_to: localhost
+      become: false
       run_once: true
 
     # gather_facts: true 已在 Play 级开启，此处可直接用 ansible_distribution 等变量。

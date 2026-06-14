@@ -54,16 +54,23 @@
 #   ssh_phase: bootstrap → 模板允许 root + deploy 登录
 #   1.3 完成后：ssh-keys.sh steady → ssh_phase=steady，禁止 root
 #
+# 【控制机 task 与 become】
+#   playbook 全局 become: true，但 Task 0 在控制机（delegate_to: localhost）读仓库公钥，
+#   须显式 become: false，否则 deploy 用户跑 Ansible 时会在本机 sudo 失败。
+#   远程 ECS 上的 user/copy/template 等 task 仍继承 become: true（需 root）。
+#
 # =============================================================================
 
 ---
 # -----------------------------------------------------------------------------
 # Task 0：从仓库公钥文件合并 deploy_authorized_keys（1.3）
 # -----------------------------------------------------------------------------
+# 在控制机读 ansible/keys/infra-ci-deploy.pub，不修改远程 ECS。
 - name: Stat CI deploy public key file on controller
   ansible.builtin.stat:
     path: "{{ ssh_ci_pubkey_file }}"
   delegate_to: localhost
+  become: false
   run_once: true
   register: ssh_ci_pubkey_stat
   tags: [common, bootstrap, ssh, ssh_keys, always]
@@ -77,6 +84,8 @@
         if ssh_ci_pubkey_stat.stat.exists
         else (deploy_authorized_keys | default([]))
       }}
+  delegate_to: localhost
+  become: false
   run_once: true
   tags: [common, bootstrap, ssh, ssh_keys, always]
 

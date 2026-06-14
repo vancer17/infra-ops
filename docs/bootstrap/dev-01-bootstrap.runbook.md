@@ -13,6 +13,7 @@
 | 项 | 说明 |
 |----|------|
 | **在哪执行** | 在 **yax 本机**（`121.41.58.20`）上 clone 仓库并跑脚本；同机部署时脚本自动使用 `ansible_connection=local` |
+| **执行用户** | 推荐 **`deploy`**（日常运维账号）；**不需要**控制机 sudo。Playbook 对远程 ECS 仍 `become: true`（root 装包/建用户） |
 | **不要** | 在笔记本上对私网 `172.21.226.38` 跑 Ansible（除非改 inventory 为公网 IP） |
 | **Python/Ansible** | 必须先 `make setup`；`bootstrap.sh` **不会**自动激活 `.venv` |
 
@@ -139,6 +140,10 @@ chmod +x scripts/dev/bootstrap.sh
 ### `community.general does not support Ansible version 2.16.18`
 
 兼容性警告，可暂时忽略。
+
+### `sudo: a password is required`（`Stat CI deploy public key file on controller`）
+
+Playbook 全局 `become: true`，但 `users.yml` / `ssh-keys.yml` 在控制机读 `ansible/keys/infra-ci-deploy.pub` 的 task 使用 `delegate_to: localhost`，须显式 **`become: false`**。以 `deploy` 跑 Ansible 时控制机不应 sudo。确认仓库已含该修复后重新 `apply`。
 
 ---
 
