@@ -214,10 +214,12 @@ verify() {
   if [[ -n "$rds_host" ]]; then
     echo "RDS check: ${rds_host}:3306"
   fi
-  ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$rds_host" "$docker_install" <<'REMOTE'
+  # docker_install 必须在前：SSH 会丢弃空 positional arg；若 rds_host 为空而 docker_install 在后，
+  # 远程 bash 会把 "false"/"true" 当成 $1（rds_host），误触发 nc。
+  ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$docker_install" "$rds_host" <<'REMOTE'
 set -euo pipefail
-rds_host="${1:-}"
-docker_install="${2:-true}"
+docker_install="${1:-true}"
+rds_host="${2:-}"
 timedatectl | grep -q 'Time zone: Asia/Shanghai'
 id deploy >/dev/null
 id jump_ops >/dev/null
