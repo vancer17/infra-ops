@@ -112,11 +112,34 @@ EOF
     mv "$tmp" "$BASHRC"
   fi
 
-  # 删除可能残留的旧版独立块（2026-06-14 手动追加、含 hub-root 的行）
+  # 删除 2026-06-14 手动追加的旧版控制面块（含 hub-root、重复 _infra_ops_auto_venv）
+  if grep -q 'infra-ops 控制面' "$BASHRC" 2>/dev/null || \
+     grep -q '_infra_ops_auto_venv' "$BASHRC" 2>/dev/null; then
+    local tmp_old
+    tmp_old="$(mktemp)"
+    awk '
+      /^# =====.*infra-ops 控制面/ { skip=1; next }
+      skip && /^alias inv-dev=/ { skip=0; next }
+      skip && /^# <<< infra-ops control-plane/ { skip=0; next }
+      skip { next }
+      /ANSIBLE_PRIVATE_KEY_FILE.*hub-root/ { next }
+      /# Hub Bootstrap：Ansible 连 Hub 的 root 密钥/ { next }
+      /^_infra_ops_auto_venv\(\)/ { skip_fn=1; next }
+      skip_fn && /^}$/ { skip_fn=0; next }
+      skip_fn { next }
+      /PROMPT_COMMAND=.*_infra_ops_auto_venv/ { next }
+      /^if \[\[ "\$\{PWD\}" == "\$\{INFRA_OPS_ROOT\}"\* \]\]; then$/ { skip_if=1; next }
+      skip_if && /^fi$/ { skip_if=0; next }
+      skip_if { next }
+      { print }
+    ' "$BASHRC" >"$tmp_old"
+    mv "$tmp_old" "$BASHRC"
+  fi
+
+  # 兜底：单行 hub-root 残留
   if grep -q 'ANSIBLE_PRIVATE_KEY_FILE.*hub-root' "$BASHRC" 2>/dev/null; then
     sed -i '/ANSIBLE_PRIVATE_KEY_FILE.*hub-root/d' "$BASHRC"
     sed -i '/# Hub Bootstrap：Ansible 连 Hub 的 root 密钥/d' "$BASHRC"
-    sed -i '/# infra-ops 控制面（yax \/ ci-01）/d' "$BASHRC"
   fi
 
   printf '\n%s\n' "$block" >>"$BASHRC"
