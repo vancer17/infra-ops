@@ -78,6 +78,7 @@ infra-ops/
 | [docs/bootstrap/hub-01-bootstrap.runbook.md](docs/bootstrap/hub-01-bootstrap.runbook.md) | Hub-01 Bootstrap（阶段 C，`ssh_done` 2026-06-14） |
 | [docs/bootstrap/dev-ssh-keys.runbook.md](docs/bootstrap/dev-ssh-keys.runbook.md) | SSH 密钥体系（1.3） |
 | [docs/wireguard/wg-keys.runbook.md](docs/wireguard/wg-keys.runbook.md) | WireGuard 密钥生成与保管（Hub） |
+| [docs/wireguard/stage-f-console-checklist.md](docs/wireguard/stage-f-console-checklist.md) | 阶段 F 前控制台 UDP 51820 核对 |
 | [docs/plan/20260608-开发环境（Dev）部署计划.md](docs/plan/20260608-开发环境（Dev）部署计划.md) | 分阶段部署计划 |
 
 ## 三层检查（勿混淆）

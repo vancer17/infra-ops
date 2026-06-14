@@ -9,8 +9,10 @@ Hub 与 Peer 的 WireGuard 密钥对存放位置。保管策略与 SSH 密钥（
 | `hub.private` | **否** | Hub 私钥；`wg-keys.sh generate-hub` 生成 |
 | `hub.pub` | **是** | Hub 公钥；Peer 客户端配置需要 |
 | `<peer>.private` | **否** | Peer 私钥（如 `ci-01.private`） |
-| `<peer>.pub` | **是** | Peer 公钥；Hub `wg0.conf` 的 `[Peer]` 需要 |
+| `ci-01.pub` / `developer-laptop.pub` | **是** | Peer 公钥；Hub `[Peer]` 需要 |
 | `*.example` | 是 | 格式示例 |
+
+`sync-inventory` 使用 **ruamel.yaml** 更新公钥字段，**保留本文件顶部注释**。
 
 ## 生成命令（在 CI 机或运维笔记本执行）
 

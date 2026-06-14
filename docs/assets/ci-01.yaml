@@ -10,7 +10,8 @@
 #   - 公网 IP、私网 IP、实例 ID 与 dev-01.yaml 完全相同
 #   - CI 职责：ansible-playbook、GitHub Actions Runner、后续镜像构建
 #   - Dev-01 职责：应用运行时（Docker、Nginx 等）
-#   - WireGuard：规划上 CI 用 10.200.0.2，Dev 用 10.200.1.1；同机可合并为一个 wg 地址
+#   - WireGuard：阶段 F 采用 **方案 A** — 仅 ci-01 作为 Hub [Peer]（10.200.0.2）；
+#     dev-01.wg_ip 仅文档用途，见 inventories/mgmt/.../wireguard_peer_model
 #
 # 【与 security_whitelist 的关系】
 #   network.yml / 安全组中的 ci_public_ip 现为 121.41.58.20（本机公网），
@@ -19,7 +20,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-08"
+updated_at: "2026-06-14"
 updated_by: "infra-ops"
 
 host:
@@ -71,7 +72,15 @@ host:
     planned: true
     labels: [self-hosted, dev, aliyun]
     status: not_registered
-    note: "WG 通路验证后注册；仓库 deploy.yml runs-on 与此标签一致"
+    note: "阶段 F Hub+ci-01 WG 握手验证通过后注册；deploy.yml 依赖此标签"
+
+  github_secrets:
+    configured:
+      - ANSIBLE_SSH_PRIVATE_KEY
+      - ANSIBLE_SSH_KNOWN_HOSTS
+    required_before_stage_f_deploy:
+      - ANSIBLE_VAULT_PASSWORD
+    note: "VAULT 须与 ci-01 上 .vault_pass 一致；deploy.yml 解密 wireguard_vault.yml"
 
   ssh_deploy_key:
     comment: "infra-ci-deploy@121.41.58.20"
@@ -84,9 +93,13 @@ host:
     bootstrap_completed_at: "2026-06-14"
     ssh_phase: steady
     ssh_keys_configured: true
+    wireguard_status: keys_ready
+    wireguard_keys_ready_at: "2026-06-14"
     runner_status: not_registered
 
   control_plane:
     setup_script: scripts/dev/setup-control-plane-env.sh
     ansible_private_key: ansible/keys/infra-ci-deploy
-    note: "阶段 E 前运行 setup-control-plane-env.sh all"
+    vault_password_file: .vault_pass
+    git_identity_note: "ci-01 上 commit 前须配置 git user.name / user.email（deploy 用户）"
+    note: "阶段 E 完成：setup-control-plane-env.sh all；wg-keys all-hub + vault-encrypt-hub"

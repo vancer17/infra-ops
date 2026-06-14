@@ -49,7 +49,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
 .PHONY: help setup lint syntax inventory inventory-mgmt ci \
         yamllint shellcheck ansible-lint ansible-syntax \
         docker-validate secret-scan \
-        wg-keys-check wg-keys-list stage-e-preflight control-plane-setup
+        wg-keys-check wg-keys-list stage-f-preflight stage-e-preflight control-plane-setup
 
 # -----------------------------------------------------------------------------
 # help — 默认目标；make 无参数时显示可用命令
@@ -65,7 +65,7 @@ help:
 	@echo "  make lint           yamllint + shellcheck + ansible-lint"
 	@echo "  make syntax         Ansible playbook --syntax-check + light inventory"
 	@echo "  make inventory      Dev inventory parse + cross-VPC ansible_host check"
-	@echo "  make inventory-mgmt Mgmt inventory parse (hub-01 ansible_host check)"
+	@echo "  make inventory-mgmt Mgmt inventory parse (hub-01; needs .vault_pass if vault vars)"
 	@echo ""
 	@echo "Control plane (ci-01, on yax as deploy):"
 	@echo "  make control-plane-setup     Fix bashrc + ansible ping (黄灯 1)"
@@ -75,6 +75,7 @@ help:
 	@echo "  make wg-keys-check   Check wg/ansible-vault deps"
 	@echo "  make wg-keys-list    List hub/peer key files status"
 	@echo "  See: docs/wireguard/wg-keys.runbook.md"
+	@echo "  Stage F: make stage-f-preflight  (before wireguard-hub.yml)"
 	@echo ""
 	@echo "Individual checks (same as CI jobs):"
 	@echo "  make yamllint       YAML format (.yamllint.yml)"
@@ -172,6 +173,9 @@ wg-keys-check:
 
 wg-keys-list:
 	bash "$(SCRIPTS_WG)/wg-keys.sh" list
+
+stage-f-preflight:
+	bash "$(SCRIPTS_MGMT)/stage-f-preflight.sh"
 
 # -----------------------------------------------------------------------------
 # control-plane-setup — 修正 ci-01 控制面 bashrc（黄灯 1）
