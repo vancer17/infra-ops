@@ -91,8 +91,8 @@ check_bootstrap_done() {
     echo "WARN: missing ${asset}; ensure step 1.2 bootstrap completed"
     return 0
   fi
-  if ! grep -qE 'bootstrap_status:\s*"? *(bootstrap_done|sg_done)"?' "$asset"; then
-    echo "WARN: ${LIMIT} may not have completed 1.2 (bootstrap_status not bootstrap_done/sg_done)"
+  if ! grep -qE 'bootstrap_status:\s*"? *(bootstrap_done|sg_done|ssh_done)"?' "$asset"; then
+    echo "WARN: ${LIMIT} may not have completed 1.2 (bootstrap_status not bootstrap_done/sg_done/ssh_done)"
   fi
 }
 
