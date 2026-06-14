@@ -14,6 +14,11 @@
 # 【用法】
 #   source scripts/dev/lib/inventory-resolve.sh
 #   resolve_inventory_var "$INVENTORY" "$LIMIT" ansible_host
+#   resolve_ansible_host "$INVENTORY" "$LIMIT"
+#   resolve_ansible_user "$INVENTORY" "$LIMIT"
+#
+#   未传 inventory/limit 时，回退环境变量 ANSIBLE_INVENTORY / ANSIBLE_LIMIT
+#   （verify-hub-remote.sh、stage-e-preflight 等脚本使用）
 #
 # =============================================================================
 
@@ -98,6 +103,57 @@ resolve_inventory_var() {
     printf '%s' "$raw"
   fi
   return 0
+}
+
+# 解析 ansible_host（供 bootstrap.sh、verify-hub-remote.sh 等 SSH 探测使用）
+# 参数可选：resolve_ansible_host [inventory] [limit]
+resolve_ansible_host() {
+  local inventory limit host
+
+  if [[ $# -ge 2 ]]; then
+    inventory="$1"
+    limit="$2"
+  else
+    inventory="${ANSIBLE_INVENTORY:-}"
+    limit="${ANSIBLE_LIMIT:-}"
+  fi
+
+  [[ -n "$inventory" && -n "$limit" ]] || {
+    echo "ERROR: resolve_ansible_host needs inventory and limit (args or ANSIBLE_* env)" >&2
+    return 1
+  }
+
+  host="$(resolve_inventory_var "$inventory" "$limit" ansible_host)"
+  if ! is_valid_inventory_value "$host"; then
+    echo "ERROR: cannot resolve ansible_host for ${limit} (inventory: ${inventory})" >&2
+    return 1
+  fi
+  printf '%s' "$host"
+}
+
+# 解析 ansible_user，未定义时默认 root
+resolve_ansible_user() {
+  local inventory limit user
+
+  if [[ $# -ge 2 ]]; then
+    inventory="$1"
+    limit="$2"
+  else
+    inventory="${ANSIBLE_INVENTORY:-}"
+    limit="${ANSIBLE_LIMIT:-}"
+  fi
+
+  [[ -n "$inventory" && -n "$limit" ]] || {
+    echo "ERROR: resolve_ansible_user needs inventory and limit (args or ANSIBLE_* env)" >&2
+    return 1
+  }
+
+  user="$(resolve_inventory_var "$inventory" "$limit" ansible_user)"
+  if is_valid_inventory_value "$user"; then
+    printf '%s' "$user"
+  else
+    printf '%s' "root"
+  fi
 }
 
 # 控制机 IP 列表是否包含目标 ansible_host（CI 与 dev-01 同机时为 true）

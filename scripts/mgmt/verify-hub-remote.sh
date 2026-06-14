@@ -51,7 +51,7 @@ main() {
   }
 
   local host_ip
-  host_ip="$(resolve_ansible_host)"
+  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
   echo "[verify-hub] SSH deploy@${host_ip} (limit=${LIMIT})"
 
   ssh -i "$PRIVATE_KEY" \
