@@ -25,6 +25,8 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+# shellcheck source=scripts/dev/lib/bashrc-check.sh
+source "${ROOT}/scripts/dev/lib/bashrc-check.sh"
 INSTALL_WG=false
 SKIP_REMOTE=false
 
@@ -67,11 +69,12 @@ bash "${ROOT}/scripts/dev/setup-control-plane-env.sh" all
 export ANSIBLE_PRIVATE_KEY_FILE="${ROOT}/ansible/keys/infra-ci-deploy"
 export ANSIBLE_INVENTORY="${ROOT}/ansible/inventories/mgmt/"
 
-if grep -q 'ANSIBLE_PRIVATE_KEY_FILE.*hub-root' "${HOME}/.bashrc" 2>/dev/null; then
-  echo "ERROR: ~/.bashrc 仍含 hub-root，请检查 setup-control-plane-env.sh" >&2
+if bashrc_has_stale_ansible_hub_root "${HOME}/.bashrc"; then
+  echo "ERROR: ~/.bashrc 仍含指向 hub-root 的 ANSIBLE_PRIVATE_KEY_FILE 赋值（非注释行）" >&2
+  echo "       请运行: ./scripts/dev/setup-control-plane-env.sh apply-bashrc" >&2
   exit 1
 fi
-echo "OK: ~/.bashrc 无 hub-root 默认密钥"
+echo "OK: ~/.bashrc 无 hub-root 密钥赋值（已忽略说明注释）"
 
 # --- 2. inventory-mgmt（黄灯 3）---
 echo ""
