@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-14）**：Bootstrap + SSH（`ssh_done`）；阶段 E 密钥（`keys_ready_at`）；**阶段 F1 Hub Server** + **阶段 F2 ci-01 Client**（`wireguard.status: operational`，`operational_at: 2026-06-14`）；Ansible 用户 `deploy`。**下一步（F2-5）**：`ci_connectivity.access_mode` → `wireguard`、`network_phase` → `wireguard`；GitHub Runner 注册。
+**hub-01 状态（2026-06-14）**：Bootstrap + SSH（`ssh_done`）；阶段 E 密钥；**F1 Hub Server** + **F2 ci-01 Client**（`wireguard.status: operational`）；**F2-5 已验收**（Ansible 经 WG `10.200.0.1`，`logs/console-check.log`）。**下一步（可选）**：GitHub Runner 注册；**steady**：关公网 SSH / JumpServer。
 
 ## 用途
 
@@ -67,7 +67,8 @@ ansible hub-01 -m ping -u deploy --private-key=ansible/keys/infra-ci-deploy
 
 Runbook：`docs/bootstrap/hub-01-bootstrap.runbook.md`  
 WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`  
-阶段 F 前预检：`make stage-f-preflight`（或 `./scripts/mgmt/stage-f-preflight.sh`）
+阶段 F 前预检：`make stage-f-preflight`  
+阶段 F2-5 收口：`docs/wireguard/stage-f2-5-runbook.md`（已验收：`logs/console-check.log`）
 
 ## 资产同步
 
