@@ -72,6 +72,7 @@ infra-ops/
 
 | 文档 | 说明 |
 |------|------|
+| [docs/dev/开发环境介绍-业务部署指南.md](docs/dev/开发环境介绍-业务部署指南.md) | **开发同事必读**：Dev 环境说明与业务部署指引 |
 | [docs/assets/README.md](docs/assets/README.md) | **资产台账**总览（ECS 角色、IP、WG 规划、替代关系） |
 | [docs/rds/20260615-RDS-MySQL-实例现状与Dev规划.md](docs/rds/20260615-RDS-MySQL-实例现状与Dev规划.md) | **RDS MySQL** 实例现状、已有库、连接地址与 Dev 规划 |
 | [docs/assets/registry.yaml](docs/assets/registry.yaml) | 资产总台账（机器一览、原规划 IP 替代映射） |
