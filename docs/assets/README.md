@@ -22,6 +22,8 @@
 | [dev-01.yaml](./dev-01.yaml) | Dev 主应用节点（与 ci-01 **同机**，见 registry） |
 | [dev-02.yaml](./dev-02.yaml) | Dev Worker 替代节点（原 `121.40.245.68` 不可用后的替代） |
 | [test-01.yaml](./test-01.yaml) | Test 预留节点（本期 WG 可选纳入） |
+| [RDS MySQL 实例现状与 Dev 规划](../rds/20260615-RDS-MySQL-实例现状与Dev规划.md) | **云数据库**：实例规格、已有库表、连接地址、白名单、Dev 规划 |
+| [阶段 G RDS 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) | `app_dev` 内网连通与 prod 隔离验收 |
 
 ## 与 Inventory 的分工
 
@@ -39,14 +41,15 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - **mgmt** 管理面：`ansible/inventories/mgmt/`（hub-01）
 - ci-01 与 dev-01 同机：mgmt `wireguard_peers` 组管理 ci-01 WG Client；dev inventory 管 dev-01 应用
 
-## Bootstrap 进度（2026-06-14）
+## Bootstrap / 数据层进度（2026-06-15）
 
-| 主机 | bootstrap_status | Inventory |
-|------|------------------|-----------|
-| ci-01 / dev-01 | `ssh_done` | dev / 同机；ci-01 另在 mgmt `wireguard_peers` |
-| hub-01 | `ssh_done` | mgmt |
-| dev-02 | `pending` | dev |
+| 主机 / 资源 | 状态 | 备注 |
+|-------------|------|------|
+| ci-01 / dev-01 | `ssh_done` | WG operational；**RDS `app_dev` operational** |
+| hub-01 | `ssh_done` | WG Server operational |
+| dev-02 | `pending` | RDS 白名单 pending_bootstrap |
 | test-01 | `pending` | 未纳入 |
+| RDS `app_dev` | **operational** | 内网 host；见 [阶段 G 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) |
 
 ## 维护流程
 
@@ -68,15 +71,16 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | **GitHub VAULT** | **`ANSIBLE_VAULT_PASSWORD` 已配**（dev Environment）；`wireguard-hub.yml --check --diff` 通过 |
 | **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
 | **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
-| **下一里程碑** | `network_phase: steady`（关公网 SSH、JumpServer — 未开始） |
+| **下一里程碑** | RDS 外网关闭；`DB_PASSWORD` Secrets；`network_phase: steady`（JumpServer） |
 
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
 - **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
 - **验收日志**：F2 隧道 + F3-1 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
-- **验收报告**：[20260614-阶段F-WireGuard验收报告.md](../acceptance/20260614-阶段F-WireGuard验收报告.md)
+- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)
 
 ## 相关文档
 
+- [RDS MySQL 实例现状与 Dev 规划](../rds/20260615-RDS-MySQL-实例现状与Dev规划.md)
 - [安全组策略](../security-groups/README.md)
 - [Dev Bootstrap Runbook](../bootstrap/dev-01-bootstrap.runbook.md)
 - [Hub Bootstrap Runbook](../bootstrap/hub-01-bootstrap.runbook.md)（hub-01：`ssh_done`，2026-06-14）

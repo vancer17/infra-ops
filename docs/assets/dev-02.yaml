@@ -66,11 +66,15 @@ host:
 
   dependencies:
     rds:
-      instance: "rm-bp1wjjf373l7t331vno"
-      endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+      instance: "rm-bp1wjjf373l7t331v"
+      endpoint_internal: "rm-bp1wjjf373l7t331v.mysql.rds.aliyuncs.com"
+      endpoint_public: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+      database: app_dev
+      user: app_dev
       whitelist_group: dev-ecs
       whitelist_ip: "172.21.127.124/32"
-      whitelist_status: pending
+      whitelist_status: pending_bootstrap
+      note: "Bootstrap 后验收内网 nc/mysql，与 dev-01 相同库 app_dev"
     oss:
       buckets:
         - name: yzx-file-storage
