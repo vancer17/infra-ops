@@ -1,0 +1,18 @@
+# =============================================================================
+# WireGuard ECS Peer 配置 — 由 Ansible 管理，勿手工编辑
+# =============================================================================
+# Peer：{{ wireguard_peer_name | default('unknown') }}
+# 生成：wireguard role / wg0-client.conf.j2
+# Hub Endpoint：{{ wireguard_client_hub_endpoint }}
+# =============================================================================
+
+[Interface]
+PrivateKey = {{ wireguard_peer_private_key }}
+Address = {{ wireguard_peer_address }}
+
+[Peer]
+# hub-01 WireGuard Server
+PublicKey = {{ wireguard_client_hub_public_key }}
+Endpoint = {{ wireguard_client_hub_endpoint }}
+AllowedIPs = {{ wireguard_client_allowed_ips }}
+PersistentKeepalive = {{ wireguard_client_persistent_keepalive }}

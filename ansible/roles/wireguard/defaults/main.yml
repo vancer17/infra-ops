@@ -22,3 +22,20 @@ wireguard_systemd_unit: "wg-quick@{{ wireguard.interface | default('wg0') }}"
 
 # Hub Server 配置不写 SaveConfig，由 Ansible 全量管理
 wireguard_save_config: false
+
+# -----------------------------------------------------------------------------
+# Client（Peer）默认值 — wireguard-peer.yml / tasks/client.yml
+# -----------------------------------------------------------------------------
+# ci-01 等 ECS Peer 须在 host_vars 设 true；Hub Server 保持 false（默认）
+wireguard_client_use_limited_sudo: false
+
+# 渲染后暂存路径（再 sudo tee 到 /etc/wireguard/wg0.conf）
+wireguard_client_staging_dir: "{{ playbook_dir }}/../.ansible-staging/wireguard"
+wireguard_client_staging_path: "{{ wireguard_client_staging_dir }}/wg0-{{ wireguard_peer_name | default('peer') }}.conf"
+
+# Peer 私钥路径（相对 inventory_dir）
+wireguard_peer_private_key_path: "{{ inventory_dir }}/../../keys/wireguard/{{ wireguard_peer_name }}.private"
+
+# 默认路由（可被 wireguard_peers_planned[].allowed_ips 覆盖）
+wireguard_client_default_allowed_ips: "10.200.0.0/16"
+wireguard_client_default_persistent_keepalive: 25
