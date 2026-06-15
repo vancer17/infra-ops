@@ -1,0 +1,111 @@
+# =============================================================================
+# wireguard role — Hub Server 任务（阶段 F）
+# =============================================================================
+#
+# 消费者变量（inventory mgmt/group_vars/all/）：
+#   wireguard_vault.hub_private_key  — vault 解密后的 Hub 私钥
+#   wireguard.hub_address          — 10.200.0.1/24
+#   wireguard.listen_port          — 51820
+#   wireguard.interface            — wg0
+#   wireguard_peers_planned        — Peer 公钥列表
+#   wireguard_peer_model.hub_active_peers — 仅登记 ci-01、developer-laptop 等
+#
+# 执行顺序：包 → ip_forward → 解析 Peer → 写配置 → 启服务 → 验收
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# 1. 安装 wireguard-tools（提供 wg、wg-quick）
+# -----------------------------------------------------------------------------
+- name: Install WireGuard packages
+  ansible.builtin.apt:
+    name:
+      - wireguard
+      - wireguard-tools
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [wireguard, wireguard-hub, server]
+
+# -----------------------------------------------------------------------------
+# 2. 开启 IPv4 转发（Hub 在 Peer 间转发隧道流量）
+# -----------------------------------------------------------------------------
+- name: Enable IPv4 forwarding for WireGuard Hub
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_set: true
+    state: present
+    reload: true
+  when: wireguard.ip_forward | default(true) | bool
+  tags: [wireguard, wireguard-hub, server]
+
+# -----------------------------------------------------------------------------
+# 3. 解析 Hub 上应登记的 Peer（hub_active_peers ∩ hub_peer + 有公钥）
+# -----------------------------------------------------------------------------
+- name: Resolve Hub WireGuard peers from inventory
+  ansible.builtin.set_fact:
+    wireguard_hub_peers_resolved: "{{ wireguard_peers_planned | default([]) | selectattr('name', 'in', wireguard_peer_model.hub_active_peers | default([])) | selectattr('hub_peer', 'equalto', true) | rejectattr('public_key', 'none') | rejectattr('public_key', 'equalto', '') | list }}"
+  tags: [wireguard, wireguard-hub, server]
+
+- name: Assert at least one Hub peer is configured
+  ansible.builtin.assert:
+    that:
+      - wireguard_hub_peers_resolved | length > 0
+    fail_msg: >-
+      No Hub peers resolved. Check wireguard_peers_planned public_key and
+      wireguard_peer_model.hub_active_peers (expected ci-01, developer-laptop).
+  tags: [wireguard, wireguard-hub, server]
+
+# -----------------------------------------------------------------------------
+# 4. 确保配置目录权限正确
+# -----------------------------------------------------------------------------
+- name: Ensure WireGuard config directory exists
+  ansible.builtin.file:
+    path: "{{ wireguard_config_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  tags: [wireguard, wireguard-hub, server]
+
+# -----------------------------------------------------------------------------
+# 5. 渲染 wg0.conf（私钥来自 vault，Peer 来自 inventory）
+# -----------------------------------------------------------------------------
+- name: Deploy WireGuard Hub server configuration
+  ansible.builtin.template:
+    src: wg0-server.conf.j2
+    dest: "{{ wireguard_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wireguard interface
+  tags: [wireguard, wireguard-hub, server]
+
+# -----------------------------------------------------------------------------
+# 6. 启用并启动 wg-quick@wg0（首次安装；配置变更由 handler 重启）
+# -----------------------------------------------------------------------------
+- name: Enable and start WireGuard systemd unit
+  ansible.builtin.systemd:
+    name: "{{ wireguard_systemd_unit }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [wireguard, wireguard-hub, server]
+
+# -----------------------------------------------------------------------------
+# 7. 验收 — 接口已创建且 wg 可查询
+# -----------------------------------------------------------------------------
+- name: Verify WireGuard interface is present
+  ansible.builtin.command: "wg show {{ wireguard.interface | default('wg0') }}"
+  register: wireguard_wg_show
+  changed_when: false
+  failed_when: wireguard_wg_show.rc != 0
+  tags: [wireguard, wireguard-hub, server, verify]
+
+- name: Display WireGuard interface summary
+  ansible.builtin.debug:
+    msg: "{{ wireguard_wg_show.stdout_lines }}"
+  tags: [wireguard, wireguard-hub, server, verify]

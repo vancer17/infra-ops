@@ -1,0 +1,128 @@
+# =============================================================================
+# Ansible Playbook：Hub WireGuard Server（阶段 F1）
+# =============================================================================
+#
+# 【用途】
+#   在 hub-01 上安装 WireGuard Server：wg0 @ 10.200.0.1，UDP 51820，
+#   登记 inventory 中 hub_active_peers（ci-01、developer-laptop）。
+#
+# 【前提】
+#   - 阶段 C：Hub Bootstrap + SSH steady（deploy@172.21.127.123）
+#   - 阶段 E：wg-keys all-hub + vault-encrypt-hub
+#   - 本机 .vault_pass 或 ANSIBLE_VAULT_PASSWORD_FILE（解密 wireguard_vault.yml）
+#
+# 【执行位置】
+#   ci-01（yax）上以 deploy 用户运行。
+#
+# 【常用命令】
+#   export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#
+#   ansible-playbook ansible/playbooks/wireguard-hub.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01 \
+#     --vault-password-file .vault_pass \
+#     --check --diff
+#
+#   ansible-playbook ansible/playbooks/wireguard-hub.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01 \
+#     --vault-password-file .vault_pass
+#
+# 【成功后】
+#   手动更新 wireguard.yml：enabled: true, status: server_up
+#   再执行 wireguard-peer.yml 使 ci-01 握手 → status: operational
+#
+# 【变量来源】
+#   inventories/mgmt/group_vars/all/wireguard.yml
+#   inventories/mgmt/group_vars/all/wireguard_vault.yml（vault）
+#   host_vars/hub-01.yml → wireguard_server: true
+#
+# =============================================================================
+
+---
+- name: Deploy WireGuard Server on Hub
+  hosts: mgmt_hub
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "WireGuard Hub playbook requires Debian 12+"
+      tags: [wireguard, wireguard-hub, preflight]
+
+    - name: Assert target is WireGuard Server host
+      ansible.builtin.assert:
+        that:
+          - wireguard_server | default(false) | bool
+        fail_msg: "wireguard_server must be true on Hub (see host_vars/hub-01.yml)"
+      tags: [wireguard, wireguard-hub, preflight]
+
+    - name: Assert WireGuard key material is ready
+      ansible.builtin.assert:
+        that:
+          - wireguard.status | default('') in ['keys_ready', 'server_up', 'operational']
+        fail_msg: >-
+          wireguard.status must be keys_ready (or later) before Hub Server apply.
+          Run stage E: wg-keys all-hub && vault-encrypt-hub
+      tags: [wireguard, wireguard-hub, preflight]
+
+    - name: Assert Hub private key is available from Ansible Vault
+      ansible.builtin.assert:
+        that:
+          - wireguard_vault.hub_private_key is defined
+          - wireguard_vault.hub_private_key | length > 0
+        fail_msg: >-
+          wireguard_vault.hub_private_key missing. Set ANSIBLE_VAULT_PASSWORD_FILE
+          and ensure group_vars/all/wireguard_vault.yml is encrypted and committed.
+      tags: [wireguard, wireguard-hub, preflight]
+
+    - name: Assert Hub public key is documented in inventory
+      ansible.builtin.assert:
+        that:
+          - wireguard.hub_public_key is defined
+          - wireguard.hub_public_key | length > 0
+        fail_msg: "wireguard.hub_public_key missing — run wg-keys sync-inventory"
+      tags: [wireguard, wireguard-hub, preflight]
+
+  tasks:
+    - name: Configure WireGuard Hub server
+      ansible.builtin.import_role:
+        name: wireguard
+        tasks_from: server
+      tags: [wireguard, wireguard-hub, server]
+
+  post_tasks:
+    - name: Verify WireGuard listens on configured UDP port
+      ansible.builtin.shell: |
+        set -euo pipefail
+        ss -ulnp | grep -F ':{{ wireguard.listen_port }} '
+      args:
+        executable: /bin/bash
+      register: wireguard_udp_listen
+      changed_when: false
+      failed_when: wireguard_udp_listen.rc != 0
+      tags: [wireguard, wireguard-hub, verify]
+
+    - name: Verify IPv4 forwarding is enabled
+      ansible.builtin.command: sysctl -n net.ipv4.ip_forward
+      register: wireguard_ip_forward_check
+      changed_when: false
+      failed_when: wireguard_ip_forward_check.stdout | trim != '1'
+      when: wireguard.ip_forward | default(true) | bool
+      tags: [wireguard, wireguard-hub, verify]
+
+    - name: WireGuard Hub deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Hub WireGuard Server applied on {{ inventory_hostname }}"
+          - "Interface: {{ wireguard.interface | default('wg0') }}"
+          - "Address: {{ wireguard.hub_address }}"
+          - "Listen UDP: {{ wireguard.listen_port }}"
+          - "Peers configured: {{ wireguard_hub_peers_resolved | map(attribute='name') | list }}"
+          - "Next: wireguard-peer.yml on ci-01, then set wireguard.status: operational"
+      tags: [wireguard, wireguard-hub, verify]

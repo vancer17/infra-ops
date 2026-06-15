@@ -1,0 +1,24 @@
+# =============================================================================
+# WireGuard Hub Server 配置 — 由 Ansible 管理，勿手工编辑
+# =============================================================================
+# 主机：{{ inventory_hostname }}
+# 生成：wireguard role / wg0-server.conf.j2
+# Peer 策略：wireguard_peer_model.hub_active_peers + hub_peer: true
+# =============================================================================
+
+[Interface]
+PrivateKey = {{ wireguard_vault.hub_private_key }}
+Address = {{ wireguard.hub_address }}
+ListenPort = {{ wireguard.listen_port }}
+SaveConfig = {{ wireguard_save_config | lower }}
+
+{% set active_names = wireguard_peer_model.hub_active_peers | default([]) %}
+{% for peer in wireguard_peers_planned | default([]) %}
+{% if peer.name in active_names and peer.hub_peer | default(false) and peer.public_key %}
+[Peer]
+# {{ peer.name }} — {{ peer.wg_ip }}
+PublicKey = {{ peer.public_key }}
+AllowedIPs = {{ peer.wg_ip }}/32
+
+{% endif %}
+{% endfor %}

@@ -1,0 +1,24 @@
+# =============================================================================
+# wireguard role 默认值（可被 inventory group_vars 覆盖）
+# =============================================================================
+#
+# inventory 中 wireguard.* 已定义大部分参数；此处仅放 role 内部路径默认值。
+#
+# =============================================================================
+
+---
+
+# wg 配置文件目录（Debian wireguard-tools 标准路径）
+wireguard_config_dir: /etc/wireguard
+
+# 配置文件完整路径；interface 来自 inventory wireguard.interface
+wireguard_config_path: "{{ wireguard_config_dir }}/{{ wireguard.interface | default('wg0') }}.conf"
+
+# sysctl drop-in 文件名
+wireguard_sysctl_dropin: /etc/sysctl.d/99-wireguard-ip-forward.conf
+
+# systemd 单元名（wg-quick@wg0）
+wireguard_systemd_unit: "wg-quick@{{ wireguard.interface | default('wg0') }}"
+
+# Hub Server 配置不写 SaveConfig，由 Ansible 全量管理
+wireguard_save_config: false
