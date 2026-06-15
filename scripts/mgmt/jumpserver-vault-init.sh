@@ -26,6 +26,9 @@ Usage: $(basename "$0") [--force]
   --force   Overwrite existing jumpserver_vault.yml
 
 Requires: openssl, python3, ansible-vault (make setup)
+
+Note: ci-01 若同时设置 ANSIBLE_VAULT_PASSWORD_FILE 与 ANSIBLE_VAULT_IDENTITY_LIST，
+ansible-vault encrypt 须带 --encrypt-vault-id default（本脚本已内置）。
 EOF
 }
 
@@ -69,7 +72,10 @@ jumpserver_vault:
   generated_by: jumpserver-vault-init.sh
 EOF
 
-ansible-vault encrypt "${tmp}" --vault-password-file "${VAULT_PASS}" --output "${VAULT_FILE}"
+ansible-vault encrypt "${tmp}" \
+  --encrypt-vault-id default \
+  --vault-password-file "${VAULT_PASS}" \
+  --output "${VAULT_FILE}"
 
 echo "[jumpserver-vault-init] wrote encrypted ${VAULT_FILE}"
 echo "[jumpserver-vault-init] view: ansible-vault view ${VAULT_FILE#${ROOT}/} --vault-password-file .vault_pass"

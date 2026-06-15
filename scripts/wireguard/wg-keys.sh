@@ -311,7 +311,9 @@ EOF
   wg_log "Writing encrypted vault: ${WG_VAULT_FILE}"
   # 从临时明文加密输出到 vault 文件（覆盖旧密文）
   # shellcheck disable=SC2046
-  ansible-vault encrypt $(vault_password_args) "$tmp" --output "$WG_VAULT_FILE"
+  ansible-vault encrypt $(vault_password_args) "$tmp" \
+    --encrypt-vault-id default \
+    --output "$WG_VAULT_FILE"
 
   wg_log "vault-encrypt-hub OK"
   wg_log "  Commit: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml"
