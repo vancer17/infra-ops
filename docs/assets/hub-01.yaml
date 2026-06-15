@@ -168,13 +168,20 @@ host:
       hub_sees_ci_endpoint: ok
       route_10_200_0_0_16: ok
 
-  # 阶段 F2-5 Ansible 经 WG 收口（2026-06-14）
+  # 阶段 F2-5 Ansible 经 WG 收口（2026-06-14，ci-01 logs/console-check.log）
   stage_f2_5:
     completed_at: "2026-06-14"
+    verified_at: "2026-06-14"
+    control_host: ci-01
+    acceptance_log: logs/console-check.log
     ci_connectivity_access_mode: wireguard
     network_phase: wireguard
     hub_ansible_host: "10.200.0.1"
     script: scripts/mgmt/stage-f2-5-followup.sh
+    checks:
+      access_mode_wireguard: ok
+      hub_ansible_host_10_200_0_1: ok
+      ansible_ping_from_ci_01: ok
     note: "steady 阶段再评估关公网 SSH / JumpServer"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）

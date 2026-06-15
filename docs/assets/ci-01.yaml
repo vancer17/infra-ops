@@ -96,6 +96,8 @@ host:
     wireguard_status: operational
     wireguard_keys_ready_at: "2026-06-14"
     wireguard_client_installed_at: "2026-06-14"
+    network_phase_wireguard_at: "2026-06-14"
+    ansible_hub_via_wg_at: "2026-06-14"
     runner_status: not_registered
 
   control_plane:
@@ -120,17 +122,22 @@ host:
       wg_handshake: ok
       ping_hub_wg: ok
       ssh_hub_via_wg: ok
-  # 阶段 F2-5 Ansible 经 WG 收口（inventory access_mode / network_phase → wireguard）
+  # 阶段 F2-5 Ansible 经 WG 收口（2026-06-14，logs/console-check.log）
   stage_f2_5:
     completed_at: "2026-06-14"
+    verified_at: "2026-06-14"
+    control_host: ci-01
+    acceptance_log: logs/console-check.log
     script: scripts/mgmt/stage-f2-5-followup.sh
     inventory:
       ci_connectivity_access_mode: wireguard
       network_phase: wireguard
       hub_ansible_host: "10.200.0.1"
     checks:
-      wg_handshake: ok
-      ansible_ping_hub_via_wg: pending_console
+      wireguard_status_operational: ok
+      access_mode_wireguard: ok
+      hub_ansible_host_10_200_0_1: ok
+      ansible_ping_hub_via_wg: ok
     optional:
       github_runner: not_registered
       developer_laptop_peer: docs/wireguard/developer-laptop-client.md
