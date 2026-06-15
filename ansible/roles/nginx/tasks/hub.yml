@@ -8,6 +8,9 @@
 #
 # 执行顺序：安装 → SSL 目录与自签证书 → 移除 default 站点 → 部署 vhost → 启服务
 #
+# --check 说明：command（openssl）在演练模式不执行；权限与 symlink 任务在目标文件
+# 尚不存在时跳过，避免「标记 changed 但未创建文件」导致后续 file 任务失败。
+#
 # =============================================================================
 
 ---
@@ -81,12 +84,28 @@
     - nginx_ssl_san_csv | length > 0
   tags: [nginx, nginx-hub, ssl]
 
+- name: Stat Hub TLS private key for permission fix
+  ansible.builtin.stat:
+    path: "{{ nginx_ssl_private_key_path }}"
+  register: nginx_ssl_key_stat
+  when: nginx.ssl.self_signed | default(true) | bool
+  tags: [nginx, nginx-hub, ssl]
+
 - name: Set restrictive permissions on Hub TLS private key
   ansible.builtin.file:
     path: "{{ nginx_ssl_private_key_path }}"
     owner: root
     group: root
     mode: "0600"
+  when:
+    - nginx.ssl.self_signed | default(true) | bool
+    - nginx_ssl_key_stat.stat.exists | default(false)
+  tags: [nginx, nginx-hub, ssl]
+
+- name: Stat Hub TLS certificate for permission fix
+  ansible.builtin.stat:
+    path: "{{ nginx_ssl_certificate_path }}"
+  register: nginx_ssl_cert_stat
   when: nginx.ssl.self_signed | default(true) | bool
   tags: [nginx, nginx-hub, ssl]
 
@@ -96,7 +115,9 @@
     owner: root
     group: root
     mode: "0644"
-  when: nginx.ssl.self_signed | default(true) | bool
+  when:
+    - nginx.ssl.self_signed | default(true) | bool
+    - nginx_ssl_cert_stat.stat.exists | default(false)
   tags: [nginx, nginx-hub, ssl]
 
 # -----------------------------------------------------------------------------
@@ -146,11 +167,18 @@
   notify: Reload nginx
   tags: [nginx, nginx-hub, config]
 
+- name: Stat Hub default site configuration for enablement
+  ansible.builtin.stat:
+    path: "{{ nginx_sites_available_dir }}/hub-internal-default.conf"
+  register: hub_default_site_stat
+  tags: [nginx, nginx-hub, config]
+
 - name: Enable Hub default site
   ansible.builtin.file:
     src: "{{ nginx_sites_available_dir }}/hub-internal-default.conf"
     dest: "{{ nginx_sites_enabled_dir }}/hub-internal-default.conf"
     state: link
+  when: hub_default_site_stat.stat.exists | default(false)
   notify: Reload nginx
   tags: [nginx, nginx-hub, config]
 
@@ -164,11 +192,18 @@
   notify: Reload nginx
   tags: [nginx, nginx-hub, config]
 
+- name: Stat JumpServer proxy site configuration for enablement
+  ansible.builtin.stat:
+    path: "{{ nginx_sites_available_dir }}/hub-internal-jms.conf"
+  register: hub_jms_site_stat
+  tags: [nginx, nginx-hub, config]
+
 - name: Enable JumpServer reverse proxy site
   ansible.builtin.file:
     src: "{{ nginx_sites_available_dir }}/hub-internal-jms.conf"
     dest: "{{ nginx_sites_enabled_dir }}/hub-internal-jms.conf"
     state: link
+  when: hub_jms_site_stat.stat.exists | default(false)
   notify: Reload nginx
   tags: [nginx, nginx-hub, config]
 
@@ -191,4 +226,5 @@
   register: nginx_syntax_check
   changed_when: false
   failed_when: nginx_syntax_check.rc != 0
+  when: not ansible_check_mode
   tags: [nginx, nginx-hub, verify]
