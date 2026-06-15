@@ -30,6 +30,9 @@
 #     --limit hub-01 \
 #     --vault-password-file .vault_pass
 #
+#   预览（--check）：docker role 会跳过 apt install（源未真正写入），以 Preview 任务代替；
+#   正式 apply 请勿带 --check。
+#
 # 【成功后】
 #   更新 hub_docker.status=operational（group_vars/all/docker.yml）
 #   验收：./scripts/mgmt/verify-hub-docker-remote.sh
@@ -104,6 +107,13 @@
         name: deploy
         groups: docker
         append: true
+      when: not ansible_check_mode
+      tags: [hub-g3-docker, docker, users]
+
+    - name: Preview deploy docker group membership (check mode)
+      ansible.builtin.debug:
+        msg: "check mode: would append deploy to docker group after Docker CE install"
+      when: ansible_check_mode
       tags: [hub-g3-docker, docker, users]
 
     - name: Create JumpServer and Docker project directories
@@ -160,12 +170,16 @@
 
     - name: Hub G3 Docker deployment summary
       ansible.builtin.debug:
-        msg:
-          - "Hub Docker enabled on {{ inventory_hostname }}"
-          - "Docker: {{ hub_g3_docker_version.stdout | default('check mode') }}"
-          - "Compose: {{ hub_g3_compose_version.stdout | default('check mode') }}"
-          - "JumpServer project dir: {{ hub_docker.jumpserver.project_dir }}"
-          - "Upstream reserved: {{ hub_docker.jumpserver.listen_host }}:{{ hub_docker.jumpserver.listen_port }}"
-          - "Next: deploy JumpServer Compose → set nginx.jumpserver.deploy_status=ready"
-          - "Update inventory: hub_docker.status=operational"
+        msg: >-
+          {{
+            [
+              'Hub Docker ' ~ ('preview (check mode)' if ansible_check_mode else 'enabled on ' ~ inventory_hostname),
+              'Docker: ' ~ (hub_g3_docker_version.stdout | default('skipped in check mode — run without --check to install')),
+              'Compose: ' ~ (hub_g3_compose_version.stdout | default('skipped in check mode')),
+              'JumpServer project dir: ' ~ hub_docker.jumpserver.project_dir,
+              'Upstream reserved: ' ~ hub_docker.jumpserver.listen_host ~ ':' ~ (hub_docker.jumpserver.listen_port | string),
+              'Next: deploy JumpServer Compose → set nginx.jumpserver.deploy_status=ready',
+              'Update inventory: hub_docker.status=operational',
+            ]
+          }}
       tags: [hub-g3-docker, verify]
