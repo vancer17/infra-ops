@@ -99,27 +99,23 @@ echo ""
 echo "=== 7/7 manual reminders ==="
 cat <<EOF
 
-Before wireguard-hub.yml (F1), confirm:
-  [ ] deploy@hub-01 can: sudo -n true  (if not: ./scripts/mgmt/apply-hub-deploy-sudo.sh)
-  [ ] Aliyun SG sg-bp122tjy3h95um8kv4f9 has IN-WG-UDP-* (see stage-f-console-checklist.md)
-  [ ] Peer model: Hub active peers = ci-01 + developer-laptop (not dev-01)
+Stage F core (F1/F2/F2-5/F3) completed — use as reference / re-run checklist:
 
-Before wireguard-peer.yml (F2), confirm:
-  [ ] deploy-wireguard sudoers OK (step 4 above)
-  [ ] wireguard.status is server_up (F1 applied)
-  [ ] Do NOT set ci_connectivity.access_mode: wireguard until handshake stable
-  [ ] GitHub Environment Secret ANSIBLE_VAULT_PASSWORD = ci-01 .vault_pass
-  [ ] Self-hosted Runner: register after WG handshake (ci-01.yaml runner_status)
+  [x] deploy@hub-01: sudo -n true (apply-hub-deploy-sudo.sh if needed)
+  [x] wireguard-hub.yml / wireguard-peer.yml applied; handshake stable
+  [x] ci_connectivity.access_mode: wireguard; hub ansible_host=10.200.0.1
+  [x] GitHub Environment Secret ANSIBLE_VAULT_PASSWORD = ci-01 .vault_pass (2026-06-14)
+  [ ] Self-hosted Runner: optional — register-github-runner.sh (ci-01.yaml runner_status)
+  [ ] developer-laptop Client: optional (Hub Peer registered, no handshake yet)
+
+Re-verify Hub dry-run:
+  ansible-playbook ansible/playbooks/wireguard-hub.yml \\
+    -i ansible/inventories/mgmt/ --limit hub-01 \\
+    --vault-password-file .vault_pass --check --diff
 
 Git commit on ci-01 (deploy user):
   git config user.email "you@example.com"
   git config user.name "Your Name"
-
-Next (F1): ansible-playbook ansible/playbooks/wireguard-hub.yml \\
-  -i ansible/inventories/mgmt/ --limit hub-01 --vault-password-file .vault_pass
-
-Next (F2): ansible-playbook ansible/playbooks/wireguard-peer.yml \\
-  -i ansible/inventories/mgmt/ --limit ci-01 --vault-password-file .vault_pass
 
 EOF
 

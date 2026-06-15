@@ -41,13 +41,39 @@ ssh -i ~/infra-ops/ansible/keys/infra-ci-deploy deploy@10.200.0.1 'sudo wg show 
 
 ---
 
-## F3-2 台账确认（文档）
+## F3-1b GitHub Vault Secret + Hub dry-run（ci-01）
+
+GitHub Environment `dev` 配置 `ANSIBLE_VAULT_PASSWORD`（与 `.vault_pass` 相同）后，在控制机验证 vault 解密与 Hub playbook 幂等：
+
+```bash
+cd ~/infra-ops
+export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+
+ansible-playbook ansible/playbooks/wireguard-hub.yml \
+  -i ansible/inventories/mgmt/ \
+  --limit hub-01 \
+  --vault-password-file .vault_pass \
+  --check --diff
+```
+
+### 通过标准
+
+| 输出 | 含义 |
+|------|------|
+| `Assert Hub private key is available from Ansible Vault` | `.vault_pass` 可解密 `wireguard_vault.yml` |
+| `PLAY RECAP ... ok=15 changed=0 failed=0` | Hub WG 配置与实机一致（dry-run） |
+| 台账 `ci-01.yaml` → `github_vault_password` | Secret 与验收命令已登记 |
+
+**状态（2026-06-14）**：已通过，见 `logs/console-acceptance.log` 与验收报告 §五之二。
+
+---
 
 确认以下文件已反映 `operational`（本仓库 `docs/assets/` 与 `registry.yaml`）：
 
 - [hub-01.yaml](../assets/hub-01.yaml) — `wireguard_status`、`wireguard_server`、`stage_f3_acceptance`
-- [ci-01.yaml](../assets/ci-01.yaml) — `wireguard_client`、`stage_f3_acceptance`
-- [registry.yaml](../assets/registry.yaml) — `network_phase: wireguard`、`stage_f3_acceptance`
+- [ci-01.yaml](../assets/ci-01.yaml) — `wireguard_client`、`github_vault_password`、`stage_f3_acceptance`
+- [registry.yaml](../assets/registry.yaml) — `network_phase: wireguard`、`stage_f3_acceptance`、`github_secrets`
 
 ---
 

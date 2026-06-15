@@ -156,7 +156,7 @@ git add docs/wireguard/wg-keys.runbook.md
 
 | Secret | 何时需要 |
 |--------|----------|
-| `ANSIBLE_VAULT_PASSWORD` | `deploy.yml` 解密 `vault/wireguard.yml` 部署 WG Server 时 |
+| `ANSIBLE_VAULT_PASSWORD` | `deploy.yml` 解密 `wireguard_vault.yml` 部署 WG Server 时（**已配置**，2026-06-14） |
 | `ANSIBLE_SSH_PRIVATE_KEY` | 已有（SSH Bootstrap）；与 WG 密钥无关 |
 
 ```bash
@@ -186,6 +186,7 @@ git add docs/wireguard/wg-keys.runbook.md
 | Hub `10.200.0.1:51820` | operational |
 | ci-01 Client `10.200.0.2` | operational，handshake OK |
 | Ansible 连 Hub | `access_mode: wireguard` |
+| GitHub `ANSIBLE_VAULT_PASSWORD` | 已配置（dev Environment）；`wireguard-hub.yml --check` 通过 |
 | 验收报告 | [20260614-阶段F-WireGuard验收报告.md](../acceptance/20260614-阶段F-WireGuard验收报告.md) |
 
 **可选后续**：

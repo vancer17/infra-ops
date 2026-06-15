@@ -99,9 +99,10 @@ host:
     github_secrets_configured:
       - ANSIBLE_SSH_PRIVATE_KEY
       - ANSIBLE_SSH_KNOWN_HOSTS
-    github_secrets_required_stage_f:
       - ANSIBLE_VAULT_PASSWORD
-    github_secrets_note: "VAULT 与 ci-01 .vault_pass 一致；供 deploy.yml 解密 wireguard_vault.yml"
+    github_secrets_environment: dev
+    github_secrets_required_stage_f: []
+    github_secrets_note: "ci-01 控制面配置；VAULT 与 .vault_pass 一致，供 deploy.yml 解密 wireguard_vault.yml"
 
   lifecycle:
     os: "Debian 12"
@@ -202,9 +203,11 @@ host:
       vault_view: ok
       secret_scan_gitleaks: ok
       stage_f_preflight: ok
+      github_ansible_vault_password: ok
+      wireguard_hub_ansible_check_diff: ok
     optional_skipped:
       - udp_51820_probe_without_flag
-    conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过"
+    conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过；GitHub VAULT 已配"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史
