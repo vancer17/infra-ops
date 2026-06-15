@@ -1,0 +1,32 @@
+# =============================================================================
+# JumpServer 反向代理预留 — jms.internal
+# =============================================================================
+# Managed by Ansible infra-ops (nginx role)
+# 上游：{{ nginx_jumpserver_upstream }}（JumpServer 未部署时返回 502）
+# =============================================================================
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name jms.internal;
+
+    include {{ nginx_snippets_dir }}/ssl-hub-internal.conf;
+
+    access_log /var/log/nginx/hub-jms.access.log;
+    error_log /var/log/nginx/hub-jms.error.log;
+
+    client_max_body_size 64m;
+
+    location / {
+        proxy_pass http://{{ nginx_jumpserver_upstream }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+    }
+}

@@ -1,0 +1,15 @@
+---
+# =============================================================================
+# nginx role 元数据
+# =============================================================================
+# 用途：Hub 管理面 L7 网关（阶段 G1）；后续可扩展 Dev 应用反代
+# 依赖：Debian apt 源中的 nginx 包
+# =============================================================================
+galaxy_info:
+  role_name: nginx
+  author: infra-ops
+  description: Install and configure host Nginx gateway on Hub (management plane)
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies: []

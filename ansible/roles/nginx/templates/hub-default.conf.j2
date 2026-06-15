@@ -1,0 +1,36 @@
+# =============================================================================
+# Hub 管理面默认站点 — hub.internal / 10.200.0.1
+# =============================================================================
+# Managed by Ansible infra-ops (nginx role)
+# 用途：管理面导航页 + {{ nginx_health_uri }} 健康检查
+# =============================================================================
+
+# HTTP → HTTPS（须在安全组添加 IN-HTTP-WG 后，WG 内 80 才可达）
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name hub.internal 10.200.0.1;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl default_server;
+    listen [::]:443 ssl default_server;
+    server_name hub.internal 10.200.0.1;
+
+    include {{ nginx_snippets_dir }}/ssl-hub-internal.conf;
+
+    access_log /var/log/nginx/hub-default.access.log;
+    error_log /var/log/nginx/hub-default.error.log;
+
+    location = {{ nginx_health_uri }} {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        default_type text/html;
+        return 200 '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Hub</title></head><body><h1>infra-ops Hub</h1><p>Management gateway (WireGuard only).</p><ul><li><a href="https://jms.internal/">JumpServer</a> (upstream pending)</li></ul></body></html>';
+    }
+}

@@ -82,7 +82,7 @@ infra-ops/
 | [docs/bootstrap/dev-01-bootstrap.runbook.md](docs/bootstrap/dev-01-bootstrap.runbook.md) | Dev-01 / CI 控制机 Bootstrap（1.2） |
 | [docs/bootstrap/hub-01-bootstrap.runbook.md](docs/bootstrap/hub-01-bootstrap.runbook.md) | Hub-01 Bootstrap（阶段 C，`ssh_done` 2026-06-14） |
 | [docs/bootstrap/dev-ssh-keys.runbook.md](docs/bootstrap/dev-ssh-keys.runbook.md) | SSH 密钥体系（1.3） |
-| [docs/wireguard/wg-keys.runbook.md](docs/wireguard/wg-keys.runbook.md) | WireGuard 密钥生成与保管（Hub） |
+| [docs/nginx/hub-nginx.runbook.md](docs/nginx/hub-nginx.runbook.md) | Hub 管理面 Nginx 网关（阶段 G1） |
 | [docs/wireguard/stage-f3-acceptance-runbook.md](docs/wireguard/stage-f3-acceptance-runbook.md) | 阶段 F3 验收（自动化检查） |
 | [docs/acceptance/20260614-阶段F-WireGuard验收报告.md](docs/acceptance/20260614-阶段F-WireGuard验收报告.md) | **阶段 F 验收报告**（F1–F3-1） |
 | [docs/wireguard/stage-f2-5-runbook.md](docs/wireguard/stage-f2-5-runbook.md) | Ansible 经 WG 收口（F2-5） |

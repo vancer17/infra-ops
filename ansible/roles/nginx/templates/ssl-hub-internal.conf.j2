@@ -1,0 +1,12 @@
+# =============================================================================
+# Hub 管理面内部 TLS 参数（由 hub-*.conf 引用）
+# =============================================================================
+# 消费者：hub-default.conf.j2、hub-jms.conf.j2
+# =============================================================================
+
+ssl_certificate {{ nginx_ssl_certificate_path }};
+ssl_certificate_key {{ nginx_ssl_private_key_path }};
+ssl_protocols TLSv1.2 TLSv1.3;
+ssl_prefer_server_ciphers off;
+ssl_session_cache shared:SSL:10m;
+ssl_session_timeout 1d;

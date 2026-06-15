@@ -1,0 +1,48 @@
+# =============================================================================
+# Ansible Inventory 变量：Hub 管理面 Nginx 网关（阶段 G1）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Hub（hub-01）宿主机 Nginx 的配置 SSOT，供 nginx role 与 nginx-hub.yml 消费。
+#
+# 【与 wireguard 的关系】
+#   访问路径：WG Client → 10.200.0.1:443 → Nginx → 本机 upstream（如 JumpServer）
+#   安全组：IN-HTTPS-WG（已验收）；IN-HTTP-WG 建议在 apply 前于控制台添加
+#
+# 【成功后须手动更新（与 wireguard 相同惯例）】
+#   nginx.enabled: true
+#   nginx.status: operational
+#   docs/assets/hub-01.yaml → nginx_status / stage_g1
+#
+# =============================================================================
+
+---
+
+nginx:
+  # false = 仅变量占位；apply nginx-hub.yml 成功后改为 true
+  enabled: false
+
+  # not_started | configured | operational
+  status: not_started
+
+  package_name: nginx
+  remove_default_site: true
+
+  health_uri: /health
+
+  # JumpServer Docker 未部署前，proxy 到本机未监听端口会 502（预期）
+  jumpserver_upstream: "127.0.0.1:8080"
+
+  ssl:
+    directory: /etc/nginx/ssl
+    certificate_file: hub-internal.crt
+    private_key_file: hub-internal.key
+    self_signed: true
+    days: 3650
+    common_name: hub.internal
+    subject_alt_names:
+      - DNS:hub.internal
+      - DNS:jms.internal
+      - DNS:localhost
+      - IP:10.200.0.1
+    # 变更 SAN 后须删 Hub 上 hub-internal.{crt,key} 再 apply；见 docs/nginx/hub-nginx.runbook.md

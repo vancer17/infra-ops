@@ -1,0 +1,135 @@
+# =============================================================================
+# Ansible Playbook：Hub 管理面 Nginx 网关（阶段 G1）
+# =============================================================================
+#
+# 【用途】
+#   在 hub-01 安装宿主机 Nginx，提供 WG 内网唯一 L7 入口：
+#     - https://hub.internal / https://10.200.0.1  — 默认页 + /health
+#     - https://jms.internal                       — JumpServer 反代预留（502 直至上游就绪）
+#
+# 【前提】
+#   - 阶段 F：WireGuard operational；ci-01 可 SSH deploy@10.200.0.1
+#   - 阶段 G0：安全组 IN-HTTPS-WG（10.200.0.0/16 → 443）已添加
+#   - 建议：控制台添加 IN-HTTP-WG（80 ← 10.200.0.0/16）以支持 HTTP→HTTPS 跳转
+#   - deploy@hub-01 免密 sudo（mgmt bootstrap sudo_mgmt）
+#
+# 【执行位置】
+#   ci-01（yax）上以 deploy 用户运行。
+#
+# 【常用命令】
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#
+#   ansible-playbook ansible/playbooks/nginx-hub.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01 \
+#     --check --diff
+#   （--check 仅预览 diff；post_tasks 验收在 check mode 下跳过）
+#
+#   ansible-playbook ansible/playbooks/nginx-hub.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01
+#
+# 【成功后】
+#   更新 group_vars/all/nginx.yml：
+#     nginx.enabled: true
+#     nginx.status: operational
+#   验收：curl -k https://10.200.0.1/health ；nc -zv 10.200.0.1 443
+#
+# =============================================================================
+
+---
+- name: Deploy Hub management Nginx gateway
+  hosts: mgmt_hub
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "nginx-hub playbook requires Debian 12+"
+      tags: [nginx, nginx-hub, preflight]
+
+    - name: Assert target is Hub Nginx gateway host
+      ansible.builtin.assert:
+        that:
+          - nginx_gateway | default(false) | bool
+        fail_msg: "nginx_gateway must be true on hub-01 (see host_vars/hub-01.yml)"
+      tags: [nginx, nginx-hub, preflight]
+
+    - name: Assert WireGuard is operational before Hub Nginx
+      ansible.builtin.assert:
+        that:
+          - wireguard.status | default('') == 'operational'
+          - wireguard.enabled | default(false) | bool
+        fail_msg: >-
+          wireguard must be operational before Hub Nginx.
+          Complete stage F (wireguard-hub + wireguard-peer) first.
+      tags: [nginx, nginx-hub, preflight]
+
+    - name: Assert Hub SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Hub must use deploy@ steady SSH before nginx-hub apply"
+      tags: [nginx, nginx-hub, preflight]
+
+  tasks:
+    - name: Configure Hub Nginx gateway
+      ansible.builtin.import_role:
+        name: nginx
+        tasks_from: hub
+      tags: [nginx, nginx-hub]
+
+    # post_tasks 在 handlers 之前执行；先 flush 使 reload 生效，再验收运行中配置
+    - name: Flush handlers so post_tasks verify running Nginx configuration
+      ansible.builtin.meta: flush_handlers
+      tags: [nginx, nginx-hub]
+
+  post_tasks:
+    - name: Wait for Nginx to listen on HTTPS port
+      ansible.builtin.wait_for:
+        port: 443
+        host: 127.0.0.1
+        timeout: 30
+      when: not ansible_check_mode
+      tags: [nginx, nginx-hub, verify]
+
+    - name: Wait for Nginx to listen on HTTP port
+      ansible.builtin.wait_for:
+        port: 80
+        host: 127.0.0.1
+        timeout: 30
+      when: not ansible_check_mode
+      tags: [nginx, nginx-hub, verify]
+
+    - name: Verify local HTTPS health endpoint
+      ansible.builtin.uri:
+        url: "https://127.0.0.1{{ nginx.health_uri | default('/health') }}"
+        validate_certs: false
+        status_code: 200
+      register: nginx_local_health
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [nginx, nginx-hub, verify]
+
+    - name: Verify Nginx is active in systemd
+      ansible.builtin.command: systemctl is-active nginx
+      register: nginx_systemd_active
+      changed_when: false
+      failed_when: nginx_systemd_active.stdout | trim != 'active'
+      when: not ansible_check_mode
+      tags: [nginx, nginx-hub, verify]
+
+    - name: Hub Nginx deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Hub Nginx gateway applied on {{ inventory_hostname }}"
+          - "Health: https://10.200.0.1{{ nginx.health_uri | default('/health') }} (use -k for self-signed)"
+          - "JumpServer vhost: https://jms.internal/ (502 until upstream {{ nginx.jumpserver_upstream }} listens)"
+          - "Update inventory: nginx.enabled=true, nginx.status=operational"
+          - "Optional SG: add IN-HTTP-WG TCP 80 from 10.200.0.0/16"
+      tags: [nginx, nginx-hub, verify]

@@ -75,7 +75,8 @@ if [[ -d "${playbooks_dir}" ]]; then
         && [[ "${rel}" == ansible/playbooks/bootstrap.yml \
           || "${rel}" == ansible/playbooks/ssh-keys.yml \
           || "${rel}" == ansible/playbooks/wireguard-hub.yml \
-          || "${rel}" == ansible/playbooks/wireguard-peer.yml ]]; then
+          || "${rel}" == ansible/playbooks/wireguard-peer.yml \
+          || "${rel}" == ansible/playbooks/nginx-hub.yml ]]; then
         if [[ -z "${ANSIBLE_VAULT_PASSWORD_FILE:-}" && -f "${CI_REPO_ROOT}/.vault_pass" ]]; then
           export ANSIBLE_VAULT_PASSWORD_FILE="${CI_REPO_ROOT}/.vault_pass"
         fi

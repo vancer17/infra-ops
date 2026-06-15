@@ -1,0 +1,15 @@
+# =============================================================================
+# nginx role 默认入口
+# =============================================================================
+#
+# Hub playbook 使用 tasks_from: hub。
+# 当 host_vars 中 nginx_gateway=true 时，也可经 main 入口执行。
+#
+# =============================================================================
+
+---
+
+- name: Apply Hub management gateway Nginx tasks
+  ansible.builtin.import_tasks: hub.yml
+  when: nginx_gateway | default(false) | bool
+  tags: [nginx, nginx-hub]
