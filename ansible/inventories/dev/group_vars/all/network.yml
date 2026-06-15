@@ -19,6 +19,7 @@
 #      → same_vpc_as_dev: true，Ansible 优先使用 private_ip（ansible_host_internal）
 #   4. WireGuard ci-01↔Hub operational（F2）；F2-5 后 ci_access_mode: wireguard
 #      dev-01 与 ci-01 同 ECS → ansible_host 仍用 VPC 私网；Hub 经 WG（mgmt inventory）
+#   5. RDS Dev 库 app_dev（方案 A）已于 2026-06-15 验收；rds.host 使用内网域名（见 §rds）
 #
 # 【ansible_host 计算逻辑】
 #   见 host_vars/dev-*.yml：
@@ -55,6 +56,9 @@ rds_whitelist:
   entries:
     - host: dev-01
       ip: "172.21.226.38/32"
+      status: confirmed
+      confirmed_at: "2026-06-15"
+      note: "ci-01/dev-01 同机；nc + mysql 验收通过"
     - host: dev-02
       ip: "172.21.127.124/32"
       status: pending_bootstrap
@@ -161,10 +165,17 @@ host_firewall:
 host_firewall_ufw_enabled: "{{ host_firewall.enabled }}"
 
 # -----------------------------------------------------------------------------
-# rds — 应用连接 RDS 的业务参数
+# rds — 应用连接 RDS 的业务参数（2026-06-15 方案 A 验收后）
 # -----------------------------------------------------------------------------
+# host：内网连接地址（无 no 后缀）；bootstrap verify 与应用 DSN 均使用此域名
+# 外网地址 rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com 仅救急，见 docs/rds/
+# 密码：GitHub Secret DB_PASSWORD 或 ansible-vault secrets.yml，不进 Git 明文
 rds:
-  host: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+  host: "rm-bp1wjjf373l7t331v.mysql.rds.aliyuncs.com"
   port: 3306
   database: app_dev
   user: app_dev
+  engine_version: "8.0.28"
+  strategy: app_dev_new
+  status: operational
+  accepted_at: "2026-06-15"

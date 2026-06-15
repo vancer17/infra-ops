@@ -49,9 +49,10 @@ host:
 
   dependencies:
     rds:
-      instance: "rm-bp1wjjf373l7t331vno"
-      endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
-      note: "历史关联 RDS；Test 库 test 待创建"
+      instance: "rm-bp1wjjf373l7t331v"
+      endpoint_internal: "rm-bp1wjjf373l7t331v.mysql.rds.aliyuncs.com"
+      endpoint_public: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+      note: "Test 库待创建；连接地址与 Dev 共用实例内网 endpoint"
 
   lifecycle:
     os: unknown

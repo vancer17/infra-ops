@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-14"
+updated_at: "2026-06-15"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -300,11 +300,19 @@ wireguard_plan:
 # -----------------------------------------------------------------------------
 shared_cloud_dependencies:
   rds:
-    instance_id: "rm-bp1wjjf373l7t331vno"
-    endpoint: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+    instance_id: "rm-bp1wjjf373l7t331v"
+    endpoint_internal: "rm-bp1wjjf373l7t331v.mysql.rds.aliyuncs.com"
+    endpoint_public: "rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com"
+    endpoint_public_status: enabled_pending_shutdown
+    endpoint_application: internal
     port: 3306
+    engine_version: "8.0.28"
     dev_database: app_dev
     dev_user: app_dev
+    dev_strategy: app_dev_new
+    dev_database_status: operational
+    dev_accepted_at: "2026-06-15"
+    dev_acceptance_ref: "docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md"
     whitelist_group: dev-ecs
   oss:
     - bucket: yzx-file-storage

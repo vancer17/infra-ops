@@ -110,7 +110,12 @@ bootstrap_dirs:
 docker_install: true
 docker_compose_plugin: true
 
-# deploy_authorized_keys / ssh_phase / ssh_inventory_user → group_vars/all/ssh.yml
+# -----------------------------------------------------------------------------
+# bootstrap_docker_smoke_image — Bootstrap verify 用的 Docker smoke 镜像
+# -----------------------------------------------------------------------------
+# 消费者：scripts/dev/bootstrap.sh → run_verify_checks
+# 国内 ECS 拉 docker.io/library/hello-world 易超时；使用镜像站全路径
+bootstrap_docker_smoke_image: "5yrqsf19ms2mh4.xuanyuan.run/library/hello-world:latest"
 # 1.3 公钥由 ansible/keys/infra-ci-deploy.pub + scripts/dev/ssh-keys.sh 管理
 
 # -----------------------------------------------------------------------------
