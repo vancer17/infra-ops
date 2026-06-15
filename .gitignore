@@ -60,8 +60,9 @@ peers.yaml
 *.override.yml
 *.override.yaml
 
-# JumpServer / 平台组件本地配置
+# JumpServer Hub .env（仅驻留目标机，Ansible 渲染）
 jumpserver/.env
+/opt/mgmt/jumpserver/.env
 jumpserver/data/
 jumpserver/static/
 monitoring/data/

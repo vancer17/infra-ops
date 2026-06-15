@@ -264,6 +264,23 @@ if [[ -f "${hub_g3_docker_playbook}" ]]; then
   fi
 fi
 
+hub_g4_jumpserver_playbook="${CI_REPO_ROOT}/ansible/playbooks/hub-g4-jumpserver.yml"
+jumpserver_vault_file="${CI_REPO_ROOT}/ansible/inventories/mgmt/group_vars/all/jumpserver_vault.yml"
+if [[ -f "${hub_g4_jumpserver_playbook}" ]] && [[ ! -f "${jumpserver_vault_file}" ]]; then
+  ci_log "WARN: jumpserver_vault.yml missing; run ./scripts/mgmt/jumpserver-vault-init.sh before G4 apply"
+fi
+if [[ -f "${hub_g4_jumpserver_playbook}" ]]; then
+  g4_list_out="$(ci_cd ansible-playbook "${hub_g4_jumpserver_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --limit hub-01 \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'hub-01' <<<"${g4_list_out}"; then
+    ci_log "hub-g4-jumpserver.yml --list-hosts OK for hub-01 (mgmt inventory)"
+  else
+    ci_die "hub-g4-jumpserver.yml does not target hub-01; check hosts: mgmt_hub"
+  fi
+fi
+
 # -----------------------------------------------------------------------------
 # internal_dns — G2 门禁（operational 后校验）
 # -----------------------------------------------------------------------------
@@ -298,6 +315,25 @@ for host_name in "${mgmt_hosts[@]}"; do
       ci_die "host ${host_name}: hub_docker.status=operational 但 docker_install 不为 true"
     fi
     ci_log "  ${host_name}: hub_docker operational OK (Hub Docker 已登记)"
+  fi
+
+  jumpserver_enabled="$(resolved_host_var "${host_name}" "jumpserver.enabled")"
+  jumpserver_status="$(resolved_host_var "${host_name}" "jumpserver.status")"
+  jumpserver_gateway="$(resolved_host_var "${host_name}" "jumpserver_gateway")"
+  ci_log "  ${host_name}: jumpserver.enabled=${jumpserver_enabled:-<unset>} status=${jumpserver_status:-<unset>}"
+
+  if [[ "${jumpserver_status}" == "operational" ]]; then
+    if [[ "${jumpserver_enabled}" != "true" ]]; then
+      ci_die "host ${host_name}: jumpserver.status=operational 但 jumpserver.enabled 不为 true"
+    fi
+    if [[ "${jumpserver_gateway}" != "true" ]]; then
+      ci_die "host ${host_name}: jumpserver.status=operational 但 jumpserver_gateway 不为 true"
+    fi
+    js_deploy="$(resolved_host_var "${host_name}" "nginx.jumpserver.deploy_status")"
+    if [[ "${js_deploy}" != "ready" ]]; then
+      ci_die "host ${host_name}: jumpserver.status=operational 但 nginx.jumpserver.deploy_status=${js_deploy:-<unset>}，应为 ready"
+    fi
+    ci_log "  ${host_name}: jumpserver operational OK (JumpServer 已登记)"
   fi
 done
 

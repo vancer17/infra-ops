@@ -9,7 +9,7 @@
 # 【本期职责】
 #   - 最小 WireGuard 组网的唯一 Server（UDP 51820，地址 10.200.0.1）
 #   - Hub 内网 DNS（dnsmasq @ 10.200.0.1:53，*.internal）— G2 operational
-#   - JumpServer 堡垒机（反代经 jms.internal）— G3+1 Compose 待部署
+#   - JumpServer 堡垒机（反代经 jms.internal）— G4 Compose 待部署
 #
 # 【Ansible Inventory】
 #   inventories/dev/ 仅含 dev-01、dev-02
@@ -134,7 +134,7 @@ host:
     internal_dns_operational_at: "2026-06-16"
     docker_status: operational
     docker_operational_at: "2026-06-17"
-    jumpserver_status: not_planned
+    jumpserver_status: not_started
     baota_installed: false
 
   # 阶段 E 密钥验收（2026-06-14，ci-01 上 wg-keys all-hub + vault-encrypt-hub）
@@ -341,6 +341,23 @@ host:
       - jumpserver_compose_deploy
       - nginx_jumpserver_deploy_status_ready
     conclusion: "阶段 G3 验收通过；Docker CE + compose；JumpServer 目录就绪；jms.internal 仍为 pending/503"
+
+  # 阶段 G4 Hub JumpServer Compose（待 apply；见 hub-jumpserver.runbook.md）
+  stage_g4_hub_jumpserver:
+    status: not_started
+    playbook: ansible/playbooks/hub-g4-jumpserver.yml
+    preflight_script: scripts/mgmt/stage-g4-jumpserver-preflight.sh
+    verify_script: scripts/mgmt/verify-hub-jumpserver-remote.sh
+    runbook: docs/jumpserver/hub-jumpserver.runbook.md
+    vault_init_script: scripts/mgmt/jumpserver-vault-init.sh
+    image: "5yrqsf19ms2mh4.xuanyuan.run/jumpserver/jms_all:v4.10.16"
+    upstream: "127.0.0.1:8080"
+    pending:
+      - jumpserver_vault_init
+      - hub_g4_jumpserver_apply
+      - nginx_jumpserver_deploy_status_ready
+      - jumpserver_status_operational
+    conclusion: "G4 代码与 playbook 已就绪；待 ci-01 执行 vault-init + hub-g4-jumpserver.yml"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

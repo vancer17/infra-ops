@@ -1,0 +1,73 @@
+# =============================================================================
+# Ansible Inventory 变量：Hub JumpServer Compose（阶段 G4）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   JumpServer all-in-one（jms_all）部署参数 SSOT，供 jumpserver role 与
+#   hub-g4-jumpserver.yml 消费。敏感项（SECRET_KEY、BOOTSTRAP_TOKEN）在
+#   jumpserver_vault.yml（ansible-vault 加密）。
+#
+# 【镜像】
+#   使用轩辕镜像专属前缀，避免交互式鉴权：
+#     5yrqsf19ms2mh4.xuanyuan.run/jumpserver/jms_all:<tag>
+#   等价命名空间：docker.xuanyuan.run/jumpserver（无专属前缀时需登录）
+#
+# 【与 nginx / hub_docker 的关系】
+#   容器监听 127.0.0.1:8080 → Nginx jms.internal 反代（G2 已预留）
+#   部署成功后须将 nginx.jumpserver.deploy_status 改为 ready 并重载 Nginx
+#   （hub-g4-jumpserver.yml 自动执行 vhost 刷新；inventory 须同步提交）
+#
+# 【状态】
+#   not_started → operational（hub-g4-jumpserver.yml apply 成功后更新）
+#
+# =============================================================================
+
+---
+
+jumpserver:
+  enabled: true
+
+  # not_started | operational
+  status: not_started
+
+  # 轩辕专属域名前缀（与 bootstrap_docker_smoke_image 同一账号体系）
+  registry_prefix: "5yrqsf19ms2mh4.xuanyuan.run/jumpserver"
+
+  image_name: jms_all
+  # 与 JumpServer 发行版对齐；升级时改 tag 后重跑 hub-g4-jumpserver.yml
+  image_tag: "v4.10.16"
+
+  # 完整镜像由 role 拼接：{{ registry_prefix }}/{{ image_name }}:{{ image_tag }}
+  compose_project_dir: /opt/mgmt/jumpserver
+
+  # 绑定地址须与 nginx.jumpserver_upstream 一致（127.0.0.1:8080）
+  http_publish_host: "127.0.0.1"
+  http_publish_port: 8080
+  container_http_port: 80
+
+  # Koko SSH 组件端口（首期仅本机；二期可改为 10.200.0.1 供 WG 内直连）
+  ssh_publish_host: "127.0.0.1"
+  ssh_publish_port: 2222
+  container_ssh_port: 2222
+
+  container_name: jms_all
+  restart_policy: unless-stopped
+  privileged: true
+
+  # 数据卷：与 hub-g3-docker.yml 创建的目录对齐
+  data_volume_host_path: /opt/mgmt/jumpserver/data
+  postgres_volume_name: jms_pgdata
+
+  env:
+    log_level: INFO
+
+  # 健康检查：首次启动可能需数分钟（数据库初始化）
+  health_check:
+    url: "http://127.0.0.1:8080/"
+    status_codes: [200, 302, 401]
+    retries: 36
+    delay: 10
+
+  # 初始 Web 管理员（jms_all 默认；首次登录后务必修改）
+  default_admin_user: admin
+  default_admin_password_note: "ChangeMe — rotate after first login"

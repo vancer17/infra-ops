@@ -16,6 +16,46 @@
 ---
 
 # -----------------------------------------------------------------------------
+# 0. JumpServer 生命周期门禁（防止 G4 后 inventory 未同步时静默回退 503）
+# -----------------------------------------------------------------------------
+- name: Probe JumpServer HTTP upstream before refreshing jms vhost
+  ansible.builtin.uri:
+    url: "http://{{ nginx.jumpserver_upstream | default('127.0.0.1:8080') }}/"
+    status_code: [200, 302, 401]
+    follow_redirects: none
+  register: nginx_jms_upstream_probe
+  failed_when: false
+  when:
+    - not ansible_check_mode
+    - nginx.jumpserver.deploy_status | default('pending') == 'pending'
+  tags: [nginx, nginx-hub, preflight, nginx-g2]
+
+- name: Assert nginx.jumpserver.deploy_status when JumpServer upstream is live
+  ansible.builtin.assert:
+    that:
+      - nginx.jumpserver.deploy_status | default('pending') == 'ready'
+    fail_msg: >-
+      JumpServer responds on {{ nginx.jumpserver_upstream | default('127.0.0.1:8080') }}
+      but nginx.jumpserver.deploy_status=pending. Set deploy_status=ready and
+      jumpserver.status=operational in inventory before re-applying Hub Nginx,
+      or run hub-g4-jumpserver.yml to refresh the vhost.
+  when:
+    - not ansible_check_mode
+    - nginx_jms_upstream_probe is defined
+    - nginx_jms_upstream_probe is succeeded
+  tags: [nginx, nginx-hub, preflight, nginx-g2]
+
+- name: Assert jumpserver.status and deploy_status stay in sync
+  ansible.builtin.assert:
+    that:
+      - jumpserver.status | default('not_started') != 'operational'
+        or nginx.jumpserver.deploy_status | default('pending') == 'ready'
+    fail_msg: >-
+      jumpserver.status=operational requires nginx.jumpserver.deploy_status=ready
+      in inventory before re-applying Hub Nginx jms vhost.
+  tags: [nginx, nginx-hub, preflight, nginx-g2]
+
+# -----------------------------------------------------------------------------
 # 1. 安装 Nginx（Debian 官方包）
 # -----------------------------------------------------------------------------
 - name: Install Nginx and OpenSSL packages

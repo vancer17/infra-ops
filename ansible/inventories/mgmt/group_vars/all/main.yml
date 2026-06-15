@@ -16,8 +16,9 @@
 #   wireguard_keys.yml → 密钥文件路径与保管策略（无私钥）
 #   nginx.yml          → Hub 管理面 Nginx 网关（阶段 G1/G2）
 #   internal_dns.yml   → Hub dnsmasq 内网 DNS（阶段 G2）
+#   jumpserver.yml     → JumpServer Compose（阶段 G4）
 #
-#   Ansible 按文件名字母序合并：bootstrap → docker → internal_dns → main → network → nginx → ssh → wireguard → wireguard_keys
+#   Ansible 按文件名字母序合并：bootstrap → docker → internal_dns → jumpserver → main → network → nginx → ssh → wireguard → wireguard_keys
 #
 # 【与 inventories/dev/group_vars 的关系】
 #   键名（env_name、network_phase、timezone）尽量与 dev 保持一致，

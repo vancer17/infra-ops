@@ -1,0 +1,31 @@
+# =============================================================================
+# JumpServer all-in-one — Docker Compose（Hub /opt/mgmt/jumpserver）
+# =============================================================================
+# Managed by Ansible infra-ops (jumpserver role)
+# Image: {{ jumpserver_image }}
+# Upstream for Nginx: {{ jumpserver_http_publish_host }}:{{ jumpserver_http_publish_port }}
+# =============================================================================
+
+services:
+  jms_all:
+    image: {{ jumpserver_image }}
+    container_name: {{ jumpserver_container_name }}
+    restart: {{ jumpserver_restart_policy }}
+    privileged: {{ jumpserver_privileged | bool }}
+    env_file:
+      - .env
+    ports:
+      - "{{ jumpserver_http_publish_host }}:{{ jumpserver_http_publish_port }}:{{ jumpserver_container_http_port }}"
+      - "{{ jumpserver_ssh_publish_host }}:{{ jumpserver_ssh_publish_port }}:{{ jumpserver_container_ssh_port }}"
+    volumes:
+      - {{ jumpserver_data_volume_host_path }}:/opt/data
+      - {{ jumpserver_postgres_volume_name }}:/var/lib/postgresql
+    networks:
+      - jms_net
+
+volumes:
+  {{ jumpserver_postgres_volume_name }}:
+
+networks:
+  jms_net:
+    driver: bridge

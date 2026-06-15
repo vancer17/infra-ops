@@ -7,7 +7,7 @@
 #   创建 JumpServer Compose 目录，并将 deploy 用户加入 docker 组。
 #
 # 【不做什么】
-#   本 playbook 不部署 JumpServer 容器（下一阶段 G3+1 / jumpserver-hub.yml）。
+#   本 playbook 不部署 JumpServer 容器（下一阶段 G4：hub-g4-jumpserver.yml）。
 #   不修改 Nginx upstream（仍为 deploy_status=pending 直至 JumpServer 监听 8080）。
 #
 # 【前提】

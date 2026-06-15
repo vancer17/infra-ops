@@ -35,6 +35,7 @@
 #     nginx.status: operational
 #   验收：curl -k https://10.200.0.1/health ；nc -zv 10.200.0.1 443
 #   完整 G2（dnsmasq + Nginx 细化）请用 hub-g2.yml；本 playbook 仅刷新 Nginx 配置。
+#   G4 后勿在 inventory deploy_status=pending 时重跑本 playbook（见 nginx role 门禁）。
 #
 # =============================================================================
 

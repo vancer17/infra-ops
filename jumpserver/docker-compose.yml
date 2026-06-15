@@ -1,0 +1,35 @@
+# =============================================================================
+# JumpServer Compose — 参考副本（由 Ansible 模板部署到 Hub）
+# =============================================================================
+#
+# 实机路径：/opt/mgmt/jumpserver/docker-compose.yml
+# 由 ansible/roles/jumpserver/templates/docker-compose.yml.j2 渲染。
+# 本文件供 docker compose config 静态校验与文档对照；变量以 inventory 为准。
+#
+# 镜像：5yrqsf19ms2mh4.xuanyuan.run/jumpserver/jms_all:v4.10.16
+#
+# =============================================================================
+
+services:
+  jms_all:
+    image: 5yrqsf19ms2mh4.xuanyuan.run/jumpserver/jms_all:v4.10.16
+    container_name: jms_all
+    restart: unless-stopped
+    privileged: true
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:8080:80"
+      - "127.0.0.1:2222:2222"
+    volumes:
+      - ./data:/opt/data
+      - jms_pgdata:/var/lib/postgresql
+    networks:
+      - jms_net
+
+volumes:
+  jms_pgdata:
+
+networks:
+  jms_net:
+    driver: bridge

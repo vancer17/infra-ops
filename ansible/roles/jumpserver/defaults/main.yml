@@ -1,0 +1,38 @@
+# =============================================================================
+# jumpserver role — 默认变量
+# =============================================================================
+
+jumpserver_enabled: "{{ jumpserver.enabled | default(false) }}"
+jumpserver_status: "{{ jumpserver.status | default('not_started') }}"
+
+jumpserver_registry_prefix: "{{ jumpserver.registry_prefix | default('5yrqsf19ms2mh4.xuanyuan.run/jumpserver') }}"
+jumpserver_image_name: "{{ jumpserver.image_name | default('jms_all') }}"
+jumpserver_image_tag: "{{ jumpserver.image_tag | default('v4.10.16') }}"
+jumpserver_image: "{{ jumpserver_registry_prefix }}/{{ jumpserver_image_name }}:{{ jumpserver_image_tag }}"
+
+jumpserver_project_dir: "{{ jumpserver.compose_project_dir | default(hub_docker.jumpserver.project_dir | default('/opt/mgmt/jumpserver')) }}"
+
+jumpserver_http_publish_host: "{{ jumpserver.http_publish_host | default('127.0.0.1') }}"
+jumpserver_http_publish_port: "{{ jumpserver.http_publish_port | default(8080) }}"
+jumpserver_container_http_port: "{{ jumpserver.container_http_port | default(80) }}"
+
+jumpserver_ssh_publish_host: "{{ jumpserver.ssh_publish_host | default('127.0.0.1') }}"
+jumpserver_ssh_publish_port: "{{ jumpserver.ssh_publish_port | default(2222) }}"
+jumpserver_container_ssh_port: "{{ jumpserver.container_ssh_port | default(2222) }}"
+
+jumpserver_container_name: "{{ jumpserver.container_name | default('jms_all') }}"
+jumpserver_restart_policy: "{{ jumpserver.restart_policy | default('unless-stopped') }}"
+jumpserver_privileged: "{{ jumpserver.privileged | default(true) }}"
+
+jumpserver_data_volume_host_path: "{{ jumpserver.data_volume_host_path | default('/opt/mgmt/jumpserver/data') }}"
+jumpserver_postgres_volume_name: "{{ jumpserver.postgres_volume_name | default('jms_pgdata') }}"
+
+jumpserver_log_level: "{{ jumpserver.env.log_level | default('INFO') }}"
+
+jumpserver_secret_key: "{{ jumpserver_vault.secret_key | default('') }}"
+jumpserver_bootstrap_token: "{{ jumpserver_vault.bootstrap_token | default('') }}"
+
+jumpserver_health_url: "{{ jumpserver.health_check.url | default('http://127.0.0.1:8080/') }}"
+jumpserver_health_status_codes: "{{ jumpserver.health_check.status_codes | default([200, 302, 401]) }}"
+jumpserver_health_retries: "{{ jumpserver.health_check.retries | default(36) }}"
+jumpserver_health_delay: "{{ jumpserver.health_check.delay | default(10) }}"

@@ -66,3 +66,6 @@ dns_gateway: true
 
 # Hub 是否已启用/计划启用 Docker（供 hub-g3-docker.yml 与 inventory 门禁）
 docker_gateway: true
+
+# Hub 是否部署 JumpServer Compose（供 hub-g4-jumpserver.yml 与 inventory 门禁）
+jumpserver_gateway: true

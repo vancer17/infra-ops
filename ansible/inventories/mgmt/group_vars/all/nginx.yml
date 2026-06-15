@@ -30,8 +30,9 @@ nginx:
   jumpserver_upstream: "127.0.0.1:8080"
 
   jumpserver:
-    # pending = 上游未就绪，展示维护页；ready = JumpServer 已监听 8080（G3 后改）
+    # pending = 上游未就绪，展示维护页；ready = JumpServer 已监听 8080（G4 后改）
     deploy_status: pending
+    # hub-g4-jumpserver.yml 成功后改为 ready 并提交 Git
     status_uri: /jms/status
     maintenance_enabled: true
     upstream_keepalive: 16

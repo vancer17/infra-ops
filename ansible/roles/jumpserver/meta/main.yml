@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  role_name: jumpserver
+  author: infra-ops
+  description: Deploy JumpServer jms_all via Docker Compose on Hub
+  license: MIT
+  min_ansible_version: "2.14"
+dependencies: []

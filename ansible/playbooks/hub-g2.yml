@@ -149,6 +149,20 @@
         - nginx.jumpserver.deploy_status | default('pending') == 'pending'
       tags: [hub-g2, verify, nginx]
 
+    - name: Verify jms.internal vhost proxies JumpServer when deploy_status is ready
+      ansible.builtin.uri:
+        url: "https://127.0.0.1/"
+        validate_certs: false
+        status_code: [200, 302, 401]
+        headers:
+          Host: jms.internal
+      register: hub_g2_jms_proxy
+      changed_when: false
+      when:
+        - not ansible_check_mode
+        - nginx.jumpserver.deploy_status | default('pending') == 'ready'
+      tags: [hub-g2, verify, nginx]
+
     - name: Hub G2 deployment summary
       ansible.builtin.debug:
         msg:
