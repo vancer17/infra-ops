@@ -37,13 +37,13 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 
 - **dev** 应用节点：`ansible/inventories/dev/`（dev-01、dev-02）
 - **mgmt** 管理面：`ansible/inventories/mgmt/`（hub-01）
-- ci-01 与 dev-01 同机，不在 mgmt hosts 列表中（见 `control_plane_hosts`）
+- ci-01 与 dev-01 同机：mgmt `wireguard_peers` 组管理 ci-01 WG Client；dev inventory 管 dev-01 应用
 
 ## Bootstrap 进度（2026-06-14）
 
 | 主机 | bootstrap_status | Inventory |
 |------|------------------|-----------|
-| ci-01 / dev-01 | `bootstrap_done` | dev / 同机 |
+| ci-01 / dev-01 | `ssh_done` | dev / 同机；ci-01 另在 mgmt `wireguard_peers` |
 | hub-01 | `ssh_done` | mgmt |
 | dev-02 | `pending` | dev |
 | test-01 | `pending` | 未纳入 |
@@ -64,19 +64,22 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 |----|----------|
 | **Hub↔ci-01 隧道** | `wireguard.status: operational`（F1 Server + F2 Client 握手已验收） |
 | **Ansible 连 Hub** | mgmt `access_mode: wireguard` → `ansible_host` = **`10.200.0.1`**（**已验收**，`logs/console-check.log`） |
+| **F3-1 自动化** | **已通过**（`make stage-f-preflight`、`secret-scan`；`logs/console-acceptance.log`） |
 | **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
 | **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
 | **下一里程碑** | `network_phase: steady`（关公网 SSH、JumpServer — 未开始） |
 
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
 - **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
-- **验收日志**：F2 隧道 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
+- **验收日志**：F2 隧道 + F3-1 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
+- **验收报告**：[20260614-阶段F-WireGuard验收报告.md](../acceptance/20260614-阶段F-WireGuard验收报告.md)
 
 ## 相关文档
 
 - [安全组策略](../security-groups/README.md)
 - [Dev Bootstrap Runbook](../bootstrap/dev-01-bootstrap.runbook.md)
 - [Hub Bootstrap Runbook](../bootstrap/hub-01-bootstrap.runbook.md)（hub-01：`ssh_done`，2026-06-14）
+- [WireGuard F3 验收](../wireguard/stage-f3-acceptance-runbook.md)
 - [WireGuard F2-5 收口](../wireguard/stage-f2-5-runbook.md)
 - [运维笔记本 WG Client](../wireguard/developer-laptop-client.md)
 - [企业环境实施方案](../20260608-ECS%20企业环境实施方案.md) §4 网络与 WireGuard

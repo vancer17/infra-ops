@@ -10,8 +10,8 @@
 #   - 公网 IP、私网 IP、实例 ID 与 dev-01.yaml 完全相同
 #   - CI 职责：ansible-playbook、GitHub Actions Runner、后续镜像构建
 #   - Dev-01 职责：应用运行时（Docker、Nginx 等）
-#   - WireGuard：阶段 F 采用 **方案 A** — 仅 ci-01 作为 Hub [Peer]（10.200.0.2）；
-#     dev-01.wg_ip 仅文档用途，见 inventories/mgmt/.../wireguard_peer_model
+#   - WireGuard：阶段 F **已完成** — 仅 ci-01 作为 Hub Peer（10.200.0.2，operational）；
+#     dev-01 不单独 Peer，见 wireguard_peer_model: single_peer_ci_01
 #
 # 【与 security_whitelist 的关系】
 #   network.yml / 安全组中的 ci_public_ip 现为 121.41.58.20（本机公网），
@@ -141,3 +141,18 @@ host:
     optional:
       github_runner: not_registered
       developer_laptop_peer: docs/wireguard/developer-laptop-client.md
+
+  # 阶段 F3 自动化验收（2026-06-14，与 hub-01 stage_f3_acceptance 同步）
+  stage_f3_acceptance:
+    completed_at: "2026-06-14"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    script: scripts/mgmt/stage-f-preflight.sh
+    checks:
+      inventory_mgmt: ok
+      wg_keys_verify: ok
+      deploy_wireguard_sudo: ok
+      vault_view: ok
+      secret_scan: ok
+      stage_f_preflight: ok
+    conclusion: "阶段 F 最小组网验收通过；Runner / 笔记本 Client 为可选后续"
