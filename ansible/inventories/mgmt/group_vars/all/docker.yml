@@ -1,0 +1,67 @@
+# =============================================================================
+# Ansible Inventory 变量：Hub 管理面 Docker（阶段 G3）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   Hub（hub-01）启用 Docker CE 的 SSOT，供 hub-g3-docker.yml 与 inventory 门禁消费。
+#   覆盖 bootstrap.yml 中 docker_install: false（本文件按字母序后加载）。
+#
+# 【与 Dev 的差异】
+#   Dev：docker 在 bootstrap.yml 一次性安装，跑应用容器。
+#   Hub：Bootstrap 期刻意不装 Docker；G3 专用于 JumpServer Compose，目录在 /opt/mgmt/jumpserver。
+#
+# 【与 nginx / internal_dns 的关系】
+#   G3 前提：wireguard、nginx、internal_dns 均为 operational。
+#   JumpServer 监听 127.0.0.1:8080，仍经 Nginx jms.internal 反代（G2 已预留）。
+#
+# 【状态流转】
+#   not_started → operational（hub-g3-docker.yml apply 成功后人工/脚本更新）
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# docker_install — 供 roles/docker 消费（覆盖 bootstrap.yml 中的 false）
+# -----------------------------------------------------------------------------
+docker_install: true
+docker_compose_plugin: true
+
+# Bootstrap verify / hub-g3-docker post_tasks 使用的 smoke 镜像（国内镜像站）
+bootstrap_docker_smoke_image: "5yrqsf19ms2mh4.xuanyuan.run/library/hello-world:latest"
+
+# -----------------------------------------------------------------------------
+# hub_docker — Hub 管理面 Docker 与 JumpServer 目录规划
+# -----------------------------------------------------------------------------
+hub_docker:
+  enabled: true
+
+  # not_started | operational
+  status: not_started
+
+  # 消费者：hub-g3-docker.yml post_tasks、inventory-check-mgmt.sh
+  smoke_image: "{{ bootstrap_docker_smoke_image }}"
+
+  jumpserver:
+    # JumpServer 官方 Compose 项目根（G3+1 阶段放置 docker-compose.yml）
+    project_dir: /opt/mgmt/jumpserver
+    data_dir: /opt/mgmt/jumpserver/data
+    static_dir: /opt/mgmt/jumpserver/static
+    # 与 nginx.jumpserver_upstream 一致
+    listen_host: "127.0.0.1"
+    listen_port: 8080
+
+  # hub-g3-docker.yml 创建的目录（owner deploy，供 Compose 挂载）
+  dirs:
+    - path: /opt/mgmt/jumpserver
+      owner: deploy
+      group: deploy
+      mode: "0755"
+    - path: /opt/mgmt/jumpserver/data
+      owner: deploy
+      group: deploy
+      mode: "0750"
+    - path: /opt/mgmt/jumpserver/static
+      owner: deploy
+      group: deploy
+      mode: "0755"

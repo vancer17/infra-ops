@@ -252,6 +252,18 @@ if [[ -f "${hub_g2_playbook}" ]]; then
   fi
 fi
 
+hub_g3_docker_playbook="${CI_REPO_ROOT}/ansible/playbooks/hub-g3-docker.yml"
+if [[ -f "${hub_g3_docker_playbook}" ]]; then
+  g3_list_out="$(ci_cd ansible-playbook "${hub_g3_docker_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'hub-01' <<<"${g3_list_out}"; then
+    ci_log "hub-g3-docker.yml --list-hosts OK for hub-01 (mgmt inventory)"
+  else
+    ci_die "hub-g3-docker.yml does not target hub-01; check hosts: mgmt_hub"
+  fi
+fi
+
 # -----------------------------------------------------------------------------
 # internal_dns — G2 门禁（operational 后校验）
 # -----------------------------------------------------------------------------
@@ -267,6 +279,25 @@ for host_name in "${mgmt_hosts[@]}"; do
       ci_die "host ${host_name}: internal_dns.status=operational 但 dns_gateway 不为 true"
     fi
     ci_log "  ${host_name}: internal_dns operational OK"
+  fi
+
+  hub_docker_enabled="$(resolved_host_var "${host_name}" "hub_docker.enabled")"
+  hub_docker_status="$(resolved_host_var "${host_name}" "hub_docker.status")"
+  docker_gateway="$(resolved_host_var "${host_name}" "docker_gateway")"
+  docker_install_flag="$(resolved_host_var "${host_name}" "docker_install")"
+  ci_log "  ${host_name}: hub_docker.enabled=${hub_docker_enabled:-<unset>} status=${hub_docker_status:-<unset>}"
+
+  if [[ "${hub_docker_status}" == "operational" ]]; then
+    if [[ "${hub_docker_enabled}" != "true" ]]; then
+      ci_die "host ${host_name}: hub_docker.status=operational 但 hub_docker.enabled 不为 true"
+    fi
+    if [[ "${docker_gateway}" != "true" ]]; then
+      ci_die "host ${host_name}: hub_docker.status=operational 但 docker_gateway 不为 true"
+    fi
+    if [[ "${docker_install_flag}" != "true" ]]; then
+      ci_die "host ${host_name}: hub_docker.status=operational 但 docker_install 不为 true"
+    fi
+    ci_log "  ${host_name}: hub_docker operational OK (Hub Docker 已登记)"
   fi
 done
 

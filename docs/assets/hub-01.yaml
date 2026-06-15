@@ -131,6 +131,7 @@ host:
     nginx_installed_at: "2026-06-15"
     internal_dns_status: operational
     internal_dns_operational_at: "2026-06-16"
+    docker_status: not_started
     jumpserver_status: not_planned
     baota_installed: false
 
@@ -306,7 +307,22 @@ host:
     pending:
       - jumpserver_deploy_g3
       - steady_in_ssh_wg_and_retire_public_ssh
-    conclusion: "阶段 G2 验收通过；jms.internal 503 + /jms/status JSON；下一步 G3 JumpServer"
+    conclusion: "阶段 G2 验收通过；jms.internal 503 + /jms/status JSON；下一步 G3 Hub Docker"
+
+  # 阶段 G3 Hub Docker（hub-g3-docker.yml；验收后更新 status / checks）
+  stage_g3_hub_docker:
+    status: not_started
+    playbook: ansible/playbooks/hub-g3-docker.yml
+    preflight_script: scripts/mgmt/stage-g3-docker-preflight.sh
+    verify_script: scripts/mgmt/verify-hub-docker-remote.sh
+    runbook: docs/docker/hub-docker.runbook.md
+    acceptance_doc: docs/acceptance/20260617-阶段G3-Hub-Docker验收.md
+    jumpserver_project_dir: /opt/mgmt/jumpserver
+    pending:
+      - hub_g3_docker_apply
+      - hub_docker_status_operational
+      - jumpserver_compose_deploy
+    note: "仅安装 Docker CE；JumpServer 容器为 G3+1"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

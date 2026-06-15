@@ -76,12 +76,13 @@ else
   echo "ERROR: /opt/wireguard missing" >&2
   exit 1
 fi
-echo "=== docker (Hub 不应安装) ==="
+echo "=== docker ==="
 if command -v docker >/dev/null 2>&1; then
-  echo "WARN: docker 不应存在于 Hub" >&2
-  exit 1
+  docker --version
+  docker compose version 2>/dev/null || true
+  id -nG deploy | grep -qw docker && echo "OK: deploy in docker group" || echo "WARN: deploy not in docker group"
 else
-  echo "OK: 无 Docker"
+  echo "OK: docker not installed (expected before stage G3; run hub-g3-docker.yml)"
 fi
 echo "=== ufw ==="
 if command -v ufw >/dev/null 2>&1; then
