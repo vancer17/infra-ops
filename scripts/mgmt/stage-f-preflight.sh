@@ -94,7 +94,8 @@ Git commit on ci-01 (deploy user):
   git config user.email "you@example.com"
   git config user.name "Your Name"
 
-Next: implement ansible/roles/wireguard + playbooks/wireguard-hub.yml
+Next: ansible-playbook ansible/playbooks/wireguard-hub.yml \\
+  -i ansible/inventories/mgmt/ --limit hub-01 --vault-password-file .vault_pass
 
 EOF
 

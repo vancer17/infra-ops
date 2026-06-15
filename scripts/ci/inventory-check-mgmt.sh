@@ -179,4 +179,17 @@ if [[ -f "${bootstrap_playbook}" ]]; then
   fi
 fi
 
+wireguard_hub_playbook="${CI_REPO_ROOT}/ansible/playbooks/wireguard-hub.yml"
+if [[ -f "${wireguard_hub_playbook}" ]]; then
+  wg_list_out="$(ci_cd ansible-playbook "${wireguard_hub_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --limit hub-01 \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'hub-01' <<<"${wg_list_out}"; then
+    ci_log "wireguard-hub.yml --list-hosts OK for hub-01 (mgmt inventory)"
+  else
+    ci_die "wireguard-hub.yml does not target hub-01; check hosts: mgmt_hub"
+  fi
+fi
+
 ci_log "inventory-check-mgmt OK"

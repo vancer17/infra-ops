@@ -170,7 +170,7 @@ REMOTE
 
 - 控制面环境：`./scripts/dev/setup-control-plane-env.sh all`
 - WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
-- WG Server：`wireguard-hub.yml`（待实现）
+- WG Server：`ansible/playbooks/wireguard-hub.yml`（阶段 F；需 `--vault-password-file .vault_pass`）
 - 控制台确认 UDP 51820 已按 `dev-ecs-bootstrap.rules.yaml` IN-WG-* 添加
 
 ## 故障排查
