@@ -33,13 +33,17 @@
 # -----------------------------------------------------------------------------
 # security_whitelist — 允许访问 Hub ECS 的来源（与安全组规则对应）
 # -----------------------------------------------------------------------------
-# 修改后须同步 Hub 安全组文档 docs/security-groups/hub-bootstrap.rules.yaml
+# 修改后须同步 Hub 安全组文档 docs/security-groups/hub-wg.rules.yaml
 security_whitelist:
   ci_public_ip: "121.41.58.20/32"
   ci_private_ip: "172.21.226.38/32"
   office_egress_ips:
+    - "125.121.146.255/32"
+  office_egress_ips_legacy:
     - "115.195.216.251/32"
-  wireguard_cidr_future: "10.200.0.0/16"
+  office_egress_note: "家用宽带动态 IP（2026-06-15 验收）；换网后更新安全组或改走 WG"
+  wireguard_cidr: "10.200.0.0/16"
+  workbench_cidr: "100.104.0.0/16"
 
 # -----------------------------------------------------------------------------
 # ci_connectivity — Ansible 控制机（ci-01）到 Hub 的网络关系

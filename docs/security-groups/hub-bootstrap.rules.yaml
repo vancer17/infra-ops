@@ -7,22 +7,22 @@
 #   → 须放行 CI 私网 SSH（172.21.226.38）及 WG UDP 51820（见 dev-ecs-bootstrap IN-WG-*）
 #   须与 docs/assets/hub-01.yaml、inventories/mgmt/group_vars/all/network.yml 一致
 #
-# 【2026-06-14 控制台事实】
-#   Hub 实例当前绑定与 Dev 相同的安全组 id：sg-bp122tjy3h95um8kv4f9
-#   （控制台名称可能为 sg-dev-ecs-bootstrap）。
-#   UDP 51820 规则已合并写入 dev-ecs-bootstrap.rules.yaml（IN-WG-*），
-#   绑定该 id 的 Hub 与 Dev 共享同一套入站规则。
+# 【2026-06-14 控制台事实（已 superseded）】
+#   Hub 曾与 Dev 共用 sg-bp122tjy3h95um8kv4f9；UDP 51820 见 dev-ecs-bootstrap IN-WG-*。
 #
-# 【控制台操作】
-#   若将来 Hub 独立建组：创建 sg-hub-bootstrap → 绑定 hub-01 → 回填 id
+# 【2026-06-15 起】
+#   Hub 独占规则集见 hub-wg.rules.yaml；本文件仅作 bootstrap 历史参考。
 #
 schema_version: "1"
 phase: bootstrap
-updated_at: "2026-06-14"
+status: superseded
+superseded_by: docs/security-groups/hub-wg.rules.yaml
+superseded_at: "2026-06-15"
+updated_at: "2026-06-15"
 security_group:
   name: sg-dev-ecs-bootstrap
   id: sg-bp122tjy3h95um8kv4f9
-  description: "Hub 当前与 Dev 共用此 id；WG 完成后 Hub 可迁移 sg-hub-wg"
+  description: "历史：Hub bootstrap 期与 Dev 共用；2026-06-15 起 Hub 见 hub-wg.rules.yaml"
   region: cn-hangzhou
   vpc_id: vpc-bp1jmugctnhj97dbjyx31
   shared_with_hosts: [hub-01, dev-01, dev-02, ci-01]

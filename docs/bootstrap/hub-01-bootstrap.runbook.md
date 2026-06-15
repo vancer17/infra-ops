@@ -3,13 +3,14 @@
 > 主机：hub-01 | 公网 121.43.49.58 | 私网 172.21.127.123  
 > 控制机：ci-01（yax，121.41.58.20 / 172.21.226.38）  
 > Inventory：`ansible/inventories/mgmt/`  
-> **状态：已于 2026-06-14 完成**（`bootstrap_status: ssh_done`）
+> **状态：已于 2026-06-14 完成**（`bootstrap_status: ssh_done`）  
+> **安全组（G0，2026-06-15）**：Hub 已切换独占规则集 [hub-wg.rules.yaml](../security-groups/hub-wg.rules.yaml)，验收见 [阶段 G0](../acceptance/20260615-阶段G0-Hub安全组与Nginx前置验收.md)。Bootstrap 期规则见 [hub-bootstrap.rules.yaml](../security-groups/hub-bootstrap.rules.yaml)（历史）。
 
 ## 前置条件
 
 - [x] 阶段 A：能以 **root + 实例密钥** SSH 登录 Hub（公网或私网）
 - [x] 阶段 B：ci-01（dev-01 同机）已完成 Bootstrap（`bootstrap_status: bootstrap_done`）
-- [x] Hub 安全组已按 [hub-bootstrap.rules.yaml](../security-groups/hub-bootstrap.rules.yaml) 配置并绑定实例
+- [x] Hub 安全组 Bootstrap 期已配置（历史 [hub-bootstrap.rules.yaml](../security-groups/hub-bootstrap.rules.yaml)；当前 [hub-wg.rules.yaml](../security-groups/hub-wg.rules.yaml)）
 - [x] 从控制机验证：`ssh root@172.21.127.123`（优先私网；控制机 `~/.ssh/hub-root`）
 
 ## 执行用户（控制机）
