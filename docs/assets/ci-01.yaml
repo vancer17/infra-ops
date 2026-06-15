@@ -11,6 +11,7 @@
 #   - CI 职责：ansible-playbook、GitHub Actions Runner、后续镜像构建
 #   - Dev-01 职责：应用运行时（Docker、Nginx 等）
 #   - WireGuard：阶段 F **已完成** — 仅 ci-01 作为 Hub Peer（10.200.0.2，operational）；
+#     阶段 G2（2026-06-16）：WG Client DNS=10.200.0.1 — 见 stage_g2_wg_client_dns
 #     dev-01 不单独 Peer，见 wireguard_peer_model: single_peer_ci_01
 #
 # 【与 security_whitelist 的关系】
@@ -142,6 +143,18 @@ host:
       wg_handshake: ok
       ping_hub_wg: ok
       ssh_hub_via_wg: ok
+
+  # 阶段 G2 ci-01 WG Client DNS（2026-06-16，hub-g2.yml + wireguard-peer.yml + console-acceptance.log）
+  stage_g2_wg_client_dns:
+    completed_at: "2026-06-16"
+    acceptance_log: logs/console-acceptance.log
+    wg_client_dns: "10.200.0.1"
+    checks:
+      wg0_conf_dns_line: ok
+      dig_jms_via_hub_dns: ok
+      curl_jms_status_json: ok
+      curl_jms_root_503: ok
+
   # 阶段 F2-5 Ansible 经 WG 收口（2026-06-14，logs/console-check.log）
   stage_f2_5:
     completed_at: "2026-06-14"

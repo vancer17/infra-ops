@@ -8,7 +8,8 @@
 #
 # 【本期职责】
 #   - 最小 WireGuard 组网的唯一 Server（UDP 51820，地址 10.200.0.1）
-#   - 后续：JumpServer 堡垒机（反代经 jms.internal）、可选 dnsmasq 内网 DNS
+#   - Hub 内网 DNS（dnsmasq @ 10.200.0.1:53，*.internal）— G2 operational
+#   - JumpServer 堡垒机（反代经 jms.internal）— G3 待部署
 #
 # 【Ansible Inventory】
 #   inventories/dev/ 仅含 dev-01、dev-02
@@ -21,7 +22,7 @@
 #   阶段 F3（2026-06-14）：F3-1 自动化验收通过 — 见 stage_f3_acceptance、docs/acceptance/20260614-阶段F-WireGuard验收报告.md
 #   阶段 G0（2026-06-15）：Hub 独占安全组 + Nginx 前置验收 — 见 stage_g0_hub_security_group
 #   阶段 G1（2026-06-15）：Hub 宿主机 Nginx 网关 — 见 stage_g1_nginx_hub
-#   阶段 G2（2026-06-16）：Hub 内网 DNS + JumpServer upstream 细化 — 见 stage_g2_internal_dns
+#   阶段 G2（2026-06-16）：Hub 内网 DNS + JumpServer upstream 细化 — 见 stage_g2_internal_dns（验收通过）
 #
 # =============================================================================
 
@@ -33,7 +34,7 @@ host:
   name: hub-01
   role: hub
   env: mgmt
-  description: "临时 Hub — WireGuard Server + Nginx 管理面网关 +（规划）JumpServer"
+  description: "临时 Hub — WireGuard Server + Nginx 网关 + dnsmasq 内网 DNS +（规划）JumpServer"
 
   # --- 替代关系 ---
   replacement:
@@ -74,10 +75,10 @@ host:
       - id: sg-bp122tjy3h95um8kv4f9
         name: sg-hub-wg
         phase: wireguard
-        subphase: g1_hub_nginx_operational
+        subphase: g2_internal_dns_operational
         rules_file: docs/security-groups/hub-wg.rules.yaml
         bound_at: "2026-06-15"
-        note: "Hub 独占；UDP 51820 对 0.0.0.0/0；80/443 已放行 WG 网段；Nginx operational（G1）"
+        note: "Hub 独占；WG 51820；80/443/UDP53(WG)；Nginx + dnsmasq operational（G1/G2）"
     historical:
       - id: sg-bp122tjy3h95um8kv4f9
         name: sg-dev-ecs-bootstrap
@@ -128,6 +129,8 @@ host:
     wireguard_server_installed_at: "2026-06-14"
     nginx_status: operational
     nginx_installed_at: "2026-06-15"
+    internal_dns_status: operational
+    internal_dns_operational_at: "2026-06-16"
     jumpserver_status: not_planned
     baota_installed: false
 
@@ -273,27 +276,37 @@ host:
       - steady_in_ssh_wg_and_retire_public_ssh
     note: "jms.internal 502 直至 JumpServer 监听 127.0.0.1:8080；G2 后改为 503 维护页 + /jms/status"
 
-  # 阶段 G2 Hub 内网 DNS + JumpServer upstream 细化（2026-06-16，待 apply）
+  # 阶段 G2 Hub 内网 DNS + JumpServer upstream 细化（2026-06-16，logs/console-acceptance.log）
   stage_g2_internal_dns:
-    status: not_started
-    planned_at: "2026-06-16"
+    status: operational
+    completed_at: "2026-06-16"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    acceptance_doc: docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md
     playbook: ansible/playbooks/hub-g2.yml
     preflight_script: scripts/mgmt/stage-g2-preflight.sh
-    acceptance_doc: docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md
     runbook: docs/dns/hub-internal-dns.runbook.md
     dns_listen: "10.200.0.1:53"
     wireguard_client_dns: "10.200.0.1"
     vhosts_refined:
       - jms.internal
-    checks_pending:
-      - console_add_in_dns_wg_udp_53
-      - dnsmasq_active
-      - dig_jms_internal
-      - curl_jms_status_json
-      - curl_jms_root_503
-      - wireguard_peer_ci_01_dns
-      - internal_dns_status_operational
-    note: "inventory internal_dns.status 仍为 not_started；hub-g2.yml apply 后更新"
+    checks:
+      console_in_dns_wg_udp_53: ok
+      ci_dig_jms_internal: ok
+      ci_dig_ci_internal: ok
+      ci_dig_hub_internal: ok
+      ci_curl_hub_health: ok
+      ci_curl_jms_status_json: ok
+      ci_curl_jms_root_503: ok
+      ci_wg_client_dns: ok
+      laptop_dig_jms_internal: ok
+      laptop_curl_jms_status_json: ok
+      laptop_curl_jms_root_503: ok
+      inventory_internal_dns_operational: ok
+    pending:
+      - jumpserver_deploy_g3
+      - steady_in_ssh_wg_and_retire_public_ssh
+    conclusion: "阶段 G2 验收通过；jms.internal 503 + /jms/status JSON；下一步 G3 JumpServer"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

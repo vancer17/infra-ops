@@ -21,13 +21,13 @@
 #   IN-HTTP-WG 已添加；Hub Nginx operational — 见 logs/console-acceptance.log（G1 节）
 #
 # 【G2 更新 2026-06-16】
-#   IN-DNS-WG 见 pending_inbound；hub-g2.yml 前须在控制台添加 UDP 53 ← 10.200.0.0/16
+#   IN-DNS-WG 已添加并验收 — dig @10.200.0.1 jms.internal（logs/console-acceptance.log G2 节）
 #
 # =============================================================================
 
 schema_version: "1"
 phase: wireguard
-subphase: g1_hub_nginx_operational
+subphase: g2_internal_dns_operational
 updated_at: "2026-06-16"
 acceptance_log: logs/console-acceptance.log
 
@@ -115,7 +115,6 @@ rules:
       description: "IN-HTTP-WG-Nginx"
       note: "2026-06-15 G1 验收 nc 80 succeeded；控制台 Describe 补录 aliyun_rule_id"
 
-  pending_inbound:
     - id: IN-DNS-WG
       priority: 1
       policy: accept
@@ -123,9 +122,9 @@ rules:
       port_range: "53/53"
       source: "10.200.0.0/16"
       description: "IN-DNS-WG（Hub dnsmasq，阶段 G2）"
-      reason: "hub-g2.yml 前须在控制台添加；验收 dig @10.200.0.1 jms.internal"
-      note: "G2 台账先行；apply 后移入 inbound 并补 aliyun_rule_id"
+      note: "2026-06-16 G2 验收：ci-01 / 笔记本 dig @10.200.0.1 jms.internal → 10.200.0.1；控制台 Describe 补录 aliyun_rule_id"
 
+  pending_inbound:
     - id: IN-SSH-WG
       policy: accept
       protocol: tcp
@@ -168,7 +167,7 @@ rules:
   implicit_deny:
     - "禁止 0.0.0.0/0 入站 TCP 22（除 Workbench 网段外无全局 22）"
     - "禁止 0.0.0.0/0 入站 TCP 80/443"
-    - "禁止 0.0.0.0/0 入站 UDP 53（WG 内 DNS 仅经 IN-DNS-WG pending 规则放行）"
+    - "禁止 0.0.0.0/0 入站 UDP 53（WG 内 DNS 仅经 IN-DNS-WG 10.200.0.0/16 放行）"
     - "UDP 51820 允许 0.0.0.0/0 仅因 WG 密钥认证 + 家用动态 IP"
 
 acceptance:
@@ -199,4 +198,19 @@ acceptance:
       laptop_ping_hub_wg: ok
       laptop_nc_443: ok
       laptop_curl_health: ok
-  next: "G2 hub-g2.yml + IN-DNS-WG；JumpServer 部署；steady 阶段添加 IN-SSH-WG 并收口公网 SSH"
+  g2:
+    completed_at: "2026-06-16"
+    log: logs/console-acceptance.log
+    doc: docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md
+    checks:
+      ci_dig_jms_internal: ok
+      ci_dig_ci_internal: ok
+      ci_dig_hub_internal: ok
+      ci_curl_hub_health: ok
+      ci_curl_jms_status_json: ok
+      ci_curl_jms_root_503: ok
+      ci_wg_client_dns: ok
+      laptop_dig_jms_internal: ok
+      laptop_curl_jms_status_json: ok
+      laptop_curl_jms_root_503: ok
+  next: "G3 JumpServer 部署；steady 阶段添加 IN-SSH-WG 并收口公网 SSH"

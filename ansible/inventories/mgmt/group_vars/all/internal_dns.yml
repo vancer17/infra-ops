@@ -14,9 +14,7 @@
 #   WG Client 配置 DNS=10.200.0.1 → dnsmasq 解析 hub.internal / jms.internal
 #   → 浏览器访问 https://jms.internal → Hub Nginx → JumpServer upstream
 #
-# 【安全组】
-#   须在 Hub 安全组添加 IN-DNS-WG：UDP 53 ← 10.200.0.0/16
-#   见 docs/security-groups/hub-wg.rules.yaml
+# 【状态】2026-06-16 G2 验收通过 — internal_dns.status=operational（logs/console-acceptance.log G2 节）
 #
 # =============================================================================
 
@@ -27,7 +25,7 @@ internal_dns:
   enabled: true
 
   # not_started | operational
-  status: not_started
+  status: operational
 
   # 仅绑定 WireGuard 接口，不对公网 ECS 网卡监听 53
   listen_address: "10.200.0.1"

@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-16）**：Bootstrap + SSH（`ssh_done`）；阶段 F WireGuard `operational`；**阶段 G1 Nginx `operational`**；**阶段 G2 内网 DNS 待 apply**（`internal_dns.status: not_started`）。**下一步**：`hub-g2.yml` → JumpServer（G3）；**steady**：关公网 SSH / `IN-SSH-WG`。
+**hub-01 状态（2026-06-16）**：Bootstrap + SSH（`ssh_done`）；阶段 F WireGuard `operational`；**阶段 G1 Nginx `operational`**；**阶段 G2 内网 DNS `operational`**（`internal_dns.status: operational`，`logs/console-acceptance.log`）。**下一步**：JumpServer（G3）；**steady**：关公网 SSH / `IN-SSH-WG`。
 
 ## 用途
 
