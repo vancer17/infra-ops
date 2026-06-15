@@ -7,7 +7,7 @@
 #
 #   ansible-playbook ... -e "wireguard_server=true" --tags wireguard
 #
-# Client 模式（ci-01 Peer）由 wireguard-peer.yml 在后续阶段实现。
+# Client 模式：wireguard-peer.yml 使用 tasks_from: client
 #
 # =============================================================================
 
@@ -17,3 +17,10 @@
   ansible.builtin.import_tasks: server.yml
   when: wireguard_server | default(false) | bool
   tags: [wireguard, server]
+
+- name: Apply WireGuard Peer client tasks
+  ansible.builtin.import_tasks: client.yml
+  when:
+    - wireguard_peer | default(false) | bool
+    - not (wireguard_server | default(false) | bool)
+  tags: [wireguard, client]

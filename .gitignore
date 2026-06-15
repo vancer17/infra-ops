@@ -73,6 +73,7 @@ monitoring/prometheus/data/
 # -----------------------------------------------------------------------------
 *.retry
 .ansible/
+.ansible-staging/
 ansible.log
 ansible-navigator.log
 collections/ansible_collections/

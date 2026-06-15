@@ -1,0 +1,26 @@
+---
+# =============================================================================
+# host_vars/ci-01.yml — WireGuard Peer Client（本机 yax / connection local）
+# =============================================================================
+#
+# 【为何在 mgmt inventory 中】
+#   ci-01 是控制面逻辑名，与 dev-01 同 ECS；WireGuard Client 在本机配置 wg0。
+#   wireguard-peer.yml 使用 hosts: wireguard_peers --limit ci-01。
+#
+# 【与 control_plane_hosts 的关系】
+#   network.yml 中 control_plane_hosts.ci-01 为文档台账；本 host 为 Ansible 执行目标。
+#
+# =============================================================================
+
+# 本机执行，不经 SSH
+ansible_connection: local
+ansible_host: 127.0.0.1
+
+# role 分支：Client 非 Server
+wireguard_peer: true
+wireguard_server: false
+wireguard_peer_name: ci-01
+
+# deploy-wireguard sudoers — 见 roles/wireguard/files/deploy-wireguard.sudoers
+# 应用：./scripts/mgmt/apply-ci-wireguard-sudo.sh [--console]
+wireguard_client_use_limited_sudo: true

@@ -14,4 +14,13 @@
     name: "{{ wireguard_systemd_unit }}"
     enabled: true
     state: restarted
+  when: not (wireguard_client_use_limited_sudo | bool)
   listen: Restart wireguard interface
+
+- name: Restart wireguard client interface
+  ansible.builtin.command: "sudo -n /bin/systemctl restart {{ wireguard_systemd_unit }}"
+  changed_when: true
+  when: wireguard_client_use_limited_sudo | bool
+  listen:
+    - Restart wireguard client interface
+    - Restart wireguard interface

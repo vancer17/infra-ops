@@ -199,4 +199,47 @@ if [[ -f "${wireguard_hub_playbook}" ]]; then
   fi
 fi
 
+wireguard_peer_playbook="${CI_REPO_ROOT}/ansible/playbooks/wireguard-peer.yml"
+if [[ -f "${wireguard_peer_playbook}" ]]; then
+  wg_peer_list_out="$(ci_cd ansible-playbook "${wireguard_peer_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --limit ci-01 \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'ci-01' <<<"${wg_peer_list_out}"; then
+    ci_log "wireguard-peer.yml --list-hosts OK for ci-01 (mgmt inventory)"
+  else
+    ci_die "wireguard-peer.yml does not target ci-01; check hosts: wireguard_peers"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+# wireguard_peers 组 — ci-01 等本机 Client 变量门禁
+# -----------------------------------------------------------------------------
+mapfile -t wg_peer_hosts < <(
+  ci_cd ansible wireguard_peers -i "${MGMT_INVENTORY}" --list-hosts 2>/dev/null \
+    | awk '/^[[:space:]]+[a-zA-Z0-9_-]+/ { print $1 }' \
+    | sort -u
+)
+
+if [[ ${#wg_peer_hosts[@]} -eq 0 ]]; then
+  ci_log "WARN: no hosts in wireguard_peers group"
+else
+  ci_log "Checking ${#wg_peer_hosts[@]} host(s) in wireguard_peers group..."
+  for host_name in "${wg_peer_hosts[@]}"; do
+    conn="$(resolved_host_var "${host_name}" "ansible_connection")"
+    wg_peer="$(resolved_host_var "${host_name}" "wireguard_peer")"
+    wg_peer_name="$(resolved_host_var "${host_name}" "wireguard_peer_name")"
+    limited_sudo="$(resolved_host_var "${host_name}" "wireguard_client_use_limited_sudo")"
+
+    [[ "${conn}" == "local" ]] \
+      || ci_die "host ${host_name}: wireguard_peers must use ansible_connection=local (got ${conn:-<unset>})"
+    [[ "${wg_peer}" == "true" ]] \
+      || ci_die "host ${host_name}: wireguard_peer must be true (see host_vars/${host_name}.yml)"
+    [[ -n "${wg_peer_name}" && "${wg_peer_name}" != "null" ]] \
+      || ci_die "host ${host_name}: wireguard_peer_name is empty"
+
+    ci_log "  ${host_name}: connection=${conn} peer_name=${wg_peer_name} limited_sudo=${limited_sudo:-<unset>} OK"
+  done
+fi
+
 ci_log "inventory-check-mgmt OK"

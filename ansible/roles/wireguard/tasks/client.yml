@@ -1,0 +1,173 @@
+# =============================================================================
+# wireguard role — ECS Peer Client 任务（阶段 F2）
+# =============================================================================
+#
+# 【设计】
+#   ci-01 上 deploy 用户仅有受限 sudo（/etc/sudoers.d/deploy-wireguard），
+#   不允许 Ansible become + template 直写 /etc/wireguard。
+#   流程：模板 → 仓库 staging 目录 → sudo tee/chmod → sudo systemctl。
+#
+# 【消费者变量】
+#   wireguard_peer_name              — 如 ci-01（host_vars 或 extra-vars）
+#   wireguard_peers_planned          — inventory 公钥/地址
+#   wireguard.hub_public_key         — Hub 公钥
+#   mgmt_hosts.hub-01                — Hub 公网 Endpoint
+#   wireguard_client_*               — defaults + peer 条目覆盖
+#
+# =============================================================================
+
+---
+
+# -----------------------------------------------------------------------------
+# 1. 解析当前 Peer 在 inventory 中的定义
+# -----------------------------------------------------------------------------
+- name: Resolve WireGuard peer definition from inventory
+  ansible.builtin.set_fact:
+    wireguard_peer_resolved: "{{ wireguard_peers_planned | default([]) | selectattr('name', 'equalto', wireguard_peer_name) | list | first | default({}) }}"
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Assert peer is defined in wireguard_peers_planned
+  ansible.builtin.assert:
+    that:
+      - wireguard_peer_resolved.name is defined
+      - wireguard_peer_resolved.wg_ip is defined
+    fail_msg: >-
+      Peer '{{ wireguard_peer_name }}' not found in wireguard_peers_planned.
+      Check inventories/mgmt/group_vars/all/wireguard.yml
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Assert peer private key file exists on controller
+  ansible.builtin.stat:
+    path: "{{ wireguard_peer_private_key_path }}"
+  register: wireguard_peer_private_key_stat
+  delegate_to: localhost
+  become: false
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Fail when peer private key file is missing
+  ansible.builtin.assert:
+    that:
+      - wireguard_peer_private_key_stat.stat.exists
+      - wireguard_peer_private_key_stat.stat.isreg
+    fail_msg: >-
+      Missing private key {{ wireguard_peer_private_key_path }}.
+      Run: ./scripts/wireguard/wg-keys.sh generate-peer {{ wireguard_peer_name }}
+  tags: [wireguard, wireguard-peer, client]
+
+# -----------------------------------------------------------------------------
+# 2. 组装 Client 渲染变量
+# -----------------------------------------------------------------------------
+- name: Build WireGuard client render variables
+  ansible.builtin.set_fact:
+    wireguard_peer_private_key: "{{ lookup('file', wireguard_peer_private_key_path) | trim }}"
+    wireguard_peer_address: "{{ wireguard_peer_resolved.client_address | default(wireguard_peer_resolved.wg_ip ~ '/32') }}"
+    wireguard_client_hub_public_key: "{{ wireguard.hub_public_key }}"
+    wireguard_client_hub_endpoint: "{{ mgmt_hosts['hub-01'].public_ip }}:{{ wireguard.listen_port }}"
+    wireguard_client_allowed_ips: "{{ wireguard_peer_resolved.allowed_ips | default(wireguard_client_default_allowed_ips) }}"
+    wireguard_client_persistent_keepalive: "{{ wireguard_peer_resolved.persistent_keepalive | default(wireguard_client_default_persistent_keepalive) }}"
+  no_log: true
+  tags: [wireguard, wireguard-peer, client]
+
+# -----------------------------------------------------------------------------
+# 3. 检查 wireguard-tools（假定阶段 E/F0 已安装；不调用 apt 以免需全量 sudo）
+# -----------------------------------------------------------------------------
+- name: Check wireguard-tools is installed
+  ansible.builtin.command: wg --version
+  register: wireguard_wg_version
+  changed_when: false
+  failed_when: wireguard_wg_version.rc != 0
+  tags: [wireguard, wireguard-peer, client]
+
+# -----------------------------------------------------------------------------
+# 4. 渲染配置到 staging（deploy 可写，不含 become）
+# -----------------------------------------------------------------------------
+- name: Ensure WireGuard client staging directory exists
+  ansible.builtin.file:
+    path: "{{ wireguard_client_staging_dir }}"
+    state: directory
+    mode: "0700"
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Render WireGuard client configuration to staging
+  ansible.builtin.template:
+    src: wg0-client.conf.j2
+    dest: "{{ wireguard_client_staging_path }}"
+    mode: "0600"
+  register: wireguard_client_staging_render
+  tags: [wireguard, wireguard-peer, client]
+
+# -----------------------------------------------------------------------------
+# 5. 受限 sudo 部署到 /etc/wireguard/wg0.conf
+# -----------------------------------------------------------------------------
+- name: Ensure WireGuard config directory exists (limited sudo)
+  ansible.builtin.command: sudo -n /usr/bin/install -d -m 700 {{ wireguard_config_dir }}
+  changed_when: false
+  when: wireguard_client_use_limited_sudo | bool
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Deploy WireGuard client configuration via sudo tee
+  ansible.builtin.shell: |
+    set -euo pipefail
+    sudo -n /usr/bin/tee {{ wireguard_config_path }} < {{ wireguard_client_staging_path }} > /dev/null
+    sudo -n /usr/bin/chmod 600 {{ wireguard_config_path }}
+  args:
+    executable: /bin/bash
+  register: wireguard_client_config_deploy
+  changed_when: wireguard_client_staging_render.changed
+  when: wireguard_client_use_limited_sudo | bool
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Deploy WireGuard client configuration (full sudo / become)
+  ansible.builtin.template:
+    src: wg0-client.conf.j2
+    dest: "{{ wireguard_config_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  notify: Restart wireguard client interface
+  when: not (wireguard_client_use_limited_sudo | bool)
+  tags: [wireguard, wireguard-peer, client]
+
+# -----------------------------------------------------------------------------
+# 6. 启用并启动 wg-quick@wg0
+# -----------------------------------------------------------------------------
+- name: Enable WireGuard client systemd unit (limited sudo)
+  ansible.builtin.command: sudo -n /bin/systemctl enable {{ wireguard_systemd_unit }}
+  register: wireguard_client_enable
+  changed_when: "'Created symlink' in (wireguard_client_enable.stdout | default(''))"
+  failed_when: wireguard_client_enable.rc != 0
+  when: wireguard_client_use_limited_sudo | bool
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Start WireGuard client systemd unit (limited sudo)
+  ansible.builtin.command: sudo -n /bin/systemctl restart {{ wireguard_systemd_unit }}
+  register: wireguard_client_start
+  changed_when: >-
+    wireguard_client_staging_render.changed
+    or (wireguard_client_config_deploy.changed | default(false))
+  when: wireguard_client_use_limited_sudo | bool
+  tags: [wireguard, wireguard-peer, client]
+
+- name: Enable and start WireGuard client systemd unit (full sudo)
+  ansible.builtin.systemd:
+    name: "{{ wireguard_systemd_unit }}"
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not (wireguard_client_use_limited_sudo | bool)
+  tags: [wireguard, wireguard-peer, client]
+
+# -----------------------------------------------------------------------------
+# 7. 验收 — wg 接口可查询
+# -----------------------------------------------------------------------------
+- name: Verify WireGuard client interface is present
+  ansible.builtin.command: sudo -n wg show {{ wireguard.interface | default('wg0') }}
+  register: wireguard_client_wg_show
+  changed_when: false
+  failed_when: wireguard_client_wg_show.rc != 0
+  tags: [wireguard, wireguard-peer, client, verify]
+
+- name: Display WireGuard client interface summary
+  ansible.builtin.debug:
+    msg: "{{ wireguard_client_wg_show.stdout_lines }}"
+  tags: [wireguard, wireguard-peer, client, verify]

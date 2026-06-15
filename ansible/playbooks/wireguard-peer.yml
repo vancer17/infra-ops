@@ -1,0 +1,142 @@
+# =============================================================================
+# Ansible Playbook：WireGuard ECS Peer Client（阶段 F2）
+# =============================================================================
+#
+# 【用途】
+#   在 ci-01（yax 本机）配置 WireGuard Client：wg0 @ 10.200.0.2，
+#   连接 Hub 121.43.49.58:51820，与 Hub 完成 handshake。
+#
+# 【前提】
+#   - 阶段 F1：wireguard-hub.yml 已在 hub-01 apply（wireguard.status: server_up）
+#   - 阶段 E：ci-01.private / hub.pub / inventory 公钥已同步
+#   - F2-1：deploy-wireguard sudoers（./scripts/mgmt/apply-ci-wireguard-sudo.sh）
+#   - 本机 .vault_pass（inventory 解析 wireguard_vault.yml，与 Hub 共用 mgmt vars）
+#
+# 【Peer 模型】
+#   single_peer_ci_01 — 仅 ci-01 作为 ECS Client；dev-01 同机不单独建 Peer。
+#
+# 【执行位置】
+#   ci-01（yax）上以 deploy 用户运行（ansible_connection: local）。
+#
+# 【常用命令】
+#   export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#
+#   ansible-playbook ansible/playbooks/wireguard-peer.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit ci-01 \
+#     --vault-password-file .vault_pass \
+#     --check --diff
+#
+#   ansible-playbook ansible/playbooks/wireguard-peer.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit ci-01 \
+#     --vault-password-file .vault_pass
+#
+# 【成功后】
+#   更新 wireguard.status: operational
+#   验证：wg show latest handshake；ssh deploy@10.200.0.1（ping 可能因 Hub 禁 ICMP 失败）
+#   勿立即改 ci_connectivity.access_mode（见 wireguard.yml 注释）
+#
+# =============================================================================
+
+---
+- name: Deploy WireGuard Peer Client on ci-01
+  hosts: wireguard_peers
+  gather_facts: true
+  become: false
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "WireGuard peer playbook requires Debian 12+"
+      tags: [wireguard, wireguard-peer, preflight]
+
+    - name: Assert WireGuard Hub Server is up
+      ansible.builtin.assert:
+        that:
+          - wireguard.enabled | default(false) | bool
+          - wireguard.status | default('') in ['server_up', 'operational']
+        fail_msg: >-
+          Hub WireGuard Server must be applied first (wireguard.status server_up).
+          Run wireguard-hub.yml on hub-01.
+      tags: [wireguard, wireguard-peer, preflight]
+
+    - name: Assert target is WireGuard Peer client host
+      ansible.builtin.assert:
+        that:
+          - wireguard_peer | default(false) | bool
+          - wireguard_peer_name is defined
+          - wireguard_peer_name | length > 0
+        fail_msg: >-
+          wireguard_peer must be true and wireguard_peer_name set
+          (see host_vars/ci-01.yml)
+      tags: [wireguard, wireguard-peer, preflight]
+
+    - name: Assert Hub public key is documented
+      ansible.builtin.assert:
+        that:
+          - wireguard.hub_public_key is defined
+          - wireguard.hub_public_key | length > 0
+        fail_msg: "wireguard.hub_public_key missing — run wg-keys sync-inventory"
+      tags: [wireguard, wireguard-peer, preflight]
+
+  tasks:
+    - name: Configure WireGuard Peer client
+      ansible.builtin.import_role:
+        name: wireguard
+        tasks_from: client
+      tags: [wireguard, wireguard-peer, client]
+
+  post_tasks:
+    - name: Wait for WireGuard handshake with Hub (best effort)
+      ansible.builtin.shell: |
+        set -euo pipefail
+        for _ in $(seq 1 15); do
+          if sudo -n wg show {{ wireguard.interface | default('wg0') }} | grep -q 'latest handshake'; then
+            exit 0
+          fi
+          sleep 2
+        done
+        exit 1
+      args:
+        executable: /bin/bash
+      register: wireguard_handshake_wait
+      changed_when: false
+      failed_when: false
+      tags: [wireguard, wireguard-peer, verify]
+
+    - name: Report handshake wait result
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'WireGuard handshake observed on wg0' if wireguard_handshake_wait.rc == 0
+             else 'WARN: no handshake yet — check Hub UDP 51820 SG and Endpoint 121.43.49.58:51820' }}
+      tags: [wireguard, wireguard-peer, verify]
+
+    - name: Verify ping to Hub WireGuard address (optional — Hub may block ICMP)
+      ansible.builtin.command: ping -c 2 -W 2 10.200.0.1
+      register: wireguard_ping_hub
+      changed_when: false
+      failed_when: false
+      when: wireguard_handshake_wait.rc == 0
+      tags: [wireguard, wireguard-peer, verify]
+
+    - name: Report ping result
+      ansible.builtin.debug:
+        msg: >-
+          {{ 'Ping 10.200.0.1 OK' if wireguard_ping_hub.rc == 0
+             else 'WARN: ping 10.200.0.1 failed (ICMP may be blocked — prefer wg show + ssh deploy@10.200.0.1)' }}
+      when: wireguard_handshake_wait.rc == 0
+      tags: [wireguard, wireguard-peer, verify]
+
+    - name: WireGuard Peer deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "WireGuard Peer applied on {{ inventory_hostname }} ({{ wireguard_peer_name }})"
+          - "Address: {{ wireguard_peers_planned | selectattr('name', 'equalto', wireguard_peer_name) | map(attribute='wg_ip') | first }}/32"
+          - "Hub Endpoint: {{ mgmt_hosts['hub-01'].public_ip }}:{{ wireguard.listen_port }}"
+          - "Next: set wireguard.status: operational; verify ssh deploy@10.200.0.1"
+      tags: [wireguard, wireguard-peer, verify]
