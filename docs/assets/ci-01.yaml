@@ -93,8 +93,9 @@ host:
     bootstrap_completed_at: "2026-06-14"
     ssh_phase: steady
     ssh_keys_configured: true
-    wireguard_status: keys_ready
+    wireguard_status: operational
     wireguard_keys_ready_at: "2026-06-14"
+    wireguard_client_installed_at: "2026-06-14"
     runner_status: not_registered
 
   control_plane:
@@ -103,3 +104,22 @@ host:
     vault_password_file: .vault_pass
     git_identity_note: "ci-01 上 commit 前须配置 git user.name / user.email（deploy 用户）"
     note: "阶段 E 完成：setup-control-plane-env.sh all；wg-keys all-hub + vault-encrypt-hub"
+
+  # 阶段 F2 ci-01 WireGuard Client 验收（2026-06-14，wireguard-peer.yml + console-acceptance.log）
+  wireguard_client:
+    completed_at: "2026-06-14"
+    playbook: ansible/playbooks/wireguard-peer.yml
+    peer_name: ci-01
+    interface: wg0
+    address: "10.200.0.2/32"
+    hub_wg_ip: "10.200.0.1"
+    hub_endpoint: "121.43.49.58:51820"
+    limited_sudo: deploy-wireguard
+    checks:
+      ansible_apply: ok
+      wg_handshake: ok
+      ping_hub_wg: ok
+      ssh_hub_via_wg: ok
+    pending_stage_f2_5:
+      - ci_connectivity_access_mode_wireguard
+      - network_phase_wireguard

@@ -17,9 +17,10 @@
 #     - Ansible 从 CI 机执行时，优先使用 Hub 私网 IP（172.21.127.123）
 #
 #   access_mode: public
-#     Bootstrap 期经 VPC 私网或公网 SSH；WG 未上线前不使用 wg_ip 作为 ansible_host
+#     F2 握手已完成（wireguard.status: operational），但 Ansible 仍优先 Hub 私网 172.21.127.123
+#     待 F2-5 稳定验证后，将 access_mode 改为 wireguard → ansible_host 改用 10.200.0.1
 #
-#   将来 access_mode: wireguard 后，host_vars/hub-01.yml 自动改用 10.200.0.1
+#   access_mode: wireguard 后，host_vars/hub-01.yml 自动改用 wg_ip
 #
 # 【mgmt_hosts 与 dev 的 platform_hosts】
 #   dev/inventories/.../network.yml 中的 platform_hosts 供 dev playbook 只读引用。
@@ -78,7 +79,7 @@ mgmt_hosts:
     ansible_host_from_ci: "121.43.49.58"
     ansible_host_internal: "172.21.127.123"
     bootstrap_status: ssh_done
-    wireguard_status: server_up
+    wireguard_status: operational
 
 # -----------------------------------------------------------------------------
 # control_plane_hosts — CI 控制机台账（非 mgmt inventory 成员，仅供引用）
@@ -93,6 +94,8 @@ control_plane_hosts:
     role: ci
     instance_id: "i-bp14czvx1exdi6cmrt2r"
     colocated_with: dev-01
+    wireguard_status: operational
+    wireguard_client_installed_at: "2026-06-14"
 
 # -----------------------------------------------------------------------------
 # host_firewall — Hub 主机 ufw 策略（Bootstrap 期不启用，与 dev 一致）

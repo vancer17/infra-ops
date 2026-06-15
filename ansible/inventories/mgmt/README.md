@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-14）**：Bootstrap + SSH（`ssh_done`）；阶段 E 密钥（`keys_ready_at`）；**阶段 F1 Hub Server**（`wireguard.enabled: true`，`wireguard.status: server_up`）；Ansible 用户 `deploy`。**下一步**：`wireguard-peer.yml` on ci-01 → `status: operational`；`access_mode` 仍为 `public` 直至握手成功。
+**hub-01 状态（2026-06-14）**：Bootstrap + SSH（`ssh_done`）；阶段 E 密钥（`keys_ready_at`）；**阶段 F1 Hub Server** + **阶段 F2 ci-01 Client**（`wireguard.status: operational`，`operational_at: 2026-06-14`）；Ansible 用户 `deploy`。**下一步（F2-5）**：`ci_connectivity.access_mode` → `wireguard`、`network_phase` → `wireguard`；GitHub Runner 注册。
 
 ## 用途
 

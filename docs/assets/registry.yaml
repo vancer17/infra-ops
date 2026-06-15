@@ -133,9 +133,10 @@ hosts:
     inventory_path: ansible/inventories/mgmt/
     bootstrap_status: ssh_done
     bootstrap_completed_at: "2026-06-14"
-    wireguard_status: server_up
+    wireguard_status: operational
     wireguard_server_installed_at: "2026-06-14"
-    note: "阶段 F1 Hub WG Server 已部署（wg0 10.200.0.1:51820）；F2 ci-01 Client 待握手"
+    wireguard_operational_at: "2026-06-14"
+    note: "阶段 F2 Hub↔ci-01 WG 隧道 operational；F2-5 待改 access_mode / network_phase"
 
   ci-01:
     asset_file: ci-01.yaml
@@ -151,8 +152,9 @@ hosts:
     inventory_group: null
     bootstrap_status: ssh_done
     bootstrap_completed_at: "2026-06-14"
-    wireguard_status: keys_ready
-    note: "阶段 B/C + 阶段 E 密钥；Runner 待 WG 握手后注册；与 dev-01 同 ECS"
+    wireguard_status: operational
+    wireguard_client_installed_at: "2026-06-14"
+    note: "阶段 F2 ci-01 Client operational；Runner 待 F2-5 后注册；与 dev-01 同 ECS"
 
   dev-01:
     asset_file: dev-01.yaml
@@ -204,6 +206,7 @@ hosts:
 # wireguard_plan — 最小组网地址分配（实施 WG 时按此表配置）
 # -----------------------------------------------------------------------------
 # 仅规划，不代表已配置。AllowedIPs 策略见企业方案 §4.3
+# 2026-06-14 更新：hub-01 + ci-01 最小隧道已 operational（见 hub-01.yaml / ci-01.yaml）
 wireguard_plan:
   hub_server:
     host: hub-01
