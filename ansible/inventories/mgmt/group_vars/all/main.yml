@@ -38,10 +38,10 @@ env_name: mgmt
 # -----------------------------------------------------------------------------
 # network_phase — 全平台网络建设阶段（与 registry.yaml 对齐）
 # -----------------------------------------------------------------------------
-# bootstrap  → 公网/私网 SSH 白名单；WG 隧道尚未实施
-# wireguard  → Hub-Spoke 隧道可用；inventory ansible_host 可切 wg_ip
+# bootstrap  → 公网/私网 SSH 白名单；WG 隧道尚未建立
+# wireguard  → Hub-Spoke 隧道 operational；mgmt ansible_host 使用 wg_ip（当前值）
 # steady     → 关公网 SSH、JumpServer 纳管完成
-network_phase: bootstrap
+network_phase: wireguard
 
 # -----------------------------------------------------------------------------
 # timezone / locale — 系统区域设置

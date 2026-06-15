@@ -163,6 +163,20 @@ cmd_verify_ansible() {
     exit 1
   }
 
+  access_mode="$(ansible hub-01 -i "$MGMT_INV" -m debug -a var=ci_connectivity.access_mode -c local 2>/dev/null \
+    | python3 -c "import json,re,sys; t=sys.stdin.read(); m=re.search(r'=>\s*(\{.*\})',t,re.S); print(json.loads(m.group(1)).get('ci_connectivity.access_mode','') if m else '')" 2>/dev/null || true)"
+  hub_host="$(ansible hub-01 -i "$MGMT_INV" -m debug -a var=ansible_host -c local 2>/dev/null \
+    | python3 -c "import json,re,sys; t=sys.stdin.read(); m=re.search(r'=>\s*(\{.*\})',t,re.S); print(json.loads(m.group(1)).get('ansible_host','') if m else '')" 2>/dev/null || true)"
+
+  if [[ "${access_mode}" == "wireguard" ]]; then
+    if ! sudo wg show wg0 2>/dev/null | grep -q 'latest handshake'; then
+      echo "WARN: access_mode=wireguard 但 wg0 无 handshake — 先确认 wg-quick@wg0" >&2
+    else
+      echo "WireGuard: wg0 handshake OK"
+    fi
+    echo "hub-01 ansible_host=${hub_host:-<unset>} (expected 10.200.0.1 when wireguard)"
+  fi
+
   echo "=== hub-01 (mgmt, deploy) ==="
   ANSIBLE_INVENTORY="$MGMT_INV" ansible hub-01 -i "$MGMT_INV" -m ping -u deploy
 

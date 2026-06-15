@@ -56,17 +56,27 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 4. 若涉及 SSH 白名单：同步 `docs/security-groups/*-bootstrap.rules.yaml`。
 5. 本地执行 `make inventory` / `make inventory-mgmt` 与 `make ci`。
 
-## 当前网络阶段
+## WireGuard / 网络阶段（2026-06-14）
 
-见 `registry.yaml` → `network_phase: bootstrap`。
+见 `registry.yaml` → **`network_phase: wireguard`**。
+
+| 项 | 当前状态 |
+|----|----------|
+| **Hub↔ci-01 隧道** | `wireguard.status: operational`（F1 Server + F2 Client 握手已验收） |
+| **Ansible 连 Hub** | mgmt `access_mode: wireguard` → `ansible_host` = **`10.200.0.1`** |
+| **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
+| **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
+| **下一里程碑** | `network_phase: steady`（关公网 SSH、JumpServer — 未开始） |
 
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
-- **CI 替代机与 Dev-01 同机**：Ansible 从 `121.41.58.20` 部署时，访问 dev-01 等价于 SSH 本机私网地址。
-- **WireGuard**：地址已规划（`10.200.x.x`），隧道**尚未实施**；`ci_access_mode` 仍为 `public`（Bootstrap 期公网 SSH）。
+- **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
+- **实机收口**：ci-01 上 `make stage-f2-5-followup`（见 [stage-f2-5-runbook.md](../wireguard/stage-f2-5-runbook.md)）。
 
 ## 相关文档
 
 - [安全组策略](../security-groups/README.md)
 - [Dev Bootstrap Runbook](../bootstrap/dev-01-bootstrap.runbook.md)
 - [Hub Bootstrap Runbook](../bootstrap/hub-01-bootstrap.runbook.md)（hub-01：`ssh_done`，2026-06-14）
+- [WireGuard F2-5 收口](../wireguard/stage-f2-5-runbook.md)
+- [运维笔记本 WG Client](../wireguard/developer-laptop-client.md)
 - [企业环境实施方案](../20260608-ECS%20企业环境实施方案.md) §4 网络与 WireGuard

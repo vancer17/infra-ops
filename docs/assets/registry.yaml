@@ -28,17 +28,18 @@ updated_by: "infra-ops"
 # -----------------------------------------------------------------------------
 # network_phase — 全平台网络建设阶段（与 main.yml network_phase 对齐）
 # -----------------------------------------------------------------------------
-# bootstrap  → 公网 SSH 白名单、临时安全组；WG 未上线
-# wireguard  → Hub-Spoke 隧道可用，inventory ansible_host 改 wg_ip
+# bootstrap  → 公网 SSH 白名单、临时安全组；WG 隧道尚未建立
+# wireguard  → Hub-Spoke 隧道 operational；mgmt ansible_host 使用 wg_ip（当前值）
 # steady     → 关公网 SSH、JumpServer 纳管完成
-network_phase: bootstrap
+network_phase: wireguard
 
 # -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
 # -----------------------------------------------------------------------------
 # 事实：截图中 4 台运行中实例均在同一 VPC，分属两个 vSwitch（子网）。
 # 影响：
-#   - CI 替代机与 Dev ECS 同 VPC → Ansible 可使用私网 IP（见 ci_connectivity）
+#   - CI 与 Dev ECS 同 VPC → dev inventory 仍用各机 private_ip
+#   - Ansible 连 Hub（mgmt）经 WG 10.200.0.1（F2-5）；VPC 私网 SSH 保留作应急
 #   - RDS 白名单仍用各机 private_ip，与 WG 无关
 #   - 跨子网（172.21.127.0/24 ↔ 172.21.226.0/24）VPC 内可路由，无需公网
 vpc:
@@ -136,7 +137,7 @@ hosts:
     wireguard_status: operational
     wireguard_server_installed_at: "2026-06-14"
     wireguard_operational_at: "2026-06-14"
-    note: "阶段 F2 Hub↔ci-01 WG 隧道 operational；F2-5 待改 access_mode / network_phase"
+    note: "F2-5：Ansible 经 WG 10.200.0.1；steady 阶段再关公网 SSH"
 
   ci-01:
     asset_file: ci-01.yaml
@@ -154,7 +155,7 @@ hosts:
     bootstrap_completed_at: "2026-06-14"
     wireguard_status: operational
     wireguard_client_installed_at: "2026-06-14"
-    note: "阶段 F2 ci-01 Client operational；Runner 待 F2-5 后注册；与 dev-01 同 ECS"
+    note: "F2-5：ci_access_mode wireguard；Runner 可选 register-github-runner.sh"
 
   dev-01:
     asset_file: dev-01.yaml

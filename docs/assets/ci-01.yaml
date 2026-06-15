@@ -54,7 +54,7 @@ host:
     hostname: null
     # 与 Dev 同 VPC（vpc-bp1jmugctnhj97dbjyx31），Ansible 访问 dev-02 可用私网 172.21.127.x
     ci_same_vpc: true
-    ci_access_mode: public
+    ci_access_mode: wireguard
 
   security_groups:
     bootstrap:
@@ -72,7 +72,7 @@ host:
     planned: true
     labels: [self-hosted, dev, aliyun]
     status: not_registered
-    note: "阶段 F Hub+ci-01 WG 握手验证通过后注册；deploy.yml 依赖此标签"
+    note: "F2-5 后 Ansible 经 WG 连 Hub；Runner 见 register-github-runner.sh"
 
   github_secrets:
     configured:
@@ -120,6 +120,17 @@ host:
       wg_handshake: ok
       ping_hub_wg: ok
       ssh_hub_via_wg: ok
-    pending_stage_f2_5:
-      - ci_connectivity_access_mode_wireguard
-      - network_phase_wireguard
+  # 阶段 F2-5 Ansible 经 WG 收口（inventory access_mode / network_phase → wireguard）
+  stage_f2_5:
+    completed_at: "2026-06-14"
+    script: scripts/mgmt/stage-f2-5-followup.sh
+    inventory:
+      ci_connectivity_access_mode: wireguard
+      network_phase: wireguard
+      hub_ansible_host: "10.200.0.1"
+    checks:
+      wg_handshake: ok
+      ansible_ping_hub_via_wg: pending_console
+    optional:
+      github_runner: not_registered
+      developer_laptop_peer: docs/wireguard/developer-laptop-client.md
