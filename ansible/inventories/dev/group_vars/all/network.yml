@@ -17,7 +17,8 @@
 #   2. 原 Dev-02 121.40.245.68 不可用 → 由 112.124.104.223（dev-02 替代）承接
 #   3. 当前 4 台可用 ECS 均在同一 VPC vpc-bp1jmugctnhj97dbjyx31
 #      → same_vpc_as_dev: true，Ansible 优先使用 private_ip（ansible_host_internal）
-#   4. WireGuard 地址已规划，隧道尚未实施 → ci_access_mode 仍为 public（Bootstrap SSH）
+#   4. WireGuard ci-01↔Hub operational（F2）；F2-5 后 ci_access_mode: wireguard
+#      dev-01 与 ci-01 同 ECS → ansible_host 仍用 VPC 私网；Hub 经 WG（mgmt inventory）
 #
 # 【ansible_host 计算逻辑】
 #   见 host_vars/dev-*.yml：
@@ -25,7 +26,8 @@
 #       → 使用 ansible_host_internal（VPC 私网）
 #     否则
 #       → 使用 ansible_host_from_ci（通常为 public_ip）
-#   WG 实施后将 ci_access_mode 改为 wireguard，ansible_host_internal 改为 wg_ip
+#   dev-01 与 ci-01 同 ECS：即使 ci_access_mode=wireguard，dev-01 仍用私网（非 wg_ip）
+#   连 Hub 走 mgmt inventory（10.200.0.1）；dev-02 未装 WG Client 前仍用 VPC 私网
 #
 # =============================================================================
 
@@ -64,13 +66,13 @@ rds_whitelist:
 #   当前 CI 替代机（121.41.58.20）与 dev-01 同 ECS，与 dev-02 同 VPC
 #   → inventory-check 允许 ansible_host 为 172.x 私网地址
 #
-# ci_access_mode: public
-#   Bootstrap 期仍通过公网 SSH 白名单；WG 完成后改为 wireguard
+# ci_access_mode: wireguard
+#   Hub Ansible 经 10.200.0.1；dev-01 同机仍用私网；dev-02 仍用 VPC 私网（未装 WG Client）
 #
 # ci_substitute：文档化字段，供 playbook/runbook 读取，不参与 ansible_host 计算
 ci_connectivity:
   same_vpc_as_dev: true
-  ci_access_mode: public
+  ci_access_mode: wireguard
   ci_substitute:
     planned_public_ip: "47.98.161.33"
     current_public_ip: "121.41.58.20"

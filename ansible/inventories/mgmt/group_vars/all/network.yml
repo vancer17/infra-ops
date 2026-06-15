@@ -11,16 +11,16 @@
 #   修订流程：先改 docs/assets/ → 再同步本文件 → make inventory-mgmt
 #
 # 【核心设计：CI 如何连接 Hub】
-#   当前事实（2026-06-08）：
+#   拓扑事实（2026-06-08 起不变）：
 #     - CI 替代机 ci-01（121.41.58.20 / 172.21.226.38）与 Hub 在同一 VPC
 #     - Hub hub-01（121.43.49.58 / 172.21.127.123）在另一 vSwitch，VPC 内可路由
-#     - Ansible 从 CI 机执行时，优先使用 Hub 私网 IP（172.21.127.123）
 #
-#   access_mode: public
-#     F2 握手已完成（wireguard.status: operational），但 Ansible 仍优先 Hub 私网 172.21.127.123
-#     待 F2-5 稳定验证后，将 access_mode 改为 wireguard → ansible_host 改用 10.200.0.1
+#   当前主路径 — access_mode: wireguard（F2-5，2026-06-14）
+#     Ansible 经 ci-01 上 wg0 连 Hub：ansible_host → 10.200.0.1
+#     host_vars/hub-01.yml 在 access_mode=wireguard 时自动选用 wg_ip
 #
-#   access_mode: wireguard 后，host_vars/hub-01.yml 自动改用 wg_ip
+#   应急回退 — access_mode: public
+#     若 wg0 故障，临时改回 public → ansible_host 使用 Hub 私网 172.21.127.123
 #
 # 【mgmt_hosts 与 dev 的 platform_hosts】
 #   dev/inventories/.../network.yml 中的 platform_hosts 供 dev playbook 只读引用。
@@ -49,7 +49,7 @@ security_whitelist:
 # control_host: 文档化字段，标明谁在执行 ansible-playbook（不参与自动计算）
 ci_connectivity:
   same_vpc_as_ci: true
-  access_mode: public
+  access_mode: wireguard
   control_host: ci-01
   control_public_ip: "121.41.58.20"
   control_private_ip: "172.21.226.38"

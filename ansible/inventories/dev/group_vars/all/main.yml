@@ -48,15 +48,15 @@ env_name: dev
 # network_phase — 网络建设阶段标记
 # -----------------------------------------------------------------------------
 # 类型：字符串枚举（项目约定，非 Ansible 内置）
-# 当前值：bootstrap
+# 当前值：wireguard
 # 含义：
 #   bootstrap  → 1.1～1.2：公网 SSH 白名单、临时安全组（见 network.yml same_vpc_as_dev）
-#   wireguard  → 阶段 5：WG 组网完成，inventory ansible_host 改 WG 内网 IP
+#   wireguard  → F2-5：Hub↔ci-01 operational；mgmt Hub 经 10.200.0.1，dev 仍用 VPC 私网
 #   steady     → 运维收口完成（JumpServer、关公网 SSH 等）
 # 当前 playbook 未直接用 when: network_phase == 'bootstrap' 过滤任务；
 # 主要供人工/脚本判断，以及将来在 playbook 里写阶段条件，例如：
 #   when: network_phase == 'wireguard'
-network_phase: bootstrap
+network_phase: wireguard
 
 # -----------------------------------------------------------------------------
 # timezone — 系统时区

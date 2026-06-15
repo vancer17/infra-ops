@@ -49,7 +49,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
 .PHONY: help setup lint syntax inventory inventory-mgmt ci \
         yamllint shellcheck ansible-lint ansible-syntax \
         docker-validate secret-scan \
-        wg-keys-check wg-keys-list stage-f-preflight stage-e-preflight control-plane-setup \
+        wg-keys-check wg-keys-list stage-f-preflight stage-f2-5-followup stage-e-preflight control-plane-setup \
         apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
 # -----------------------------------------------------------------------------
@@ -76,7 +76,7 @@ help:
 	@echo "  make wg-keys-check   Check wg/ansible-vault deps"
 	@echo "  make wg-keys-list    List hub/peer key files status"
 	@echo "  See: docs/wireguard/wg-keys.runbook.md"
-	@echo "  Stage F: make stage-f-preflight  (before wireguard-hub.yml / wireguard-peer.yml)"
+	@echo "  Stage F2-5: make stage-f2-5-followup  (WG 收口 + ansible ping hub via 10.200.0.1)"
 	@echo "  Hub sudo: make apply-hub-deploy-sudo  (fix Missing sudo password)"
 	@echo "  CI WG sudo: make apply-ci-wireguard-sudo  (F2 deploy-wireguard on ci-01)"
 	@echo ""
@@ -179,6 +179,10 @@ wg-keys-list:
 
 stage-f-preflight:
 	bash "$(SCRIPTS_MGMT)/stage-f-preflight.sh"
+
+stage-f2-5-followup:
+	bash "$(SCRIPTS_MGMT)/stage-f2-5-followup.sh"
+	@echo "[make] stage-f2-5-followup OK"
 
 apply-hub-deploy-sudo:
 	bash "$(SCRIPTS_MGMT)/apply-hub-deploy-sudo.sh"
