@@ -71,12 +71,12 @@ ls -la /opt/mgmt/jumpserver
 test -d /opt/mgmt/jumpserver/data
 test -d /opt/mgmt/jumpserver/static
 
-echo "=== docker smoke (as deploy) ==="
-sudo -u deploy docker run --rm "$SMOKE_IMAGE" >/dev/null
+echo "=== docker smoke (as deploy, sg docker) ==="
+sg docker -c "docker run --rm \"${SMOKE_IMAGE}\"" >/dev/null
 echo "smoke OK"
 
 echo "=== docker service ==="
-systemctl is-active docker
+sudo -n systemctl is-active docker
 
 echo "verify-hub-docker-remote OK"
 REMOTE
