@@ -47,7 +47,15 @@
 # -----------------------------------------------------------------------------
 - name: Resolve Hub WireGuard peers from inventory
   ansible.builtin.set_fact:
-    wireguard_hub_peers_resolved: "{{ wireguard_peers_planned | default([]) | selectattr('name', 'in', wireguard_peer_model.hub_active_peers | default([])) | selectattr('hub_peer', 'equalto', true) | rejectattr('public_key', 'none') | rejectattr('public_key', 'equalto', '') | list }}"
+    wireguard_hub_peers_resolved: >-
+      {{
+        wireguard_peers_planned | default([])
+        | selectattr('name', 'in', wireguard_peer_model.hub_active_peers | default([]))
+        | selectattr('hub_peer', 'equalto', true)
+        | rejectattr('public_key', 'none')
+        | rejectattr('public_key', 'equalto', '')
+        | list
+      }}
   tags: [wireguard, wireguard-hub, server]
 
 - name: Assert at least one Hub peer is configured

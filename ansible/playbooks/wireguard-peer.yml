@@ -36,6 +36,7 @@
 # 【成功后】
 #   更新 wireguard.status: operational
 #   验证：wg show latest handshake；ssh deploy@10.200.0.1（ping 可能因 Hub 禁 ICMP 失败）
+#   G2 后：须 hub-g2.yml 完成且 internal_dns.status=operational，本 playbook 才会写入 DNS=10.200.0.1
 #   勿立即改 ci_connectivity.access_mode（见 wireguard.yml 注释）
 #
 # =============================================================================
@@ -138,5 +139,14 @@
           - "WireGuard Peer applied on {{ inventory_hostname }} ({{ wireguard_peer_name }})"
           - "Address: {{ wireguard_peers_planned | selectattr('name', 'equalto', wireguard_peer_name) | map(attribute='wg_ip') | first }}/32"
           - "Hub Endpoint: {{ mgmt_hosts['hub-01'].public_ip }}:{{ wireguard.listen_port }}"
+          - >-
+            WG Client DNS: {{
+              internal_dns.wireguard_client_dns | default('(none)')
+              if (
+                internal_dns.enabled | default(false) | bool
+                and internal_dns.status | default('') == 'operational'
+              )
+              else 'skipped (run hub-g2.yml and set internal_dns.status=operational first)'
+            }}
           - "Next: set wireguard.status: operational; verify ssh deploy@10.200.0.1"
       tags: [wireguard, wireguard-peer, verify]

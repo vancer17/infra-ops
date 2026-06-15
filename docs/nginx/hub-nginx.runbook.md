@@ -36,9 +36,12 @@ ansible-playbook ansible/playbooks/nginx-hub.yml \
 | vhost | 地址 | 说明 |
 |-------|------|------|
 | 默认 | `hub.internal`、`10.200.0.1` | 导航页 + `/health` |
-| JumpServer 预留 | `jms.internal` | 反代 `127.0.0.1:8080`（未部署时 502） |
+| JumpServer 预留 | `jms.internal` | 反代 `127.0.0.1:8080`（`deploy_status=pending` 时 **503** + `/jms/status`） |
 
 TLS：内网自签证书（`hub.internal` / `jms.internal` SAN），浏览器需 `-k` 或信任自签。
+
+> **与 G2 的分工**：`nginx-hub.yml` 仅刷新 Nginx（role `nginx/tasks/hub.yml` 含 G2 维护页模板）。
+> 完整 G2（dnsmasq + Nginx + 验收）请用 [`hub-g2.yml`](../dns/hub-internal-dns.runbook.md) 与 `make stage-g2-preflight`。
 
 ## 验收
 
@@ -47,11 +50,14 @@ TLS：内网自签证书（`hub.internal` / `jms.internal` SAN），浏览器需
 curl -k https://10.200.0.1/health
 nc -zv 10.200.0.1 443
 
-# jms.internal / hub.internal 需本机解析（/etc/hosts 或内网 DNS）
-# 无 DNS 时可用 --resolve 指定 SNI：
+# jms.internal — G1 验收时为 502；G2 hub-g2.yml 后为 503 + /jms/status JSON
+# 无内网 DNS 时可用 --resolve 指定 SNI：
 curl -k --resolve jms.internal:443:10.200.0.1 \
   -o /dev/null -w "%{http_code}\n" https://jms.internal/
-# 502 直至 JumpServer 在 127.0.0.1:8080 就绪
+# G2 后期望 503（JumpServer 未部署）
+
+curl -k --resolve jms.internal:443:10.200.0.1 https://jms.internal/jms/status
+# G2 后期望 JSON deploy_status=pending
 
 curl -k --resolve hub.internal:443:10.200.0.1 https://hub.internal/health
 ```

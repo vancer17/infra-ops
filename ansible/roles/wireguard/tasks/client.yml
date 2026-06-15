@@ -65,6 +65,7 @@
     wireguard_client_hub_endpoint: "{{ mgmt_hosts['hub-01'].public_ip }}:{{ wireguard.listen_port }}"
     wireguard_client_allowed_ips: "{{ wireguard_peer_resolved.allowed_ips | default(wireguard_client_default_allowed_ips) }}"
     wireguard_client_persistent_keepalive: "{{ wireguard_peer_resolved.persistent_keepalive | default(wireguard_client_default_persistent_keepalive) }}"
+    wireguard_client_dns: "{{ wireguard_peer_resolved.client_dns | default(wireguard_client_dns | default('')) }}"
   no_log: true
   tags: [wireguard, wireguard-peer, client]
 

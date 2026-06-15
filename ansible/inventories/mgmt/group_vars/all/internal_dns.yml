@@ -1,0 +1,72 @@
+# =============================================================================
+# Ansible Inventory 变量：Hub 内网 DNS（阶段 G2）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   管理面内网 DNS 的 SSOT：dnsmasq 监听地址、*.internal 解析表、WG Client DNS。
+#   供 dnsmasq role、wireguard client 模板、验收脚本消费。
+#
+# 【与 nginx.yml 的分工】
+#   internal_dns.yml → L3/L4 名称解析（UDP 53 @ 10.200.0.1）
+#   nginx.yml        → L7 反代（jms.internal → 127.0.0.1:8080）
+#
+# 【访问路径】
+#   WG Client 配置 DNS=10.200.0.1 → dnsmasq 解析 hub.internal / jms.internal
+#   → 浏览器访问 https://jms.internal → Hub Nginx → JumpServer upstream
+#
+# 【安全组】
+#   须在 Hub 安全组添加 IN-DNS-WG：UDP 53 ← 10.200.0.0/16
+#   见 docs/security-groups/hub-wg.rules.yaml
+#
+# =============================================================================
+
+---
+
+internal_dns:
+  # false = 仅变量占位；true 后 dnsmasq role 安装并监听 wg0
+  enabled: true
+
+  # not_started | operational
+  status: not_started
+
+  # 仅绑定 WireGuard 接口，不对公网 ECS 网卡监听 53
+  listen_address: "10.200.0.1"
+  interface: wg0
+
+  # 写入 WG Client [Interface] DNS= 行（须 internal_dns.status=operational，即 hub-g2 后）
+  wireguard_client_dns: "10.200.0.1"
+
+  # 本地域名后缀（dnsmasq local=/internal/）
+  domain: internal
+
+  # 静态 A 记录（与 registry.yaml wireguard_plan / 企业方案 §4.5 对齐）
+  hosts:
+    - name: hub
+      fqdn: hub.internal
+      address: "10.200.0.1"
+      note: "Hub WG + Nginx 网关"
+
+    - name: jms
+      fqdn: jms.internal
+      address: "10.200.0.1"
+      note: "JumpServer 经 Nginx 反代；与 hub 同机"
+
+    - name: ci
+      fqdn: ci.internal
+      address: "10.200.0.2"
+      note: "CI 控制机 / dev-01 同 ECS（yax）"
+
+    - name: dev-app
+      fqdn: dev-app.internal
+      address: "10.200.0.2"
+      note: "Dev 应用入口（业务 Nginx 待部署）"
+
+    - name: dev-02
+      fqdn: dev-02.internal
+      address: "10.200.1.2"
+      note: "Dev-02 替代机；Bootstrap 后生效"
+
+    - name: test-app
+      fqdn: test-app.internal
+      address: "10.200.2.1"
+      note: "Test 预留；test-01 纳入 WG 后使用"

@@ -1,8 +1,9 @@
 # =============================================================================
-# JumpServer 反向代理预留 — jms.internal
+# JumpServer 反向代理 — jms.internal（阶段 G2 细化）
 # =============================================================================
 # Managed by Ansible infra-ops (nginx role)
-# 上游：{{ nginx_jumpserver_upstream }}（JumpServer 未部署时返回 502）
+# upstream：conf.d/hub-jms-upstream.conf
+# DNS：hub.internal DNS → 10.200.0.1（dnsmasq，阶段 G2）
 # =============================================================================
 
 server {
@@ -17,16 +18,33 @@ server {
 
     client_max_body_size 64m;
 
+    # 上游就绪状态（JSON，不依赖 JumpServer 进程）
+    location = {{ nginx_jumpserver_status_uri }} {
+        default_type application/json;
+        access_log off;
+        alias {{ nginx_infra_ops_www_root }}/jms-status.json;
+    }
+
+{% if nginx_jumpserver_maintenance_enabled | bool and nginx_jumpserver_deploy_status == 'pending' %}
+    # JumpServer 未部署：明确维护响应（503），避免裸 502
     location / {
-        proxy_pass http://{{ nginx_jumpserver_upstream }};
+        default_type text/html;
+        return 503 '<!DOCTYPE html><html><head><meta charset="utf-8"><title>JumpServer</title></head><body><h1>JumpServer</h1><p>Upstream pending ({{ nginx_jumpserver_upstream }}).</p><p>Status: <a href="{{ nginx_jumpserver_status_uri }}">{{ nginx_jumpserver_status_uri }}</a></p><p>DNS: jms.internal → Hub Nginx (G2).</p></body></html>';
+    }
+{% else %}
+    location / {
+        proxy_pass http://jumpserver_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
-        proxy_read_timeout 300s;
-        proxy_send_timeout 300s;
+        proxy_read_timeout {{ nginx_jumpserver_proxy_read_timeout }};
+        proxy_send_timeout {{ nginx_jumpserver_proxy_read_timeout }};
+        proxy_buffering off;
     }
+{% endif %}
 }

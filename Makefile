@@ -49,7 +49,8 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
 .PHONY: help setup lint syntax inventory inventory-mgmt ci \
         yamllint shellcheck ansible-lint ansible-syntax \
         docker-validate secret-scan \
-        wg-keys-check wg-keys-list stage-f-preflight stage-f2-5-followup stage-g1-nginx-preflight stage-e-preflight control-plane-setup \
+        wg-keys-check wg-keys-list stage-f-preflight stage-f2-5-followup \
+        stage-g1-nginx-preflight stage-g2-preflight stage-e-preflight control-plane-setup \
         apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
 # -----------------------------------------------------------------------------
@@ -77,6 +78,7 @@ help:
 	@echo "  make wg-keys-list    List hub/peer key files status"
 	@echo "  See: docs/wireguard/wg-keys.runbook.md"
 	@echo "  Stage G1:   make stage-g1-nginx-preflight  (before nginx-hub.yml on Hub)"
+	@echo "  Stage G2:   make stage-g2-preflight  (before hub-g2.yml; add IN-DNS-WG in console)"
 	@echo "  Hub sudo: make apply-hub-deploy-sudo  (fix Missing sudo password)"
 	@echo "  CI WG sudo: make apply-ci-wireguard-sudo  (F2 deploy-wireguard on ci-01)"
 	@echo ""
@@ -187,6 +189,10 @@ stage-f2-5-followup:
 stage-g1-nginx-preflight:
 	bash "$(SCRIPTS_MGMT)/stage-g1-nginx-preflight.sh"
 	@echo "[make] stage-g1-nginx-preflight OK"
+
+stage-g2-preflight:
+	bash "$(SCRIPTS_MGMT)/stage-g2-preflight.sh"
+	@echo "[make] stage-g2-preflight OK"
 
 apply-hub-deploy-sudo:
 	bash "$(SCRIPTS_MGMT)/apply-hub-deploy-sudo.sh"

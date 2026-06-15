@@ -20,12 +20,15 @@
 # 【G1 更新 2026-06-15】
 #   IN-HTTP-WG 已添加；Hub Nginx operational — 见 logs/console-acceptance.log（G1 节）
 #
+# 【G2 更新 2026-06-16】
+#   IN-DNS-WG 见 pending_inbound；hub-g2.yml 前须在控制台添加 UDP 53 ← 10.200.0.0/16
+#
 # =============================================================================
 
 schema_version: "1"
 phase: wireguard
 subphase: g1_hub_nginx_operational
-updated_at: "2026-06-15"
+updated_at: "2026-06-16"
 acceptance_log: logs/console-acceptance.log
 
 security_group:
@@ -113,6 +116,16 @@ rules:
       note: "2026-06-15 G1 验收 nc 80 succeeded；控制台 Describe 补录 aliyun_rule_id"
 
   pending_inbound:
+    - id: IN-DNS-WG
+      priority: 1
+      policy: accept
+      protocol: udp
+      port_range: "53/53"
+      source: "10.200.0.0/16"
+      description: "IN-DNS-WG（Hub dnsmasq，阶段 G2）"
+      reason: "hub-g2.yml 前须在控制台添加；验收 dig @10.200.0.1 jms.internal"
+      note: "G2 台账先行；apply 后移入 inbound 并补 aliyun_rule_id"
+
     - id: IN-SSH-WG
       policy: accept
       protocol: tcp
@@ -155,6 +168,7 @@ rules:
   implicit_deny:
     - "禁止 0.0.0.0/0 入站 TCP 22（除 Workbench 网段外无全局 22）"
     - "禁止 0.0.0.0/0 入站 TCP 80/443"
+    - "禁止 0.0.0.0/0 入站 UDP 53（WG 内 DNS 仅经 IN-DNS-WG pending 规则放行）"
     - "UDP 51820 允许 0.0.0.0/0 仅因 WG 密钥认证 + 家用动态 IP"
 
 acceptance:
@@ -185,4 +199,4 @@ acceptance:
       laptop_ping_hub_wg: ok
       laptop_nc_443: ok
       laptop_curl_health: ok
-  next: "JumpServer 部署；steady 阶段添加 IN-SSH-WG 并收口公网 SSH"
+  next: "G2 hub-g2.yml + IN-DNS-WG；JumpServer 部署；steady 阶段添加 IN-SSH-WG 并收口公网 SSH"

@@ -5,7 +5,7 @@
 # 【用途】
 #   在 hub-01 安装宿主机 Nginx，提供 WG 内网唯一 L7 入口：
 #     - https://hub.internal / https://10.200.0.1  — 默认页 + /health
-#     - https://jms.internal                       — JumpServer 反代预留（502 直至上游就绪）
+#     - https://jms.internal                       — JumpServer 反代（G2 后 pending 时 503 + /jms/status）
 #
 # 【前提】
 #   - 阶段 F：WireGuard operational；ci-01 可 SSH deploy@10.200.0.1
@@ -34,6 +34,7 @@
 #     nginx.enabled: true
 #     nginx.status: operational
 #   验收：curl -k https://10.200.0.1/health ；nc -zv 10.200.0.1 443
+#   完整 G2（dnsmasq + Nginx 细化）请用 hub-g2.yml；本 playbook 仅刷新 Nginx 配置。
 #
 # =============================================================================
 
@@ -117,11 +118,16 @@
       when: not ansible_check_mode
       tags: [nginx, nginx-hub, verify]
 
+    - name: Gather service facts for Nginx verification
+      ansible.builtin.service_facts:
+      when: not ansible_check_mode
+      tags: [nginx, nginx-hub, verify]
+
     - name: Verify Nginx is active in systemd
-      ansible.builtin.command: systemctl is-active nginx
-      register: nginx_systemd_active
-      changed_when: false
-      failed_when: nginx_systemd_active.stdout | trim != 'active'
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['nginx.service'].state == 'running'
+        fail_msg: "nginx.service is not running after apply"
       when: not ansible_check_mode
       tags: [nginx, nginx-hub, verify]
 
@@ -130,7 +136,12 @@
         msg:
           - "Hub Nginx gateway applied on {{ inventory_hostname }}"
           - "Health: https://10.200.0.1{{ nginx.health_uri | default('/health') }} (use -k for self-signed)"
-          - "JumpServer vhost: https://jms.internal/ (502 until upstream {{ nginx.jumpserver_upstream }} listens)"
+          - >-
+            JumpServer vhost: https://jms.internal/
+            ({{ '503 maintenance + ' ~ (nginx.jumpserver.status_uri | default('/jms/status'))
+               ~ ' when deploy_status=pending' if (nginx.jumpserver.deploy_status | default('pending') == 'pending')
+               else 'proxy to ' ~ (nginx.jumpserver_upstream | default('127.0.0.1:8080')) }})
+          - "Full G2 (dnsmasq + Nginx): ansible/playbooks/hub-g2.yml"
           - "Update inventory: nginx.enabled=true, nginx.status=operational"
           - "Optional SG: add IN-HTTP-WG TCP 80 from 10.200.0.0/16"
       tags: [nginx, nginx-hub, verify]

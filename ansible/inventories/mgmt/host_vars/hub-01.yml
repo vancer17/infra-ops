@@ -60,3 +60,6 @@ wireguard_server: "{{ mgmt_hosts['hub-01'].wireguard_server | default(true) }}"
 
 # Hub 是否为管理面 Nginx 网关（供 nginx role / nginx-hub.yml 判断）
 nginx_gateway: true
+
+# Hub 是否为内网 DNS 网关（供 dnsmasq role / hub-g2.yml 判断）
+dns_gateway: true

@@ -18,8 +18,16 @@ nginx_ssl_dir: "{{ nginx.ssl.directory | default('/etc/nginx/ssl') }}"
 nginx_ssl_certificate_path: "{{ nginx_ssl_dir }}/{{ nginx.ssl.certificate_file | default('hub-internal.crt') }}"
 nginx_ssl_private_key_path: "{{ nginx_ssl_dir }}/{{ nginx.ssl.private_key_file | default('hub-internal.key') }}"
 
-# JumpServer 上游（未部署时 Nginx 对该 vhost 返回 502）
+# JumpServer 上游（未部署时由 maintenance 页替代裸 502）
 nginx_jumpserver_upstream: "{{ nginx.jumpserver_upstream | default('127.0.0.1:8080') }}"
+nginx_jumpserver_deploy_status: "{{ nginx.jumpserver.deploy_status | default('pending') }}"
+nginx_jumpserver_status_uri: "{{ nginx.jumpserver.status_uri | default('/jms/status') }}"
+nginx_jumpserver_maintenance_enabled: "{{ nginx.jumpserver.maintenance_enabled | default(true) }}"
+nginx_jumpserver_upstream_keepalive: "{{ nginx.jumpserver.upstream_keepalive | default(16) }}"
+nginx_jumpserver_proxy_read_timeout: "{{ nginx.jumpserver.proxy_read_timeout | default('300s') }}"
+
+# 静态文件目录（jms/status.json、维护页）
+nginx_infra_ops_www_root: /var/www/infra-ops
 
 # 健康检查路径
 nginx_health_uri: "{{ nginx.health_uri | default('/health') }}"

@@ -1,0 +1,159 @@
+# =============================================================================
+# Ansible Playbook：Hub 阶段 G2 — 内网 DNS + JumpServer upstream 细化
+# =============================================================================
+#
+# 【用途】
+#   在阶段 G1 Nginx operational 之后：
+#     1. Hub 上部署 dnsmasq（仅监听 10.200.0.1:53 / wg0）
+#     2. 刷新 Nginx：jms.internal 维护页 + /jms/status JSON（替代裸 502）
+#     3. 验收后须重跑 wireguard-peer.yml（ci-01）并更新笔记本 WG DNS=
+#
+# 【前提】
+#   - 阶段 F：wireguard.status=operational
+#   - 阶段 G1：nginx.status=operational
+#   - Hub 安全组：IN-DNS-WG UDP 53 ← 10.200.0.0/16（见 hub-wg.rules.yaml）
+#   - deploy@hub-01 免密 sudo
+#
+# 【执行位置】
+#   ci-01（yax）上以 deploy 用户运行。
+#
+# 【常用命令】
+#   make stage-g2-preflight
+#
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#   export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+#
+#   ansible-playbook ansible/playbooks/hub-g2.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01 \
+#     --vault-password-file .vault_pass
+#
+#   # 刷新 ci-01 WG Client DNS（G2 后必做）
+#   ansible-playbook ansible/playbooks/wireguard-peer.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit ci-01 \
+#     --vault-password-file .vault_pass
+#
+# 【成功后】
+#   internal_dns.status: operational
+#   验收：dig @10.200.0.1 jms.internal；curl -k https://jms.internal/jms/status
+#
+# =============================================================================
+
+---
+- name: Deploy Hub stage G2 internal DNS and JumpServer upstream refinement
+  hosts: mgmt_hub
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "hub-g2 playbook requires Debian 12+"
+      tags: [hub-g2, preflight]
+
+    - name: Assert WireGuard is operational before Hub G2
+      ansible.builtin.assert:
+        that:
+          - wireguard.status | default('') == 'operational'
+          - wireguard.enabled | default(false) | bool
+        fail_msg: "Complete stage F before hub-g2"
+      tags: [hub-g2, preflight]
+
+    - name: Assert Hub Nginx is operational before G2
+      ansible.builtin.assert:
+        that:
+          - nginx.status | default('') == 'operational'
+          - nginx.enabled | default(false) | bool
+          - nginx_gateway | default(false) | bool
+        fail_msg: "Complete stage G1 (nginx-hub.yml) before hub-g2"
+      tags: [hub-g2, preflight]
+
+    - name: Assert internal DNS is enabled in inventory
+      ansible.builtin.assert:
+        that:
+          - internal_dns.enabled | default(false) | bool
+          - dns_gateway | default(false) | bool
+        fail_msg: "Set internal_dns.enabled and dns_gateway on hub-01"
+      tags: [hub-g2, preflight, dnsmasq]
+
+    - name: Assert Hub SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Hub must use deploy@ steady SSH before hub-g2"
+      tags: [hub-g2, preflight]
+
+  tasks:
+    - name: Configure Hub internal DNS (dnsmasq)
+      ansible.builtin.import_role:
+        name: dnsmasq
+        tasks_from: hub
+      tags: [hub-g2, dnsmasq, dns]
+
+    - name: Refresh Hub Nginx gateway (JumpServer upstream G2)
+      ansible.builtin.import_role:
+        name: nginx
+        tasks_from: hub
+      tags: [hub-g2, nginx, nginx-g2]
+
+    - name: Flush handlers before G2 verification
+      ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
+      tags: [hub-g2]
+
+  post_tasks:
+    - name: Verify dnsmasq resolves jms.internal locally on Hub
+      ansible.builtin.command:
+        argv:
+          - dig
+          - "+short"
+          - "@{{ internal_dns.listen_address }}"
+          - jms.internal
+      register: hub_g2_dig_jms
+      changed_when: false
+      failed_when: hub_g2_dig_jms.stdout | trim != internal_dns.listen_address
+      when: not ansible_check_mode
+      tags: [hub-g2, verify, dnsmasq]
+
+    - name: Verify JumpServer status JSON via local Nginx
+      ansible.builtin.uri:
+        url: "https://127.0.0.1{{ nginx.jumpserver.status_uri | default('/jms/status') }}"
+        validate_certs: false
+        status_code: 200
+        headers:
+          Host: jms.internal
+      register: hub_g2_jms_status
+      changed_when: false
+      failed_when: "'deploy_status' not in (hub_g2_jms_status.content | default(''))"
+      when: not ansible_check_mode
+      tags: [hub-g2, verify, nginx]
+
+    - name: Verify jms.internal vhost returns maintenance response when pending
+      ansible.builtin.uri:
+        url: "https://127.0.0.1/"
+        validate_certs: false
+        status_code: 503
+        headers:
+          Host: jms.internal
+      register: hub_g2_jms_maintenance
+      changed_when: false
+      when:
+        - not ansible_check_mode
+        - nginx.jumpserver.deploy_status | default('pending') == 'pending'
+      tags: [hub-g2, verify, nginx]
+
+    - name: Hub G2 deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Hub G2 applied on {{ inventory_hostname }}"
+          - "DNS: dig @{{ internal_dns.listen_address }} jms.internal → {{ internal_dns.listen_address }}"
+          - "Nginx: https://jms.internal{{ nginx.jumpserver.status_uri | default('/jms/status') }} (JSON)"
+          - "jms.internal root → {{ nginx.jumpserver.deploy_status | default('pending') }} (503 maintenance until JumpServer)"
+          - "Next: wireguard-peer.yml --limit ci-01 ; update laptop WG DNS={{ internal_dns.wireguard_client_dns }}"
+          - "Update inventory: internal_dns.status=operational"
+      tags: [hub-g2, verify]

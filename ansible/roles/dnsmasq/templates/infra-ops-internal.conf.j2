@@ -1,0 +1,31 @@
+# =============================================================================
+# Hub 内网 DNS — dnsmasq 片段（由 Ansible 管理，勿手工编辑）
+# =============================================================================
+# 阶段 G2：仅监听 WireGuard 地址 {{ dnsmasq_listen_address }}
+# 文档：docs/dns/hub-internal-dns.runbook.md
+# =============================================================================
+
+# 不对 127.0.0.1 或 ECS 主网卡监听，避免与系统 resolver 冲突
+bind-interfaces
+except-interface=lo
+listen-address={{ dnsmasq_listen_address }}
+
+# *.internal 由本文件静态解析
+local=/{{ dnsmasq_domain }}/
+domain={{ dnsmasq_domain }}
+
+# 不读取 /etc/hosts（由 Ansible 显式列出记录）
+no-hosts
+no-resolv
+
+{% for upstream in dnsmasq_upstream_servers %}
+server={{ upstream }}
+{% endfor %}
+
+{% for record in internal_dns.hosts | default([]) %}
+address=/{{ record.fqdn }}/{{ record.address }}
+{% endfor %}
+
+# 日志（排障时可 tail /var/log/dnsmasq.log 或 journalctl -u dnsmasq）
+log-queries
+log-facility=/var/log/dnsmasq.log

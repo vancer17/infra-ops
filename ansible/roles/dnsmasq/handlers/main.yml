@@ -1,0 +1,13 @@
+# =============================================================================
+# dnsmasq role handlers
+# =============================================================================
+
+---
+
+- name: Restart dnsmasq
+  ansible.builtin.systemd:
+    name: dnsmasq
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: not ansible_check_mode

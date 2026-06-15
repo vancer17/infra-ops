@@ -1,0 +1,10 @@
+# =============================================================================
+# dnsmasq role — Hub 显式入口（hub-g2.yml tasks_from: hub）
+# =============================================================================
+
+---
+
+- name: Apply Hub internal DNS dnsmasq tasks
+  ansible.builtin.import_tasks: install.yml
+  when: dns_gateway | default(false) | bool
+  tags: [dnsmasq, dns]

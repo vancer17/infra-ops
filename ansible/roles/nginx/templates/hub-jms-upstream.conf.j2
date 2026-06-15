@@ -1,0 +1,10 @@
+# =============================================================================
+# JumpServer upstream 定义 — jms.internal
+# =============================================================================
+# Managed by Ansible infra-ops (nginx role, stage G2)
+# =============================================================================
+
+upstream jumpserver_backend {
+    server {{ nginx_jumpserver_upstream }};
+    keepalive {{ nginx_jumpserver_upstream_keepalive }};
+}
