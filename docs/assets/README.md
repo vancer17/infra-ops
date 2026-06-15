@@ -82,5 +82,6 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - [Hub Bootstrap Runbook](../bootstrap/hub-01-bootstrap.runbook.md)（hub-01：`ssh_done`，2026-06-14）
 - [WireGuard F3 验收](../wireguard/stage-f3-acceptance-runbook.md)
 - [WireGuard F2-5 收口](../wireguard/stage-f2-5-runbook.md)
-- [运维笔记本 WG Client](../wireguard/developer-laptop-client.md)
+- [办公笔记本 WG Client 接入指南（分发给同事）](../wireguard/办公笔记本-WG-Client-接入指南.md)
+- [运维笔记本 WG Client（简版）](../wireguard/developer-laptop-client.md)
 - [企业环境实施方案](../20260608-ECS%20企业环境实施方案.md) §4 网络与 WireGuard

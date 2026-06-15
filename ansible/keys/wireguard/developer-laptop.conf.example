@@ -5,7 +5,8 @@
 # 私钥：仅保存在笔记本，替换下方 REPLACE_WITH_DEVELOPER_LAPTOP_PRIVATE_KEY
 # 公钥：ansible/keys/wireguard/developer-laptop.pub（已提交 Git）
 # Hub：121.43.49.58:51820
-# 文档：docs/wireguard/developer-laptop-client.md
+# 文档（分发给同事）：docs/wireguard/办公笔记本-WG-Client-接入指南.md
+# 运维简版：docs/wireguard/developer-laptop-client.md
 # =============================================================================
 
 [Interface]
