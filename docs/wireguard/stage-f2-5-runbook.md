@@ -2,6 +2,18 @@
 
 F2 握手完成（`wireguard.status: operational`）且 F2-4 台账已更新后执行。
 
+## 验收状态（2026-06-14）
+
+**已完成** — ci-01 实机验收见 `logs/console-check.log`；台账见 `docs/assets/registry.yaml` → `stage_f2_5_acceptance`，以及 `hub-01.yaml` / `ci-01.yaml` → `stage_f2_5`。
+
+| # | 项 | 结果 |
+|---|-----|------|
+| 1 | `wireguard.status` | `operational` |
+| 2 | `ci_connectivity.access_mode` | `wireguard` |
+| 3 | `hub-01 ansible_host` | `10.200.0.1` |
+| 4 | `ansible ping hub-01` | success |
+| 5 | Runner（可选） | 未注册 |
+
 ## 范围
 
 | 步骤 | 本期做 | 说明 |

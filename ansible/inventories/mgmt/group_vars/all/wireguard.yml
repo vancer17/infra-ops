@@ -9,7 +9,7 @@
 # 【F2-5 收口（2026-06-14）】
 #   ci_connectivity.access_mode: wireguard（network.yml）
 #   network_phase: wireguard（main.yml / registry.yaml）
-#   Ansible 连 Hub 使用 10.200.0.1；验证：make stage-f2-5-followup
+#   Ansible 连 Hub 使用 10.200.0.1；F2-5 已验收：logs/console-check.log
 #
 # 【与 wireguard_keys.yml / wireguard_vault.yml 分工】
 #   本文件     → 地址、端口、Peer 公钥、Hub 公钥（可提交 Git）

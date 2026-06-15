@@ -63,14 +63,14 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | 项 | 当前状态 |
 |----|----------|
 | **Hub↔ci-01 隧道** | `wireguard.status: operational`（F1 Server + F2 Client 握手已验收） |
-| **Ansible 连 Hub** | mgmt `access_mode: wireguard` → `ansible_host` = **`10.200.0.1`** |
+| **Ansible 连 Hub** | mgmt `access_mode: wireguard` → `ansible_host` = **`10.200.0.1`**（**已验收**，`logs/console-check.log`） |
 | **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
 | **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
 | **下一里程碑** | `network_phase: steady`（关公网 SSH、JumpServer — 未开始） |
 
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
 - **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
-- **实机收口**：ci-01 上 `make stage-f2-5-followup`（见 [stage-f2-5-runbook.md](../wireguard/stage-f2-5-runbook.md)）。
+- **验收日志**：F2 隧道 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
 
 ## 相关文档
 
