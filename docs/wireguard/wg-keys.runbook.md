@@ -177,13 +177,22 @@ git add docs/wireguard/wg-keys.runbook.md
 
 ---
 
-## 八、下一步（非本 Runbook）
+## 八、当前状态与后续（2026-06-14）
 
-- 阶段 F 前：`make stage-f-preflight`；控制台核对 [stage-f-console-checklist.md](stage-f-console-checklist.md)
-- `wireguard` role + `wireguard-hub.yml`：在 Hub 安装 WG Server
-- `wireguard-peer.yml`：ci-01 Client（方案 A：同机不单独 dev-01 Peer）
-- **握手成功后**再切换 `ci_connectivity.access_mode: wireguard`
-- 安全组 Hub 迁移 `sg-hub-wg`、关 Bootstrap 公网 SSH
+**阶段 F 最小组网已验收通过**（Hub Server + ci-01 Client + F2-5 收口 + F3-1 自动化）。
+
+| 项 | 状态 |
+|----|------|
+| Hub `10.200.0.1:51820` | operational |
+| ci-01 Client `10.200.0.2` | operational，handshake OK |
+| Ansible 连 Hub | `access_mode: wireguard` |
+| 验收报告 | [20260614-阶段F-WireGuard验收报告.md](../acceptance/20260614-阶段F-WireGuard验收报告.md) |
+
+**可选后续**：
+
+- 复验：`make stage-f-preflight`（见 [stage-f3-acceptance-runbook.md](stage-f3-acceptance-runbook.md)）
+- GitHub Runner、`developer-laptop` Client
+- `network_phase: steady`：关公网 SSH、Hub 迁移 `sg-hub-wg`、JumpServer
 
 ---
 

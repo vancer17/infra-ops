@@ -9,6 +9,10 @@
 #   本台 ECS（控制台 yax）同时承担 ci-01 角色，见 ci-01.yaml 与 registry.yaml。
 #   字段 instance_id / public_ip / private_ip 与 ci-01 一致，勿填不同值。
 #
+# 【WireGuard】
+#   Hub Peer 模型为 single_peer_ci_01：WG 隧道由 ci-01（10.200.0.2）承载，
+#   dev-01 不单独建 Peer；应用访问 Hub 走同机 WG 接口。
+#
 # 【Inventory 对应】
 #   ansible/inventories/dev/hosts.yml → dev_app → dev-01
 #   network.yml → dev_hosts.dev-01
@@ -16,7 +20,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-08"
+updated_at: "2026-06-14"
 updated_by: "infra-ops"
 
 host:
@@ -43,8 +47,8 @@ host:
     eip_bound: true
     bandwidth_mbps: 5
     planned_wg_ip: "10.200.1.1"
+    wireguard_note: "Hub Peer 使用 ci-01 地址 10.200.0.2；本机 planned_wg_ip 保留作 Dev 段规划"
     hostname: null
-    # 2026-06-08 台账修订：CI 替代机与本机同 ECS，且均在 vpc-bp1jmugctnhj97dbjyx31
     ci_same_vpc: true
     ci_access_from: private
 
@@ -54,7 +58,7 @@ host:
         name: sg-dev-ecs-bootstrap
         attached_at: "2026-06-08"
         phase: bootstrap
-        note: "Bootstrap 临时策略；WG 完成后迁移至 sg-dev-ecs-wg"
+        note: "Bootstrap 临时策略；steady 阶段迁移至 sg-dev-ecs-wg"
     target:
       - id: null
         name: sg-dev-ecs-wg
@@ -93,6 +97,12 @@ host:
     ssh_phase: steady
     ssh_keys_configured: true
     baota_installed: false
+
+  wireguard:
+    status: operational_via_ci_01
+    hub_peer: ci-01
+    hub_peer_wg_ip: "10.200.0.2"
+    acceptance_ref: docs/acceptance/20260614-阶段F-WireGuard验收报告.md
 
   ansible:
     inventory: ansible/inventories/dev/

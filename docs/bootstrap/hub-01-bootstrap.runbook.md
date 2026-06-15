@@ -169,12 +169,11 @@ REMOTE
 ## 下一步
 
 - 控制面环境：`./scripts/dev/setup-control-plane-env.sh all`
-- **deploy sudo（阶段 F 前置）**：`./scripts/mgmt/apply-hub-deploy-sudo.sh`
-- WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
-- WG Server：`ansible/playbooks/wireguard-hub.yml`（阶段 F；需 `--vault-password-file .vault_pass`）
-- 控制台确认 UDP 51820 已按 `dev-ecs-bootstrap.rules.yaml` IN-WG-* 添加
+- **阶段 F 已完成**（2026-06-14）：见 [阶段 F 验收报告](../acceptance/20260614-阶段F-WireGuard验收报告.md)
+- 可选：GitHub Runner `scripts/mgmt/register-github-runner.sh`；笔记本 WG [developer-laptop-client.md](../wireguard/developer-laptop-client.md)
+- 网络收口（未开始）：`network_phase: steady`、关公网 SSH、Hub 迁移 `sg-hub-wg`、JumpServer
 
-## 阶段 F 前置：deploy 免密 sudo
+## 阶段 F 前置：deploy 免密 sudo（已完成）
 
 `wireguard-hub.yml` 使用 `become: true`。Hub 上 `deploy` 须能 `sudo -n`（`mgmt/bootstrap.yml` → `sudo_mgmt: true`）。
 
