@@ -10,12 +10,12 @@
 # 【ansible_host 的计算逻辑】
 #   Ansible 通过 ansible_host 决定 SSH 连哪個 IP。Hub 的地址随网络阶段变化：
 #
-#   1. access_mode == wireguard 且 wg_ip 已规划
-#      → 使用 WG 地址（10.200.0.1），前提是隧道已建立且控制机已接入 WG
+#   1. access_mode == wireguard 且 wg_ip 已规划（F2-5 当前主路径）
+#      → 使用 WG 地址（10.200.0.1）；须 ci-01 wg0 与 Hub 握手正常
 #
-#   2. same_vpc_as_ci == true 且私网地址已登记（当前 Bootstrap 期）
+#   2. access_mode == public 且 same_vpc_as_ci == true 且私网已登记（应急回退）
 #      → 使用 ansible_host_internal（172.21.127.123）
-#      CI 替代机（ci-01）与 Hub 在同一 VPC，优先走私网，不经公网
+#      CI 与 Hub 同 VPC，走私网不经公网
 #
 #   3. 否则
 #      → 回退 ansible_host_from_ci（公网 121.43.49.58）

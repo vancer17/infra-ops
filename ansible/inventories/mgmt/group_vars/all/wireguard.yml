@@ -6,9 +6,10 @@
 #   wireguard.status: operational — F1 Hub Server + F2 ci-01 Client 握手已完成（2026-06-14）
 #   wireguard.enabled: true       — wireguard-hub.yml 已于 2026-06-14 apply 成功
 #
-# 【F2-4 后仍保持（直至 F2-5 收口）】
-#   ci_connectivity.access_mode 仍为 public（network.yml）；稳定后再改 wireguard
-#   network_phase 仍为 bootstrap（main.yml / registry.yaml）
+# 【F2-5 收口（2026-06-14）】
+#   ci_connectivity.access_mode: wireguard（network.yml）
+#   network_phase: wireguard（main.yml / registry.yaml）
+#   Ansible 连 Hub 使用 10.200.0.1；验证：make stage-f2-5-followup
 #
 # 【与 wireguard_keys.yml / wireguard_vault.yml 分工】
 #   本文件     → 地址、端口、Peer 公钥、Hub 公钥（可提交 Git）

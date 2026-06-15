@@ -3,7 +3,8 @@
 #
 # 【2026-06-08 资产台账修订】
 #   CI 替代机：121.41.58.20（公网）/ 172.21.226.38（私网，与 Hub 同 VPC）
-#   Ansible Bootstrap 优先使用 Hub 私网 172.21.127.123 → 须放行 CI 私网 SSH
+#   Ansible 连 Hub（F2-5 主路径）：经 WG 10.200.0.1；应急回退仍用 Hub 私网 172.21.127.123
+#   → 须放行 CI 私网 SSH（172.21.226.38）及 WG UDP 51820（见 dev-ecs-bootstrap IN-WG-*）
 #   须与 docs/assets/hub-01.yaml、inventories/mgmt/group_vars/all/network.yml 一致
 #
 # 【2026-06-14 控制台事实】

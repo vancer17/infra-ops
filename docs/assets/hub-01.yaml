@@ -56,12 +56,14 @@ host:
     eip_bound: true
     bandwidth_mbps: 2
     bandwidth_note: "控制面/WG 握手足够；经 Hub 转发大流量为二期升配"
-    # WireGuard 规划地址；wg0 接口配置实施后与 registry.yaml wireguard_plan 对齐
+    # wg0 已 operational（F1/F2）；与 registry.yaml wireguard_plan 一致
     planned_wg_ip: "10.200.0.1"
     wg_listen_port: 51820
     hostname: "iZbp13i3ed90ieamwrb4kbZ"
     ci_same_vpc: true
+    # Ansible mgmt 经 WG 10.200.0.1（F2-5）；人工 SSH 仍可用 VPC 私网
     ci_access_from: private
+    ansible_hub_via: wireguard
 
   # --- 安全组（控制台创建后填入 id；规则见 docs/security-groups/hub-bootstrap.rules.yaml）---
   security_groups:
@@ -166,10 +168,21 @@ host:
       hub_sees_ci_endpoint: ok
       route_10_200_0_0_16: ok
 
+  # 阶段 F2-5 Ansible 经 WG 收口（2026-06-14）
+  stage_f2_5:
+    completed_at: "2026-06-14"
+    ci_connectivity_access_mode: wireguard
+    network_phase: wireguard
+    hub_ansible_host: "10.200.0.1"
+    script: scripts/mgmt/stage-f2-5-followup.sh
+    note: "steady 阶段再评估关公网 SSH / JumpServer"
+
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
+  # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史
   verification:
     completed_at: "2026-06-14"
     method: "ssh deploy@172.21.127.123 + infra-ci-deploy"
+    superseded_for_ansible_by: "stage_f2_5.hub_ansible_host"
     checks:
       deploy_user: ok
       jump_ops_user: ok

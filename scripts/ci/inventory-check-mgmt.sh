@@ -100,8 +100,9 @@ check_ci_hub_connectivity() {
 
   if [[ "${access_mode}" == "wireguard" ]]; then
     if [[ ! "${ansible_host}" =~ ^10\.200\. ]]; then
-      ci_log "WARN: host ${host_name}: access_mode=wireguard 但 ansible_host=${ansible_host} 非 10.200.x.x（请确认隧道已上线）"
+      ci_die "host ${host_name}: access_mode=wireguard 但 ansible_host=${ansible_host} 非 10.200.x.x"
     fi
+    ci_log "  ${host_name}: access_mode=wireguard ansible_host=${ansible_host} OK"
     return 0
   fi
 
