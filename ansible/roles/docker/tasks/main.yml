@@ -56,6 +56,12 @@
 #   同一 playbook 连续跑两次：已安装的包、已存在的目录/文件 → ok，不应反复 changed。
 #   仅 daemon.json 内容变化或首次安装时会 changed，并可能 notify 重启 docker。
 #
+# 【--check 模式】
+#   GPG 密钥与 deb822 源在 check 模式下仅报告 changed、不会真正写入；
+#   紧随其后的 apt install 会在「尚未配置 Docker 源」的系统上查包并报错。
+#   因此 Task 5 在 ansible_check_mode 时跳过，改由 Preview 任务说明将安装的包。
+#   systemd / handler 同理：无 docker.service 时不在 check 模式强启。
+#
 # =============================================================================
 
 ---
@@ -141,6 +147,16 @@
   tags: [docker, bootstrap]
 
 # -----------------------------------------------------------------------------
+# Task 4b — 探测 docker.service 是否已存在（供 check 模式与 systemd task 判断）
+# -----------------------------------------------------------------------------
+- name: Check whether Docker systemd unit is present
+  ansible.builtin.stat:
+    path: /lib/systemd/system/docker.service
+  register: docker_systemd_unit
+  when: docker_install | bool
+  tags: [docker, bootstrap]
+
+# -----------------------------------------------------------------------------
 # Task 5 — 安装 Docker CE 及 Compose v2 插件
 # -----------------------------------------------------------------------------
 # 模块：ansible.builtin.apt
@@ -160,7 +176,20 @@
       - docker-compose-plugin
     state: present
     update_cache: true
-  when: docker_install | bool
+  when:
+    - docker_install | bool
+    - not ansible_check_mode
+  tags: [docker, bootstrap]
+
+- name: Preview Docker CE installation (check mode skips apt until repository is applied)
+  ansible.builtin.debug:
+    msg:
+      - "check mode: skipping apt install; gpg/sources tasks above show pending repository setup"
+      - "Would install: docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin"
+      - "Run without --check to apply packages"
+  when:
+    - docker_install | bool
+    - ansible_check_mode
   tags: [docker, bootstrap]
 
 # -----------------------------------------------------------------------------
@@ -192,7 +221,9 @@
         "live-restore": true
       }
   notify: Restart docker
-  when: docker_install | bool
+  when:
+    - docker_install | bool
+    - not ansible_check_mode or docker_systemd_unit.stat.exists | default(false)
   tags: [docker, bootstrap]
 
 # -----------------------------------------------------------------------------
@@ -209,5 +240,7 @@
     name: docker
     enabled: true
     state: started
-  when: docker_install | bool
+  when:
+    - docker_install | bool
+    - not ansible_check_mode or docker_systemd_unit.stat.exists | default(false)
   tags: [docker, bootstrap]

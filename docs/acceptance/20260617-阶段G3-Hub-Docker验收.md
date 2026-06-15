@@ -30,6 +30,18 @@ make stage-g3-docker-preflight
 
 ## 三、执行
 
+预览（可选，`--check` 下 apt 装包会跳过，见 runbook）：
+
+```bash
+ansible-playbook ansible/playbooks/hub-g3-docker.yml \
+  -i ansible/inventories/mgmt/ \
+  --limit hub-01 \
+  --vault-password-file .vault_pass \
+  --check --diff
+```
+
+正式 apply：
+
 ```bash
 ansible-playbook ansible/playbooks/hub-g3-docker.yml \
   -i ansible/inventories/mgmt/ \

@@ -141,12 +141,12 @@ fi
 
 cat <<EOF
 
-Next (dry-run):
+Next (dry-run — apt install skipped in check mode; see docs/docker/hub-docker.runbook.md):
   ansible-playbook ansible/playbooks/hub-g3-docker.yml \\
     -i ansible/inventories/mgmt/ --limit hub-01 \\
     --vault-password-file .vault_pass --check --diff
 
-Next (apply):
+Next (apply — no --check):
   ansible-playbook ansible/playbooks/hub-g3-docker.yml \\
     -i ansible/inventories/mgmt/ --limit hub-01 \\
     --vault-password-file .vault_pass

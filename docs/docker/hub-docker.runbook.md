@@ -31,14 +31,14 @@ chmod +x scripts/mgmt/verify-hub-docker-remote.sh
 
 make stage-g3-docker-preflight
 
-# 预览
+# 预览（可安全使用 --check；apt 装包在 check 模式下会跳过并显示 Preview 提示）
 ansible-playbook ansible/playbooks/hub-g3-docker.yml \
   -i ansible/inventories/mgmt/ \
   --limit hub-01 \
   --vault-password-file .vault_pass \
   --check --diff
 
-# 正式执行
+# 正式执行（勿带 --check）
 ansible-playbook ansible/playbooks/hub-g3-docker.yml \
   -i ansible/inventories/mgmt/ \
   --limit hub-01 \
@@ -67,6 +67,12 @@ hub_docker:
 | `/opt/mgmt/jumpserver/static` | 静态资源 |
 
 JumpServer 应监听 `127.0.0.1:8080`，与 `nginx.jumpserver_upstream` 一致。
+
+## `--check` 预览说明
+
+Docker 通过「添加 apt 源 → 安装包」两步完成。`--check` 模式下源文件**不会真正写入**，若仍执行 `apt install` 会误报 `No package matching 'docker-ce' is available`。
+
+本仓库已在 `roles/docker` 中处理：`--check` 时跳过 apt/systemd 装包，以 `Preview Docker CE installation` 任务说明将安装的包；`hub-g3-docker.yml` 亦跳过「deploy 加入 docker 组」。**预览通过后请去掉 `--check` 正式 apply。**
 
 ## 下一步（非本阶段）
 
