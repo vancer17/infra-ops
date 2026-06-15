@@ -89,6 +89,8 @@ EOF
 
 check_deploy_wireguard_sudo() {
   local ok=true
+  local systemctl_out=""
+  local systemctl_rc=0
 
   if ! sudo -n /usr/bin/wg show >/dev/null 2>&1; then
     echo "[apply-ci-wireguard-sudo] FAIL: sudo -n wg show" >&2
@@ -101,12 +103,14 @@ check_deploy_wireguard_sudo() {
   fi
 
   # systemctl status returns 3 when the unit is inactive (expected before F2 apply).
+  # rc 0 = active; rc 3 = inactive — both OK if sudoers allowed the command.
   # Only treat password / sudoers denial as failure — not non-zero unit state.
+  systemctl_rc=0
   systemctl_out="$(sudo -n /bin/systemctl status wg-quick@wg0 2>&1)" || systemctl_rc=$?
   if grep -qiE 'password is required|a password is required|not allowed to execute' <<<"${systemctl_out}"; then
     echo "[apply-ci-wireguard-sudo] FAIL: sudo -n systemctl status wg-quick@wg0 (password/sudoers)" >&2
     ok=false
-  elif [[ -n "${systemctl_rc:-0}" && "${systemctl_rc}" -gt 3 ]]; then
+  elif [[ "${systemctl_rc}" -gt 3 ]]; then
     echo "[apply-ci-wireguard-sudo] FAIL: sudo -n systemctl status wg-quick@wg0 (rc=${systemctl_rc})" >&2
     ok=false
   fi
