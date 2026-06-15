@@ -133,8 +133,9 @@ hosts:
     inventory_path: ansible/inventories/mgmt/
     bootstrap_status: ssh_done
     bootstrap_completed_at: "2026-06-14"
-    wireguard_status: keys_ready
-    note: "阶段 C Bootstrap + SSH 1.3 + 阶段 E 密钥；WG Server 待阶段 F"
+    wireguard_status: server_up
+    wireguard_server_installed_at: "2026-06-14"
+    note: "阶段 F1 Hub WG Server 已部署（wg0 10.200.0.1:51820）；F2 ci-01 Client 待握手"
 
   ci-01:
     asset_file: ci-01.yaml

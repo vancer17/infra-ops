@@ -173,7 +173,7 @@ git add docs/wireguard/wg-keys.runbook.md
 | 2 | 公钥入 inventory | `wireguard.hub_public_key` 非 null |
 | 3 | Vault | `vault-view` 可见 `wireguard_vault.hub_private_key` |
 | 4 | Git 卫生 | `make secret-scan` 通过；无私钥明文提交 |
-| 5 | 台账 | `hub-01.yaml` / `wireguard.status` 为 `keys_ready` |
+| 5 | 台账 | `hub-01.yaml` / `wireguard.status` 为 `keys_ready`（F1 后 `server_up`） |
 
 ---
 

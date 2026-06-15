@@ -78,7 +78,7 @@ mgmt_hosts:
     ansible_host_from_ci: "121.43.49.58"
     ansible_host_internal: "172.21.127.123"
     bootstrap_status: ssh_done
-    wireguard_status: keys_ready
+    wireguard_status: server_up
 
 # -----------------------------------------------------------------------------
 # control_plane_hosts — CI 控制机台账（非 mgmt inventory 成员，仅供引用）
