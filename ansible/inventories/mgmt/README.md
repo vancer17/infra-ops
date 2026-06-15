@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-14）**：Bootstrap + SSH（`ssh_done`）；阶段 E 密钥；**F1–F3 已验收**（`wireguard.status: operational`，`logs/console-acceptance.log` / `console-check.log`）。**下一步（可选）**：GitHub Runner 注册；运维笔记本 WG；**steady**：关公网 SSH / JumpServer。
+**hub-01 状态（2026-06-15）**：Bootstrap + SSH（`ssh_done`）；阶段 F WireGuard `operational`；**阶段 G1 Nginx `operational`**（`logs/console-acceptance.log`）。**下一步**：JumpServer；**steady**：关公网 SSH / `IN-SSH-WG`。
 
 ## 用途
 
@@ -70,7 +70,7 @@ Runbook：`docs/bootstrap/hub-01-bootstrap.runbook.md`
 WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`  
 阶段 F 前预检：`make stage-f-preflight`（F3-1 已通过）  
 阶段 F3 验收：`docs/wireguard/stage-f3-acceptance-runbook.md`  
-阶段 G1 Nginx：`docs/nginx/hub-nginx.runbook.md`（`./scripts/mgmt/stage-g1-nginx-preflight.sh`）
+阶段 G1 Nginx：`docs/nginx/hub-nginx.runbook.md`（`make stage-g1-nginx-preflight`）；验收：`docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md`
 
 ## 资产同步
 

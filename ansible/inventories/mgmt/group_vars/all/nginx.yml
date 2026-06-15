@@ -7,23 +7,19 @@
 #
 # 【与 wireguard 的关系】
 #   访问路径：WG Client → 10.200.0.1:443 → Nginx → 本机 upstream（如 JumpServer）
-#   安全组：IN-HTTPS-WG（已验收）；IN-HTTP-WG 建议在 apply 前于控制台添加
+#   安全组：IN-HTTPS-WG、IN-HTTP-WG（2026-06-15 G1 验收）
 #
-# 【成功后须手动更新（与 wireguard 相同惯例）】
-#   nginx.enabled: true
-#   nginx.status: operational
-#   docs/assets/hub-01.yaml → nginx_status / stage_g1
+# 【状态】2026-06-15 G1 apply + 实机验收通过（logs/console-acceptance.log）
+#
+# 【维护】变更 SAN 见 docs/nginx/hub-nginx.runbook.md「TLS 证书轮换」
 #
 # =============================================================================
 
 ---
 
 nginx:
-  # false = 仅变量占位；apply nginx-hub.yml 成功后改为 true
-  enabled: false
-
-  # not_started | configured | operational
-  status: not_started
+  enabled: true
+  status: operational
 
   package_name: nginx
   remove_default_site: true

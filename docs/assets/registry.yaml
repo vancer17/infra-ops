@@ -197,9 +197,11 @@ hosts:
     wireguard_status: operational
     wireguard_server_installed_at: "2026-06-14"
     wireguard_operational_at: "2026-06-14"
-    hub_security_group_phase: g0_hub_sg_nginx_prep
+    hub_security_group_phase: g1_hub_nginx_operational
+    hub_nginx_status: operational
+    hub_nginx_operational_at: "2026-06-15"
     hub_security_group_rules: docs/security-groups/hub-wg.rules.yaml
-    note: "F2-5 + F3-1 已验收；G0 Hub 独占 SG（2026-06-15）；Ansible 经 WG 10.200.0.1"
+    note: "F2-5 + F3-1 已验收；G0 Hub 独占 SG；G1 Nginx operational（2026-06-15）；Ansible 经 WG 10.200.0.1"
 
   ci-01:
     asset_file: ci-01.yaml

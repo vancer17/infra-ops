@@ -12,9 +12,9 @@
 | 阶段 | 安全组 | SSH 来源 | WG UDP 51820 | 80/443 |
 |------|--------|----------|--------------|--------|
 | bootstrap（历史） | sg-dev-ecs-bootstrap | CI 私网 + 公网 + 公司 IP | 公司 + CI `/32` | — |
-| **wireguard / G0（当前）** | **sg-hub-wg** | Workbench + 临时 `/32` +（规划）`10.200.0.0/16` | **`0.0.0.0/0`**（密钥认证） | **443 ← WG**；80 待添加 |
+| **wireguard / G1（当前）** | **sg-hub-wg** | Workbench + 临时 `/32` +（规划）`10.200.0.0/16` | **`0.0.0.0/0`**（密钥认证） | **80/443 ← WG**（Nginx operational） |
 
-**2026-06-15**：Hub 已切换为**独占规则集**（[hub-wg.rules.yaml](hub-wg.rules.yaml)），验收见 [阶段 G0 报告](../acceptance/20260615-阶段G0-Hub安全组与Nginx前置验收.md)。控制台 id：`sg-bp122tjy3h95um8kv4f9`（与历史 bootstrap 共用 id 时，以实例绑定与规则内容为准）。
+**2026-06-15**：Hub 独占规则集（[hub-wg.rules.yaml](hub-wg.rules.yaml)）。G0 验收见 [阶段 G0 报告](../acceptance/20260615-阶段G0-Hub安全组与Nginx前置验收.md)；**G1 Nginx** 见 [阶段 G1 报告](../acceptance/20260615-阶段G1-Hub-Nginx验收.md)。控制台 id：`sg-bp122tjy3h95um8kv4f9`。
 
 **家用动态 IP**：UDP 51820 对 `0.0.0.0/0` 开放；**禁止**对公网开放 TCP 22/80/443。当前家用 SSH 临时 `/32`：`125.121.146.255`。
 
