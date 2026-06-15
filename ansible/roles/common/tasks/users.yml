@@ -159,7 +159,25 @@
       deploy ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart docker
     validate: /usr/sbin/visudo -cf %s
   when: bootstrap_users.deploy.sudo_docker | bool
-  tags: [common, bootstrap]
+  tags: [common, bootstrap, sudo, sudo_docker]
+
+# -----------------------------------------------------------------------------
+# Task 4b：配置 deploy 管理面 sudo（Hub 等 mgmt 主机）
+# -----------------------------------------------------------------------------
+# 模块：template — templates/sudoers-deploy-mgmt.j2
+# when：bootstrap_users.deploy.sudo_mgmt 为 true（mgmt inventory）
+# 与 sudo_docker 互斥使用同一 dest；Hub 仅 sudo_mgmt，Dev 仅 sudo_docker
+# 消费者：wireguard-hub.yml（become: true）、未来 JumpServer playbook
+- name: Configure deploy sudo for management plane (mgmt Hub)
+  ansible.builtin.template:
+    src: sudoers-deploy-mgmt.j2
+    dest: /etc/sudoers.d/deploy
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  when: bootstrap_users.deploy.sudo_mgmt | default(false) | bool
+  tags: [common, bootstrap, sudo, sudo_mgmt]
 
 # -----------------------------------------------------------------------------
 # Task 5：安装 SSH 加固配置（drop-in）

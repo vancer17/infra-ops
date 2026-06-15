@@ -1,0 +1,5 @@
+# Managed by Ansible infra-ops — mgmt Hub deploy passwordless sudo
+# Consumer: roles/common/tasks/users.yml (sudo_mgmt)
+# Scope: hub-01 only (bootstrap_users.deploy.sudo_mgmt: true)
+# Required for: wireguard-hub.yml, future JumpServer, apt/sysctl on management plane
+deploy ALL=(ALL) NOPASSWD: ALL

@@ -85,6 +85,7 @@ echo "=== 5/5 manual reminders ==="
 cat <<EOF
 
 Before wireguard-hub.yml apply, confirm:
+  [ ] deploy@hub-01 can: sudo -n true  (if not: ./scripts/mgmt/apply-hub-deploy-sudo.sh)
   [ ] GitHub Environment Secret ANSIBLE_VAULT_PASSWORD = ci-01 .vault_pass
   [ ] Aliyun SG sg-bp122tjy3h95um8kv4f9 has IN-WG-UDP-* (see stage-f-console-checklist.md)
   [ ] Peer model: Hub active peers = ci-01 + developer-laptop (not dev-01)
