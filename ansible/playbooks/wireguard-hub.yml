@@ -9,7 +9,12 @@
 # 【前提】
 #   - 阶段 C：Hub Bootstrap + SSH steady（deploy@172.21.127.123）
 #   - 阶段 E：wg-keys all-hub + vault-encrypt-hub
+#   - deploy@hub-01 免密 sudo（mgmt bootstrap sudo_mgmt；已 steady 无 sudo 时见下）
 #   - 本机 .vault_pass 或 ANSIBLE_VAULT_PASSWORD_FILE（解密 wireguard_vault.yml）
+#
+# 【deploy 无 sudo 时（Missing sudo password）】
+#   ./scripts/mgmt/apply-hub-deploy-sudo.sh
+#   或 --console 查看阿里云工作台 root 一次性命令
 #
 # 【执行位置】
 #   ci-01（yax）上以 deploy 用户运行。
