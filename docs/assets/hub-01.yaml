@@ -8,7 +8,7 @@
 #
 # 【本期职责】
 #   - 最小 WireGuard 组网的唯一 Server（UDP 51820，地址 10.200.0.1）
-#   - 后续：JumpServer 堡垒机、可选 dnsmasq 内网 DNS
+#   - 后续：JumpServer 堡垒机（反代经 jms.internal）、可选 dnsmasq 内网 DNS
 #
 # 【Ansible Inventory】
 #   inventories/dev/ 仅含 dev-01、dev-02
@@ -20,6 +20,7 @@
 #   阶段 F1（2026-06-14）：wireguard-hub.yml apply 完成 → wireguard_status: server_up
 #   阶段 F3（2026-06-14）：F3-1 自动化验收通过 — 见 stage_f3_acceptance、docs/acceptance/20260614-阶段F-WireGuard验收报告.md
 #   阶段 G0（2026-06-15）：Hub 独占安全组 + Nginx 前置验收 — 见 stage_g0_hub_security_group
+#   阶段 G1（2026-06-15）：Hub 宿主机 Nginx 网关 — 见 stage_g1_nginx_hub
 #
 # =============================================================================
 
@@ -31,7 +32,7 @@ host:
   name: hub-01
   role: hub
   env: mgmt
-  description: "临时 Hub — WireGuard Server +（规划）JumpServer"
+  description: "临时 Hub — WireGuard Server + Nginx 管理面网关 +（规划）JumpServer"
 
   # --- 替代关系 ---
   replacement:
@@ -72,10 +73,10 @@ host:
       - id: sg-bp122tjy3h95um8kv4f9
         name: sg-hub-wg
         phase: wireguard
-        subphase: g0_hub_sg_nginx_prep
+        subphase: g1_hub_nginx_operational
         rules_file: docs/security-groups/hub-wg.rules.yaml
         bound_at: "2026-06-15"
-        note: "Hub 实例独占绑定；UDP 51820 对 0.0.0.0/0（家用动态 IP）；80 待添加、443 已放行 WG 网段"
+        note: "Hub 独占；UDP 51820 对 0.0.0.0/0；80/443 已放行 WG 网段；Nginx operational（G1）"
     historical:
       - id: sg-bp122tjy3h95um8kv4f9
         name: sg-dev-ecs-bootstrap
@@ -124,6 +125,8 @@ host:
     wireguard_keys_ready_at: "2026-06-14"
     wireguard_server_status: installed
     wireguard_server_installed_at: "2026-06-14"
+    nginx_status: operational
+    nginx_installed_at: "2026-06-15"
     jumpserver_status: not_planned
     baota_installed: false
 
@@ -238,10 +241,36 @@ host:
       ci_nc_443: connection_refused_expected
       ci_ssh_private_vpc: ok
     pending:
-      - console_add_in_http_wg_80
-      - ansible_nginx_hub
       - steady_in_ssh_wg_and_retire_public_ssh
-    note: "80/443 refused 因 Hub 未装 Nginx，非安全组阻断"
+    completed_g0_followup:
+      - console_add_in_http_wg_80
+    note: "G0 时 80/443 refused 因 Hub 未装 Nginx；G1 后见 stage_g1_nginx_hub"
+
+  # 阶段 G1 Hub 管理面 Nginx 网关（2026-06-15，logs/console-acceptance.log）
+  stage_g1_nginx_hub:
+    completed_at: "2026-06-15"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    acceptance_doc: docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md
+    playbook: ansible/playbooks/nginx-hub.yml
+    nginx_version: "1.22.1"
+    vhosts:
+      - hub.internal
+      - "10.200.0.1"
+      - jms.internal
+    checks:
+      ci_nc_443: ok
+      ci_nc_80: ok
+      ci_curl_health_https: ok
+      ci_jms_vhost_502_expected: ok
+      ci_http_to_https_301: ok
+      laptop_ping_hub_wg: ok
+      laptop_nc_443: ok
+      laptop_curl_health_https: ok
+    pending:
+      - jumpserver_deploy_upstream_8080
+      - steady_in_ssh_wg_and_retire_public_ssh
+    note: "jms.internal 502 直至 JumpServer 监听 127.0.0.1:8080"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

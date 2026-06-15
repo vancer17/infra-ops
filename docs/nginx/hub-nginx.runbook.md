@@ -2,11 +2,12 @@
 
 在 **hub-01** 安装宿主机 Nginx，为 JumpServer 等管理面服务提供 **WireGuard 内网统一 HTTPS 入口**。
 
+**状态（2026-06-15）**：已部署并验收通过（`nginx.status: operational`）。验收报告：[docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md](../acceptance/20260615-阶段G1-Hub-Nginx验收.md)。
+
 ## 前提
 
 - 阶段 F：WireGuard `operational`（`ping`/`ssh deploy@10.200.0.1` 正常）
-- 阶段 G0：安全组 `IN-HTTPS-WG`（`10.200.0.0/16` → TCP 443）已添加
-- 建议：控制台添加 `IN-HTTP-WG`（TCP 80 ← `10.200.0.0/16`），支持 HTTP→HTTPS 跳转
+- 阶段 G0/G1：安全组 `IN-HTTPS-WG`、`IN-HTTP-WG`（`10.200.0.0/16` → TCP 443/80）已添加并验收
 - `deploy@hub-01` 免密 sudo（`stage-g1-nginx-preflight.sh` 会自动检测）
 
 ## 在 ci-01 上执行
@@ -55,9 +56,9 @@ curl -k --resolve jms.internal:443:10.200.0.1 \
 curl -k --resolve hub.internal:443:10.200.0.1 https://hub.internal/health
 ```
 
-未添加 `IN-HTTP-WG` 时，从 WG 客户端访问 `10.200.0.1:80` 可能超时（安全组过滤）；Hub 本机 80 仍会监听并用于 HTTP→HTTPS。
+未添加 `IN-HTTP-WG` 时，从 WG 客户端访问 `10.200.0.1:80` 可能超时（安全组过滤）。**当前环境已添加并验收通过**（2026-06-15）。
 
-成功后更新 `ansible/inventories/mgmt/group_vars/all/nginx.yml`：
+部署成功后须更新 `ansible/inventories/mgmt/group_vars/all/nginx.yml`（**已完成**）：
 
 ```yaml
 nginx:

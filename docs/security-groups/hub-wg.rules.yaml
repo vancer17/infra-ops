@@ -14,15 +14,17 @@
 #   2026-06-14 前 Hub 曾与 Dev 共用 sg-bp122tjy3h95um8kv4f9；
 #   2026-06-15 起 Hub 使用独占规则集（本文件）；历史见 hub-bootstrap.rules.yaml
 #
-# 【待补规则（部署 Hub Nginx 前）】
-#   - IN-HTTP-WG：TCP 80 ← 10.200.0.0/16
+# 【待补规则】
 #   - IN-SSH-WG：TCP 22 ← 10.200.0.0/16（steady 收口公网 SSH 后）
+#
+# 【G1 更新 2026-06-15】
+#   IN-HTTP-WG 已添加；Hub Nginx operational — 见 logs/console-acceptance.log（G1 节）
 #
 # =============================================================================
 
 schema_version: "1"
 phase: wireguard
-subphase: g0_hub_sg_nginx_prep
+subphase: g1_hub_nginx_operational
 updated_at: "2026-06-15"
 acceptance_log: logs/console-acceptance.log
 
@@ -99,17 +101,18 @@ rules:
       port_range: "443/443"
       source: "10.200.0.0/16"
       description: "IN-HTTPS-WG（Nginx / JumpServer）"
-      note: "2026-06-15 nc 为 connection refused（Nginx 未装），属预期"
+      note: "G1 验收：ci-01 / 笔记本 nc 443 succeeded；curl /health → ok"
 
-  pending_inbound:
     - id: IN-HTTP-WG
+      priority: 1
       policy: accept
       protocol: tcp
       port_range: "80/80"
       source: "10.200.0.0/16"
       description: "IN-HTTP-WG-Nginx"
-      reason: "Hub Nginx 部署前添加"
+      note: "2026-06-15 G1 验收 nc 80 succeeded；控制台 Describe 补录 aliyun_rule_id"
 
+  pending_inbound:
     - id: IN-SSH-WG
       policy: accept
       protocol: tcp
@@ -155,17 +158,31 @@ rules:
     - "UDP 51820 允许 0.0.0.0/0 仅因 WG 密钥认证 + 家用动态 IP"
 
 acceptance:
-  completed_at: "2026-06-15"
-  log: logs/console-acceptance.log
-  checks:
-    laptop_wg_handshake: ok
-    laptop_ping_hub_wg: ok
-    laptop_nc_80: "connection_refused_expected"
-    laptop_nc_443: "connection_refused_expected"
-    ci_wg_handshake: ok
-    ci_ping_hub_wg: ok
-    ci_ssh_hub_via_wg: ok
-    ci_nc_80: "connection_refused_expected"
-    ci_nc_443: "connection_refused_expected"
-    ci_ssh_private_vpc: ok
-  next: "添加 IN-HTTP-WG；Ansible 部署 Hub Nginx（nginx-hub.yml）"
+  g0:
+    completed_at: "2026-06-15"
+    log: logs/console-acceptance.log
+    checks:
+      laptop_wg_handshake: ok
+      laptop_ping_hub_wg: ok
+      laptop_nc_80: connection_refused_expected
+      laptop_nc_443: connection_refused_expected
+      ci_wg_handshake: ok
+      ci_ping_hub_wg: ok
+      ci_ssh_hub_via_wg: ok
+      ci_nc_80: connection_refused_expected
+      ci_nc_443: connection_refused_expected
+      ci_ssh_private_vpc: ok
+  g1:
+    completed_at: "2026-06-15"
+    log: logs/console-acceptance.log
+    doc: docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md
+    checks:
+      ci_nc_443: ok
+      ci_nc_80: ok
+      ci_curl_health: ok
+      ci_jms_502_expected: ok
+      ci_http_301_to_https: ok
+      laptop_ping_hub_wg: ok
+      laptop_nc_443: ok
+      laptop_curl_health: ok
+  next: "JumpServer 部署；steady 阶段添加 IN-SSH-WG 并收口公网 SSH"

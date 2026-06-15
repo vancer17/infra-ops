@@ -82,9 +82,10 @@ infra-ops/
 | [docs/bootstrap/dev-01-bootstrap.runbook.md](docs/bootstrap/dev-01-bootstrap.runbook.md) | Dev-01 / CI 控制机 Bootstrap（1.2） |
 | [docs/bootstrap/hub-01-bootstrap.runbook.md](docs/bootstrap/hub-01-bootstrap.runbook.md) | Hub-01 Bootstrap（阶段 C，`ssh_done` 2026-06-14） |
 | [docs/bootstrap/dev-ssh-keys.runbook.md](docs/bootstrap/dev-ssh-keys.runbook.md) | SSH 密钥体系（1.3） |
-| [docs/nginx/hub-nginx.runbook.md](docs/nginx/hub-nginx.runbook.md) | Hub 管理面 Nginx 网关（阶段 G1） |
+| [docs/nginx/hub-nginx.runbook.md](docs/nginx/hub-nginx.runbook.md) | Hub 管理面 Nginx 网关（阶段 G1，`operational` 2026-06-15） |
 | [docs/wireguard/stage-f3-acceptance-runbook.md](docs/wireguard/stage-f3-acceptance-runbook.md) | 阶段 F3 验收（自动化检查） |
 | [docs/acceptance/20260614-阶段F-WireGuard验收报告.md](docs/acceptance/20260614-阶段F-WireGuard验收报告.md) | **阶段 F 验收报告**（F1–F3-1） |
+| [docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md](docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md) | **阶段 G1 验收报告**（Hub Nginx 网关） |
 | [docs/wireguard/stage-f2-5-runbook.md](docs/wireguard/stage-f2-5-runbook.md) | Ansible 经 WG 收口（F2-5） |
 | [docs/wireguard/stage-f-console-checklist.md](docs/wireguard/stage-f-console-checklist.md) | 安全组 UDP 51820 核对（审计参考） |
 | [docs/plan/20260608-开发环境（Dev）部署计划.md](docs/plan/20260608-开发环境（Dev）部署计划.md) | 分阶段部署计划 |
