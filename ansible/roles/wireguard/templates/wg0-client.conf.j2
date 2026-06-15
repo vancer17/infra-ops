@@ -9,6 +9,10 @@
 [Interface]
 PrivateKey = {{ wireguard_peer_private_key }}
 Address = {{ wireguard_peer_address }}
+{% if wireguard_client_dns | default('') | length > 0 %}
+# 阶段 G2：Hub dnsmasq @ {{ wireguard_client_dns }} 解析 *.internal（须 internal_dns operational）
+DNS = {{ wireguard_client_dns }}
+{% endif %}
 
 [Peer]
 # hub-01 WireGuard Server

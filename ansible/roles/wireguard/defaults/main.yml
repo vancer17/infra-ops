@@ -39,3 +39,16 @@ wireguard_peer_private_key_path: "{{ inventory_dir }}/../../keys/wireguard/{{ wi
 # 默认路由（可被 wireguard_peers_planned[].allowed_ips 覆盖）
 wireguard_client_default_allowed_ips: "10.200.0.0/16"
 wireguard_client_default_persistent_keepalive: 25
+
+# 阶段 G2：Hub 内网 DNS（internal_dns.wireguard_client_dns）
+# 仅当 internal_dns.status=operational 时写入 WG Client DNS= 行
+# 须 hub-g2.yml apply 后再 wireguard-peer.yml
+wireguard_client_dns: >-
+  {{
+    internal_dns.wireguard_client_dns
+    if (
+      internal_dns.enabled | default(false) | bool
+      and internal_dns.status | default('') == 'operational'
+    )
+    else ''
+  }}

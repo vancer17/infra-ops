@@ -10,6 +10,7 @@
 #   安全组：IN-HTTPS-WG、IN-HTTP-WG（2026-06-15 G1 验收）
 #
 # 【状态】2026-06-15 G1 apply + 实机验收通过（logs/console-acceptance.log）
+#         2026-06-16 G2 JumpServer upstream 细化 + jms/status（hub-g2.yml）
 #
 # 【维护】变更 SAN 见 docs/nginx/hub-nginx.runbook.md「TLS 证书轮换」
 #
@@ -26,8 +27,16 @@ nginx:
 
   health_uri: /health
 
-  # JumpServer Docker 未部署前，proxy 到本机未监听端口会 502（预期）
+  # JumpServer Docker 未部署前，upstream 未监听；Nginx 返回维护页（G2）而非裸 502
   jumpserver_upstream: "127.0.0.1:8080"
+
+  jumpserver:
+    # pending = 上游未就绪，展示维护页；ready = JumpServer 已监听 8080（G3 后改）
+    deploy_status: pending
+    status_uri: /jms/status
+    maintenance_enabled: true
+    upstream_keepalive: 16
+    proxy_read_timeout: 300s
 
   ssl:
     directory: /etc/nginx/ssl

@@ -21,11 +21,12 @@
 #   阶段 F3（2026-06-14）：F3-1 自动化验收通过 — 见 stage_f3_acceptance、docs/acceptance/20260614-阶段F-WireGuard验收报告.md
 #   阶段 G0（2026-06-15）：Hub 独占安全组 + Nginx 前置验收 — 见 stage_g0_hub_security_group
 #   阶段 G1（2026-06-15）：Hub 宿主机 Nginx 网关 — 见 stage_g1_nginx_hub
+#   阶段 G2（2026-06-16）：Hub 内网 DNS + JumpServer upstream 细化 — 见 stage_g2_internal_dns
 #
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-15"
+updated_at: "2026-06-16"
 updated_by: "infra-ops"
 
 host:
@@ -270,7 +271,29 @@ host:
     pending:
       - jumpserver_deploy_upstream_8080
       - steady_in_ssh_wg_and_retire_public_ssh
-    note: "jms.internal 502 直至 JumpServer 监听 127.0.0.1:8080"
+    note: "jms.internal 502 直至 JumpServer 监听 127.0.0.1:8080；G2 后改为 503 维护页 + /jms/status"
+
+  # 阶段 G2 Hub 内网 DNS + JumpServer upstream 细化（2026-06-16，待 apply）
+  stage_g2_internal_dns:
+    status: not_started
+    planned_at: "2026-06-16"
+    playbook: ansible/playbooks/hub-g2.yml
+    preflight_script: scripts/mgmt/stage-g2-preflight.sh
+    acceptance_doc: docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md
+    runbook: docs/dns/hub-internal-dns.runbook.md
+    dns_listen: "10.200.0.1:53"
+    wireguard_client_dns: "10.200.0.1"
+    vhosts_refined:
+      - jms.internal
+    checks_pending:
+      - console_add_in_dns_wg_udp_53
+      - dnsmasq_active
+      - dig_jms_internal
+      - curl_jms_status_json
+      - curl_jms_root_503
+      - wireguard_peer_ci_01_dns
+      - internal_dns_status_operational
+    note: "inventory internal_dns.status 仍为 not_started；hub-g2.yml apply 后更新"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

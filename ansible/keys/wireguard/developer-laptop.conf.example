@@ -12,6 +12,8 @@
 [Interface]
 PrivateKey = REPLACE_WITH_DEVELOPER_LAPTOP_PRIVATE_KEY
 Address = 10.200.10.1/32
+# 阶段 G2：Hub dnsmasq 内网 DNS（hub-g2.yml + internal_dns.status=operational 后启用）
+DNS = 10.200.0.1
 
 [Peer]
 # hub-01

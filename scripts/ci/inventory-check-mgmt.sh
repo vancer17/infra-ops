@@ -240,6 +240,36 @@ if [[ -f "${nginx_hub_playbook}" ]]; then
   fi
 fi
 
+hub_g2_playbook="${CI_REPO_ROOT}/ansible/playbooks/hub-g2.yml"
+if [[ -f "${hub_g2_playbook}" ]]; then
+  g2_list_out="$(ci_cd ansible-playbook "${hub_g2_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'hub-01' <<<"${g2_list_out}"; then
+    ci_log "hub-g2.yml --list-hosts OK for hub-01 (mgmt inventory)"
+  else
+    ci_die "hub-g2.yml does not target hub-01; check hosts: mgmt_hub"
+  fi
+fi
+
+# -----------------------------------------------------------------------------
+# internal_dns — G2 门禁（operational 后校验）
+# -----------------------------------------------------------------------------
+for host_name in "${mgmt_hosts[@]}"; do
+  internal_dns_enabled="$(resolved_host_var "${host_name}" "internal_dns.enabled")"
+  internal_dns_status="$(resolved_host_var "${host_name}" "internal_dns.status")"
+  dns_gateway="$(resolved_host_var "${host_name}" "dns_gateway")"
+  if [[ "${internal_dns_status}" == "operational" ]]; then
+    if [[ "${internal_dns_enabled}" != "true" ]]; then
+      ci_die "host ${host_name}: internal_dns.status=operational 但 internal_dns.enabled 不为 true"
+    fi
+    if [[ "${dns_gateway}" != "true" ]]; then
+      ci_die "host ${host_name}: internal_dns.status=operational 但 dns_gateway 不为 true"
+    fi
+    ci_log "  ${host_name}: internal_dns operational OK"
+  fi
+done
+
 # -----------------------------------------------------------------------------
 # wireguard_peers 组 — ci-01 等本机 Client 变量门禁
 # -----------------------------------------------------------------------------

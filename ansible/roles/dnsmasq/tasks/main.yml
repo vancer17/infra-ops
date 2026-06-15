@@ -1,0 +1,15 @@
+# =============================================================================
+# dnsmasq role 默认入口
+# =============================================================================
+#
+# 仅当 host_vars dns_gateway=true（hub-01）时安装 Hub 内网 DNS。
+# hub-g2.yml 使用 tasks_from: hub（与默认入口等价）。
+#
+# =============================================================================
+
+---
+
+- name: Apply Hub internal DNS dnsmasq tasks
+  ansible.builtin.import_tasks: install.yml
+  when: dns_gateway | default(false) | bool
+  tags: [dnsmasq, dns]

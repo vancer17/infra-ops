@@ -1,0 +1,23 @@
+# =============================================================================
+# dnsmasq role 默认值（Hub 内网 DNS，阶段 G2）
+# =============================================================================
+#
+# 消费者：inventories/mgmt/group_vars/all/internal_dns.yml
+#
+# =============================================================================
+
+---
+
+dnsmasq_package_name: dnsmasq
+dnsmasq_config_dir: /etc/dnsmasq.d
+dnsmasq_config_file: infra-ops-internal.conf
+dnsmasq_config_path: "{{ dnsmasq_config_dir }}/{{ dnsmasq_config_file }}"
+
+dnsmasq_listen_address: "{{ internal_dns.listen_address | default('10.200.0.1') }}"
+dnsmasq_interface: "{{ internal_dns.interface | default('wg0') }}"
+dnsmasq_domain: "{{ internal_dns.domain | default('internal') }}"
+
+# 上游公网 DNS（dnsmasq 转发非 local 查询；Hub 管理面几乎不用）
+dnsmasq_upstream_servers:
+  - 223.5.5.5
+  - 114.114.114.114
