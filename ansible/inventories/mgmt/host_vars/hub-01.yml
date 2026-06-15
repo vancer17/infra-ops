@@ -63,3 +63,6 @@ nginx_gateway: true
 
 # Hub 是否为内网 DNS 网关（供 dnsmasq role / hub-g2.yml 判断）
 dns_gateway: true
+
+# Hub 是否已启用/计划启用 Docker（供 hub-g3-docker.yml 与 inventory 门禁）
+docker_gateway: true

@@ -67,7 +67,7 @@ bootstrap_dirs:
     group: deploy
     mode: "0755"
 
-# Hub 首期不安装 Docker（JumpServer 后期可用 Docker 时再改为 true）
+# Hub 首期 Bootstrap 不安装 Docker（阶段 G3 hub-g3-docker.yml 启用；见 group_vars/all/docker.yml）
 docker_install: false
 docker_compose_plugin: false
 

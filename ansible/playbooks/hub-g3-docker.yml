@@ -1,0 +1,171 @@
+# =============================================================================
+# Ansible Playbook：Hub 阶段 G3 — 启用 Docker CE（JumpServer 前置）
+# =============================================================================
+#
+# 【用途】
+#   在阶段 G2（内网 DNS + Nginx JumpServer 预留）完成后，于 Hub 安装 Docker CE，
+#   创建 JumpServer Compose 目录，并将 deploy 用户加入 docker 组。
+#
+# 【不做什么】
+#   本 playbook 不部署 JumpServer 容器（下一阶段 G3+1 / jumpserver-hub.yml）。
+#   不修改 Nginx upstream（仍为 deploy_status=pending 直至 JumpServer 监听 8080）。
+#
+# 【前提】
+#   - wireguard.status=operational
+#   - nginx.status=operational
+#   - internal_dns.status=operational
+#   - deploy@hub-01 steady SSH + 免密 sudo（sudo_mgmt）
+#
+# 【执行位置】
+#   ci-01（yax）上以 deploy 用户运行。
+#
+# 【常用命令】
+#   make stage-g3-docker-preflight
+#
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#   export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+#
+#   ansible-playbook ansible/playbooks/hub-g3-docker.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01 \
+#     --vault-password-file .vault_pass
+#
+# 【成功后】
+#   更新 hub_docker.status=operational（group_vars/all/docker.yml）
+#   验收：./scripts/mgmt/verify-hub-docker-remote.sh
+#
+# =============================================================================
+
+---
+- name: Enable Docker on Hub for JumpServer (stage G3)
+  hosts: mgmt_hub
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "hub-g3-docker requires Debian 12+"
+      tags: [hub-g3-docker, preflight]
+
+    - name: Assert WireGuard is operational before Hub G3 Docker
+      ansible.builtin.assert:
+        that:
+          - wireguard.status | default('') == 'operational'
+          - wireguard.enabled | default(false) | bool
+        fail_msg: "Complete stage F before hub-g3-docker"
+      tags: [hub-g3-docker, preflight]
+
+    - name: Assert Hub Nginx is operational before G3 Docker
+      ansible.builtin.assert:
+        that:
+          - nginx.status | default('') == 'operational'
+          - nginx.enabled | default(false) | bool
+          - nginx_gateway | default(false) | bool
+        fail_msg: "Complete stage G1 before hub-g3-docker"
+      tags: [hub-g3-docker, preflight]
+
+    - name: Assert internal DNS is operational before G3 Docker
+      ansible.builtin.assert:
+        that:
+          - internal_dns.status | default('') == 'operational'
+          - internal_dns.enabled | default(false) | bool
+          - dns_gateway | default(false) | bool
+        fail_msg: "Complete stage G2 before hub-g3-docker"
+      tags: [hub-g3-docker, preflight]
+
+    - name: Assert Hub Docker is enabled in inventory
+      ansible.builtin.assert:
+        that:
+          - hub_docker.enabled | default(false) | bool
+          - docker_install | default(false) | bool
+        fail_msg: "Set hub_docker.enabled and docker_install in group_vars/all/docker.yml"
+      tags: [hub-g3-docker, preflight]
+
+    - name: Assert Hub SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Hub must use deploy@ steady SSH before hub-g3-docker"
+      tags: [hub-g3-docker, preflight]
+
+  tasks:
+    - name: Install Docker CE and Compose plugin on Hub
+      ansible.builtin.import_role:
+        name: docker
+      tags: [hub-g3-docker, docker]
+
+    - name: Add deploy user to docker group
+      ansible.builtin.user:
+        name: deploy
+        groups: docker
+        append: true
+      tags: [hub-g3-docker, docker, users]
+
+    - name: Create JumpServer and Docker project directories
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: directory
+        owner: "{{ item.owner }}"
+        group: "{{ item.group }}"
+        mode: "{{ item.mode }}"
+      loop: "{{ hub_docker.dirs }}"
+      tags: [hub-g3-docker, docker, dirs]
+
+    - name: Flush handlers before Docker verification
+      ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
+      tags: [hub-g3-docker, docker]
+
+  post_tasks:
+    - name: Verify docker CLI is available
+      ansible.builtin.command: docker --version
+      register: hub_g3_docker_version
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [hub-g3-docker, verify, docker]
+
+    - name: Verify docker compose plugin is available
+      ansible.builtin.command: docker compose version
+      register: hub_g3_compose_version
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [hub-g3-docker, verify, docker]
+
+    - name: Verify deploy user is in docker group
+      ansible.builtin.command: id -nG deploy
+      register: hub_g3_deploy_groups
+      changed_when: false
+      failed_when: "'docker' not in hub_g3_deploy_groups.stdout"
+      when: not ansible_check_mode
+      tags: [hub-g3-docker, verify, docker]
+
+    - name: Run Docker smoke container as deploy user
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ hub_docker.smoke_image | default(bootstrap_docker_smoke_image) }}"
+      become: true
+      become_user: deploy
+      register: hub_g3_smoke
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [hub-g3-docker, verify, docker]
+
+    - name: Hub G3 Docker deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Hub Docker enabled on {{ inventory_hostname }}"
+          - "Docker: {{ hub_g3_docker_version.stdout | default('check mode') }}"
+          - "Compose: {{ hub_g3_compose_version.stdout | default('check mode') }}"
+          - "JumpServer project dir: {{ hub_docker.jumpserver.project_dir }}"
+          - "Upstream reserved: {{ hub_docker.jumpserver.listen_host }}:{{ hub_docker.jumpserver.listen_port }}"
+          - "Next: deploy JumpServer Compose → set nginx.jumpserver.deploy_status=ready"
+          - "Update inventory: hub_docker.status=operational"
+      tags: [hub-g3-docker, verify]
