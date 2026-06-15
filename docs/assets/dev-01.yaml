@@ -20,7 +20,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-14"
+updated_at: "2026-06-15"
 updated_by: "infra-ops"
 
 host:
@@ -70,10 +70,21 @@ host:
 
   dependencies:
     rds:
-      instance: rm-bp1wjjf373l7t331vno
-      endpoint: rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com
+      instance: rm-bp1wjjf373l7t331v
+      endpoint_internal: rm-bp1wjjf373l7t331v.mysql.rds.aliyuncs.com
+      endpoint_public: rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com
+      endpoint_application: internal
+      database: app_dev
+      user: app_dev
+      charset: utf8mb4
+      engine_version: "8.0.28"
       whitelist_group: dev-ecs
       whitelist_ip: "172.21.226.38/32"
+      whitelist_status: confirmed
+      status: operational
+      accepted_at: "2026-06-15"
+      prod_isolation_verified: true
+      acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
     oss:
       buckets:
         - name: yzx-file-storage
@@ -103,6 +114,11 @@ host:
     hub_peer: ci-01
     hub_peer_wg_ip: "10.200.0.2"
     acceptance_ref: docs/acceptance/20260614-阶段F-WireGuard验收报告.md
+
+  rds_dev:
+    status: operational
+    database: app_dev
+    acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
 
   ansible:
     inventory: ansible/inventories/dev/

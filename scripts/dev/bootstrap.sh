@@ -122,15 +122,27 @@ resolve_rds_host_for_verify() {
   echo "$rds_host"
 }
 
+# Bootstrap verify 使用的 Docker smoke 镜像（见 group_vars/bootstrap.yml）
+resolve_docker_smoke_image() {
+  local img
+  img="$(host_var bootstrap_docker_smoke_image 2>/dev/null || true)"
+  if is_valid_inventory_value "$img"; then
+    echo "$img"
+  else
+    echo "hello-world"
+  fi
+}
+
 run_verify_checks() {
   local rds_host="${1:-}"
   local docker_install="${2:-true}"
+  local smoke_image="${3:-hello-world}"
   timedatectl | grep -q 'Time zone: Asia/Shanghai'
   id deploy >/dev/null
   id jump_ops >/dev/null
   if [[ "$docker_install" == "true" ]]; then
     if [[ -f /var/run/docker.sock ]] || command -v docker >/dev/null 2>&1; then
-      docker run --rm hello-world >/dev/null
+      docker run --rm "$smoke_image" >/dev/null
     fi
   fi
   test -d /opt/app/compose || test -d /opt/mgmt
@@ -180,16 +192,18 @@ apply() {
 }
 
 verify() {
-  local host_ip user rds_host docker_install rds_verify
+  local host_ip user rds_host docker_install rds_verify smoke_image
   host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
   user="$(resolve_ansible_user "$INVENTORY" "$LIMIT")"
   rds_verify="$(resolve_rds_verify)"
   rds_host="$(resolve_rds_host_for_verify)"
   docker_install="$(resolve_docker_install)"
+  smoke_image="$(resolve_docker_smoke_image)"
 
   if is_colocated_target "$host_ip"; then
     echo "Colocated verify on ${host_ip} (docker_install=${docker_install}, rds_verify=${rds_verify})"
-    run_verify_checks "$rds_host" "$docker_install"
+    echo "Docker smoke image: ${smoke_image}"
+    run_verify_checks "$rds_host" "$docker_install" "$smoke_image"
     return 0
   fi
 
@@ -197,18 +211,20 @@ verify() {
   if [[ -n "$rds_host" ]]; then
     echo "RDS check: ${rds_host}:3306"
   fi
+  echo "Docker smoke image: ${smoke_image}"
   # docker_install 必须在前：SSH 会丢弃空 positional arg；若 rds_host 为空而 docker_install 在后，
   # 远程 bash 会把 "false"/"true" 当成 $1（rds_host），误触发 nc。
-  ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$docker_install" "$rds_host" <<'REMOTE'
+  ssh "${SSH_OPTS[@]}" "${user}@${host_ip}" bash -s "$docker_install" "$rds_host" "$smoke_image" <<'REMOTE'
 set -euo pipefail
 docker_install="${1:-true}"
 rds_host="${2:-}"
+smoke_image="${3:-hello-world}"
 timedatectl | grep -q 'Time zone: Asia/Shanghai'
 id deploy >/dev/null
 id jump_ops >/dev/null
 if [[ "$docker_install" == "true" ]]; then
   if command -v docker >/dev/null 2>&1; then
-    docker run --rm hello-world >/dev/null
+    docker run --rm "$smoke_image" >/dev/null
   fi
 fi
 test -d /opt/app/compose || test -d /opt/mgmt
