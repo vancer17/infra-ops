@@ -35,8 +35,10 @@
 #     --vault-password-file .vault_pass
 #
 # 【成功后】
-#   手动更新 wireguard.yml：enabled: true, status: server_up
-#   再执行 wireguard-peer.yml 使 ci-01 握手 → status: operational
+#   正式 apply 后更新 inventory（阶段 F1 已完成 2026-06-14）：
+#     wireguard.enabled: true
+#     wireguard.status: server_up
+#   F2 握手成功后：wireguard.status: operational
 #
 # 【变量来源】
 #   inventories/mgmt/group_vars/all/wireguard.yml

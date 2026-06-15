@@ -154,12 +154,19 @@ for host_name in "${mgmt_hosts[@]}"; do
   wg_status="$(resolved_host_var "${host_name}" "wireguard.status")"
   ci_log "  ${host_name}: wireguard.enabled=${wireguard_enabled:-<unset>} status=${wg_status:-<unset>}"
 
-  if [[ "${wg_status}" == "keys_ready" ]]; then
+  if [[ "${wg_status}" == "keys_ready" || "${wg_status}" == "server_up" || "${wg_status}" == "operational" ]]; then
     hub_pub="$(resolved_host_var "${host_name}" "wireguard.hub_public_key")"
     if [[ -z "${hub_pub}" || "${hub_pub}" == "null" ]]; then
-      ci_die "host ${host_name}: wireguard.status=keys_ready 但 hub_public_key 为空"
+      ci_die "host ${host_name}: wireguard.status=${wg_status} 但 hub_public_key 为空"
     fi
-    ci_log "  ${host_name}: wireguard keys_ready hub_public_key present OK"
+    ci_log "  ${host_name}: wireguard ${wg_status} hub_public_key present OK"
+  fi
+
+  if [[ "${wg_status}" == "server_up" || "${wg_status}" == "operational" ]]; then
+    if [[ "${wireguard_enabled}" != "true" ]]; then
+      ci_die "host ${host_name}: wireguard.status=${wg_status} 但 wireguard.enabled 不为 true"
+    fi
+    ci_log "  ${host_name}: wireguard.enabled=true OK (Hub Server 已登记)"
   fi
 done
 

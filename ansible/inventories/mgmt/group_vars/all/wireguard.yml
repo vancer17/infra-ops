@@ -1,10 +1,14 @@
 # =============================================================================
-# Ansible Inventory 变量：WireGuard 隧道规划（阶段 E 密钥已完成）
+# Ansible Inventory 变量：WireGuard 隧道规划（阶段 F1 Hub Server 已部署）
 # =============================================================================
 #
 # 【状态】
-#   wireguard.status: keys_ready — Hub/ci-01 密钥与 vault 已建立；Server 未安装（阶段 F）
-#   wireguard.enabled: false     — wireguard role 在阶段 F apply 时改为 true
+#   wireguard.status: server_up — Hub wg0 已监听 51820；Peer 尚未握手（待 F2 wireguard-peer）
+#   wireguard.enabled: true      — wireguard-hub.yml 已于 2026-06-14 apply 成功
+#
+# 【勿提前切换】
+#   ci_connectivity.access_mode 仍为 public（network.yml）；握手成功后再改 wireguard
+#   network_phase 仍为 bootstrap（main.yml / registry.yaml）
 #
 # 【与 wireguard_keys.yml / wireguard_vault.yml 分工】
 #   本文件     → 地址、端口、Peer 公钥、Hub 公钥（可提交 Git）
@@ -42,8 +46,8 @@ wireguard_peer_model:
 # wireguard — Server 接口参数
 # -----------------------------------------------------------------------------
 wireguard:
-  # false = 不安装 wg0；阶段 F playbook 成功后改为 true
-  enabled: false
+  # true = Hub 已安装 wg0（wireguard-hub.yml apply 完成）
+  enabled: true
 
   interface: wg0
 
@@ -57,10 +61,11 @@ wireguard:
 
   ip_forward: true
 
-  # not_started → keys_ready（阶段 E）→ server_up（阶段 F Hub apply）→ operational（Peer 握手）
-  status: keys_ready
+  # not_started → keys_ready（阶段 E）→ server_up（阶段 F1）→ operational（F2 握手）
+  status: server_up
 
   keys_ready_at: "2026-06-14"
+  server_up_at: "2026-06-14"
 
 # -----------------------------------------------------------------------------
 # wireguard_peers_planned — Hub [Peer] 规划（公钥可提交 Git；私钥在 keys/*.private）
