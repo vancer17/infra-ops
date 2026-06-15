@@ -61,7 +61,28 @@ export ANSIBLE_INVENTORY="$INVENTORY"
 export ANSIBLE_LIMIT="$LIMIT"
 export ANSIBLE_PRIVATE_KEY_FILE="$PRIVATE_KEY"
 
-hub_host="$(resolve_ansible_host)"
+# mgmt inventory 含 wireguard_vault.yml（ansible-vault 加密）；未设置则无法渲染 ansible_host
+if [[ -z "${ANSIBLE_VAULT_PASSWORD_FILE:-}" && -f "${ROOT}/.vault_pass" ]]; then
+  export ANSIBLE_VAULT_PASSWORD_FILE="${ROOT}/.vault_pass"
+fi
+
+# 控制台指引用；inventory 解析失败时回退 Hub 私网（与 network.yml 一致）
+HUB_HOST_FALLBACK="172.21.127.123"
+
+resolve_hub_host() {
+  local host
+  if host="$(resolve_ansible_host 2>/dev/null)" && [[ -n "$host" ]]; then
+    printf '%s' "$host"
+    return 0
+  fi
+  if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+    echo "ERROR: cannot resolve ansible_host for ${LIMIT} (inventory: ${INVENTORY})" >&2
+    echo "       Run: ansible localhost -i ${INVENTORY} -m debug -a \"var=hostvars['${LIMIT}'].ansible_host\" -e ansible_connection=local" >&2
+    return 1
+  fi
+  echo "WARN: set ANSIBLE_VAULT_PASSWORD_FILE or ${ROOT}/.vault_pass for inventory resolve; using ${HUB_HOST_FALLBACK}" >&2
+  printf '%s' "$HUB_HOST_FALLBACK"
+}
 
 print_console_instructions() {
   cat <<EOF
@@ -93,9 +114,12 @@ EOF
 }
 
 if [[ "$CONSOLE_ONLY" == "true" ]]; then
+  hub_host="$(resolve_hub_host)"
   print_console_instructions
   exit 0
 fi
+
+hub_host="$(resolve_hub_host)"
 
 echo "[apply-hub-deploy-sudo] target: deploy@${hub_host} (limit=${LIMIT})"
 
@@ -113,6 +137,7 @@ echo "[apply-hub-deploy-sudo] Applying sudo_mgmt via Ansible (idempotent)..."
 ansible-playbook "$PLAYBOOK" \
   -i "$INVENTORY" \
   --limit "$LIMIT" \
-  --tags sudo_mgmt
+  --tags sudo_mgmt \
+  ${ANSIBLE_VAULT_PASSWORD_FILE:+--vault-password-file "$ANSIBLE_VAULT_PASSWORD_FILE"}
 
 echo "[apply-hub-deploy-sudo] OK — you can run wireguard-hub.yml"
