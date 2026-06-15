@@ -37,7 +37,7 @@ hub_docker:
   enabled: true
 
   # not_started | operational
-  status: not_started
+  status: operational
 
   # 消费者：hub-g3-docker.yml post_tasks、inventory-check-mgmt.sh
   smoke_image: "{{ bootstrap_docker_smoke_image }}"

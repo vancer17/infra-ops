@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-15"
+updated_at: "2026-06-17"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -202,8 +202,10 @@ hosts:
     hub_nginx_operational_at: "2026-06-15"
     hub_internal_dns_status: operational
     hub_internal_dns_operational_at: "2026-06-16"
+    hub_docker_status: operational
+    hub_docker_operational_at: "2026-06-17"
     hub_security_group_rules: docs/security-groups/hub-wg.rules.yaml
-    note: "F2-5 + F3-1 已验收；G0/G1/G2 operational；下一步 G3 JumpServer"
+    note: "F2-5 + F3-1 已验收；G0/G1/G2/G3 operational；下一步 JumpServer Compose（G3+1）"
 
   ci-01:
     asset_file: ci-01.yaml
