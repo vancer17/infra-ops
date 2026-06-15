@@ -87,6 +87,7 @@
     # post_tasks 在 handlers 之前执行；先 flush 使 reload 生效，再验收运行中配置
     - name: Flush handlers so post_tasks verify running Nginx configuration
       ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
       tags: [nginx, nginx-hub]
 
   post_tasks:
