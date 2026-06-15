@@ -217,7 +217,7 @@ fi
 # -----------------------------------------------------------------------------
 mapfile -t wg_peer_hosts < <(
   ci_cd ansible wireguard_peers -i "${MGMT_INVENTORY}" --list-hosts 2>/dev/null \
-    | awk '/^[[:space:]]+[a-zA-Z0-9_-]+/ { print $1 }' \
+    | awk '/^[[:space:]]+[a-zA-Z0-9_-]+/ && !/\(/ { print $1 }' \
     | sort -u
 )
 
