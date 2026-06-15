@@ -75,7 +75,9 @@ wireguard_peers_planned:
     wg_ip: "10.200.0.2"
     public_key: X5SImX/WSFZeC5afnZSY2Q7DAYDp17CeRf/dX76jM0s=
     hub_peer: true
-    note: "CI 控制机 + 与 dev-01 同 ECS；阶段 F 首个 ECS Client Peer"
+    allowed_ips: "10.200.0.0/16"
+    persistent_keepalive: 25
+    note: "CI 控制机 + 与 dev-01 同 ECS；阶段 F2 wireguard-peer.yml"
 
   - name: dev-01
     wg_ip: "10.200.1.1"

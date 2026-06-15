@@ -1,0 +1,22 @@
+# Managed by infra-ops — ci-01 deploy WireGuard client (stage F2)
+# Scope: wireguard-tools only; does not replace docker sudo in deploy
+# Source: roles/wireguard/files/deploy-wireguard.sudoers
+# Apply: ./scripts/mgmt/apply-ci-wireguard-sudo.sh --console
+Cmnd_Alias WG_BIN = /usr/bin/wg, /usr/bin/wg-quick
+Cmnd_Alias WG_SYSTEMD = /bin/systemctl start wg-quick@wg0, \
+                        /bin/systemctl stop wg-quick@wg0, \
+                        /bin/systemctl restart wg-quick@wg0, \
+                        /bin/systemctl enable wg-quick@wg0, \
+                        /bin/systemctl disable wg-quick@wg0, \
+                        /bin/systemctl status wg-quick@wg0, \
+                        /bin/systemctl is-active wg-quick@wg0, \
+                        /bin/systemctl is-enabled wg-quick@wg0
+# 写 Client 配置（仅允许该固定路径）
+Cmnd_Alias WG_CONFIG = /usr/bin/tee /etc/wireguard/wg0.conf, \
+                       /usr/bin/chmod 600 /etc/wireguard/wg0.conf, \
+                       /usr/bin/chmod 700 /etc/wireguard, \
+                       /usr/bin/mkdir -p /etc/wireguard, \
+                       /usr/bin/install -d -m 700 /etc/wireguard
+deploy ALL=(ALL) NOPASSWD: WG_BIN
+deploy ALL=(ALL) NOPASSWD: WG_SYSTEMD
+deploy ALL=(ALL) NOPASSWD: WG_CONFIG

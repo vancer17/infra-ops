@@ -50,7 +50,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
         yamllint shellcheck ansible-lint ansible-syntax \
         docker-validate secret-scan \
         wg-keys-check wg-keys-list stage-f-preflight stage-e-preflight control-plane-setup \
-        apply-hub-deploy-sudo
+        apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
 # -----------------------------------------------------------------------------
 # help — 默认目标；make 无参数时显示可用命令
@@ -76,8 +76,9 @@ help:
 	@echo "  make wg-keys-check   Check wg/ansible-vault deps"
 	@echo "  make wg-keys-list    List hub/peer key files status"
 	@echo "  See: docs/wireguard/wg-keys.runbook.md"
-	@echo "  Stage F: make stage-f-preflight  (before wireguard-hub.yml)"
+	@echo "  Stage F: make stage-f-preflight  (before wireguard-hub.yml / wireguard-peer.yml)"
 	@echo "  Hub sudo: make apply-hub-deploy-sudo  (fix Missing sudo password)"
+	@echo "  CI WG sudo: make apply-ci-wireguard-sudo  (F2 deploy-wireguard on ci-01)"
 	@echo ""
 	@echo "Individual checks (same as CI jobs):"
 	@echo "  make yamllint       YAML format (.yamllint.yml)"
@@ -181,6 +182,9 @@ stage-f-preflight:
 
 apply-hub-deploy-sudo:
 	bash "$(SCRIPTS_MGMT)/apply-hub-deploy-sudo.sh"
+
+apply-ci-wireguard-sudo:
+	bash "$(SCRIPTS_MGMT)/apply-ci-wireguard-sudo.sh"
 
 # -----------------------------------------------------------------------------
 # control-plane-setup — 修正 ci-01 控制面 bashrc（黄灯 1）
