@@ -10,6 +10,9 @@
 # 【执行位置】
 #   仅 yax（ci-01）上以 deploy 用户运行；需 infra-ci-deploy 私钥。
 #
+# 【注意】
+#   本脚本始终使用 mgmt inventory，不继承 shell 中的 ANSIBLE_INVENTORY。
+#
 # 【用法】
 #   ./scripts/mgmt/verify-hub-remote.sh
 #   ./scripts/mgmt/verify-hub-remote.sh hub-01
@@ -23,10 +26,10 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 source "${ROOT}/scripts/dev/lib/inventory-resolve.sh"
 
 LIMIT="${1:-hub-01}"
-INVENTORY="${ANSIBLE_INVENTORY:-${ROOT}/ansible/inventories/mgmt/}"
+MGMT_INVENTORY="${ROOT}/ansible/inventories/mgmt/"
 PRIVATE_KEY="${ANSIBLE_PRIVATE_KEY_FILE:-${ROOT}/ansible/keys/infra-ci-deploy}"
 
-export ANSIBLE_INVENTORY="$INVENTORY"
+export ANSIBLE_INVENTORY="${MGMT_INVENTORY}"
 export ANSIBLE_LIMIT="$LIMIT"
 
 usage() {
@@ -34,8 +37,8 @@ usage() {
 Usage: $(basename "$0") [hub-01]
 
 Environment:
-  ANSIBLE_INVENTORY          默认 ansible/inventories/mgmt/
   ANSIBLE_PRIVATE_KEY_FILE   默认 ansible/keys/infra-ci-deploy
+  ANSIBLE_VAULT_PASSWORD_FILE  解析 ansible_host 时需 .vault_pass
 
 Prerequisite:
   ./scripts/dev/setup-control-plane-env.sh all
@@ -51,7 +54,7 @@ main() {
   }
 
   local host_ip
-  host_ip="$(resolve_ansible_host "$INVENTORY" "$LIMIT")" || exit 1
+  host_ip="$(resolve_ansible_host "${MGMT_INVENTORY}" "${LIMIT}")" || exit 1
   echo "[verify-hub] SSH deploy@${host_ip} (limit=${LIMIT})"
 
   ssh -i "$PRIVATE_KEY" \

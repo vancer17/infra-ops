@@ -8,6 +8,9 @@
 #   mgmt/bootstrap.yml 中 sudo_mgmt: true 由 common/users.yml 写入
 #   /etc/sudoers.d/deploy；若 Hub 已在 steady 且无 sudo，Ansible 无法自举。
 #
+# 【注意】
+#   本脚本始终使用 mgmt inventory，不继承 shell 中的 ANSIBLE_INVENTORY。
+#
 # 【用法】
 #   ./scripts/mgmt/apply-hub-deploy-sudo.sh              # 检测 + 尝试 Ansible
 #   ./scripts/mgmt/apply-hub-deploy-sudo.sh --console    # 仅打印阿里云工作台命令
@@ -20,7 +23,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-INVENTORY="${ANSIBLE_INVENTORY:-${ROOT}/ansible/inventories/mgmt/}"
+MGMT_INVENTORY="${ROOT}/ansible/inventories/mgmt/"
 LIMIT="${ANSIBLE_LIMIT:-hub-01}"
 PRIVATE_KEY="${ANSIBLE_PRIVATE_KEY_FILE:-${ROOT}/ansible/keys/infra-ci-deploy}"
 PLAYBOOK="${ROOT}/ansible/playbooks/bootstrap.yml"
@@ -57,7 +60,7 @@ done
 # shellcheck source=scripts/dev/lib/inventory-resolve.sh
 source "${ROOT}/scripts/dev/lib/inventory-resolve.sh"
 
-export ANSIBLE_INVENTORY="$INVENTORY"
+export ANSIBLE_INVENTORY="${MGMT_INVENTORY}"
 export ANSIBLE_LIMIT="$LIMIT"
 export ANSIBLE_PRIVATE_KEY_FILE="$PRIVATE_KEY"
 
@@ -71,13 +74,13 @@ HUB_HOST_FALLBACK="172.21.127.123"
 
 resolve_hub_host() {
   local host
-  if host="$(resolve_ansible_host 2>/dev/null)" && [[ -n "$host" ]]; then
+  if host="$(resolve_ansible_host "${MGMT_INVENTORY}" "${LIMIT}" 2>/dev/null)" && [[ -n "$host" ]]; then
     printf '%s' "$host"
     return 0
   fi
   if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
-    echo "ERROR: cannot resolve ansible_host for ${LIMIT} (inventory: ${INVENTORY})" >&2
-    echo "       Run: ansible localhost -i ${INVENTORY} -m debug -a \"var=hostvars['${LIMIT}'].ansible_host\" -e ansible_connection=local" >&2
+    echo "ERROR: cannot resolve ansible_host for ${LIMIT} (inventory: ${MGMT_INVENTORY})" >&2
+    echo "       Run: ansible localhost -i ${MGMT_INVENTORY} -m debug -a \"var=hostvars['${LIMIT}'].ansible_host\" -e ansible_connection=local" >&2
     return 1
   fi
   echo "WARN: set ANSIBLE_VAULT_PASSWORD_FILE or ${ROOT}/.vault_pass for inventory resolve; using ${HUB_HOST_FALLBACK}" >&2
@@ -135,7 +138,7 @@ fi
 
 echo "[apply-hub-deploy-sudo] Applying sudo_mgmt via Ansible (idempotent)..."
 ansible-playbook "$PLAYBOOK" \
-  -i "$INVENTORY" \
+  -i "${MGMT_INVENTORY}" \
   --limit "$LIMIT" \
   --tags sudo_mgmt \
   ${ANSIBLE_VAULT_PASSWORD_FILE:+--vault-password-file "$ANSIBLE_VAULT_PASSWORD_FILE"}
