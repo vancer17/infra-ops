@@ -61,5 +61,6 @@ Peer 公钥
 
 ## 相关文档
 
+- [办公笔记本 WG Client 接入指南（分发给同事）](../../../docs/wireguard/办公笔记本-WG-Client-接入指南.md)
 - [docs/wireguard/wg-keys.runbook.md](../../../docs/wireguard/wg-keys.runbook.md)
 - [inventories/mgmt/group_vars/all/wireguard_keys.yml](../../inventories/mgmt/group_vars/all/wireguard_keys.yml)
