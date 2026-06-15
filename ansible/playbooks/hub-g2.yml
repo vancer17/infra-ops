@@ -129,7 +129,9 @@
           Host: jms.internal
       register: hub_g2_jms_status
       changed_when: false
-      failed_when: "'deploy_status' not in (hub_g2_jms_status.content | default(''))"
+      failed_when: >-
+        hub_g2_jms_status.json.deploy_status | default('')
+        != (nginx.jumpserver.deploy_status | default('pending'))
       when: not ansible_check_mode
       tags: [hub-g2, verify, nginx]
 
