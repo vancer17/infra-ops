@@ -18,7 +18,7 @@
 #   原 Hub 恢复后：更新 registry.yaml replacements，迁移 WG 配置，勿直接删除本文件历史。
 #
 #   阶段 F1（2026-06-14）：wireguard-hub.yml apply 完成 → wireguard_status: server_up
-#   阶段 F2 待办：ci-01 Client 握手 → operational
+#   阶段 F2（2026-06-14）：wireguard-peer.yml on ci-01 + 握手验收 → operational
 #
 # =============================================================================
 
@@ -107,7 +107,7 @@ host:
     bootstrap_status: ssh_done
     bootstrap_completed_at: "2026-06-14"
     bootstrap_control_host: ci-01
-    wireguard_status: server_up
+    wireguard_status: operational
     wireguard_keys_ready_at: "2026-06-14"
     wireguard_server_status: installed
     wireguard_server_installed_at: "2026-06-14"
@@ -125,12 +125,12 @@ host:
       verify_peer_ci_01: ok
       vault_encrypted: ok
       gitleaks: ok
-    pending_stage_f:
-      - console_udp_51820_verified
+    pending_stage_f: []
     completed_stage_f1:
       - hub_install_wireguard_package
       - hub_ip_forward
       - hub_wg0_listen_51820
+      - console_udp_51820_verified
 
   # 阶段 F1 Hub Server 验收（2026-06-14，ci-01 wireguard-hub.yml apply + SSH 复核）
   wireguard_server:
@@ -147,10 +147,24 @@ host:
       wg_show: ok
       udp_51820_listen: ok
       wg0_address: ok
-    pending_stage_f2:
+      ci_01_handshake: ok
+    completed_stage_f2:
       - wireguard_peer_ci_01
       - handshake_ci_01
       - wireguard_status_operational
+
+  # 阶段 F2 Hub↔CI 握手验收（2026-06-14，ci-01 console-acceptance.log）
+  wireguard_peer_ci_01:
+    completed_at: "2026-06-14"
+    peer: ci-01
+    peer_wg_ip: "10.200.0.2"
+    peer_endpoint: "121.41.58.20"
+    checks:
+      ci_wg_handshake: ok
+      ci_ping_hub_wg: ok
+      ci_ssh_hub_via_wg: ok
+      hub_sees_ci_endpoint: ok
+      route_10_200_0_0_16: ok
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   verification:
