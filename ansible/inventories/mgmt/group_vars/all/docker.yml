@@ -43,7 +43,7 @@ hub_docker:
   smoke_image: "{{ bootstrap_docker_smoke_image }}"
 
   jumpserver:
-    # JumpServer 官方 Compose 项目根（G3+1 阶段放置 docker-compose.yml）
+    # JumpServer Compose 项目根（G4 hub-g4-jumpserver.yml 放置 docker-compose.yml）
     project_dir: /opt/mgmt/jumpserver
     data_dir: /opt/mgmt/jumpserver/data
     static_dir: /opt/mgmt/jumpserver/static

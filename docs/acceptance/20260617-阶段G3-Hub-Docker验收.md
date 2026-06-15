@@ -79,4 +79,4 @@ ansible-playbook ansible/playbooks/hub-g3-docker.yml \
 
 ## 六、下一步
 
-JumpServer Compose 部署（G3+1）→ `nginx.jumpserver.deploy_status: ready`
+JumpServer Compose 部署（G4：`hub-g4-jumpserver.yml`）→ `nginx.jumpserver.deploy_status: ready`

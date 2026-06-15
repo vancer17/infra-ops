@@ -1,0 +1,22 @@
+# =============================================================================
+# Ansible Vault 示例：JumpServer 密钥（明文结构参考 — 勿直接提交本文件）
+# =============================================================================
+#
+# 【如何使用】
+#   ./scripts/mgmt/jumpserver-vault-init.sh
+#   生成已加密的 jumpserver_vault.yml（同目录，无 .example 后缀）
+#
+# 【解密查看】
+#   ansible-vault view ansible/inventories/mgmt/group_vars/all/jumpserver_vault.yml \
+#     --vault-password-file .vault_pass
+#
+# 【消费者】
+#   jumpserver role → templates/env.j2 → /opt/mgmt/jumpserver/.env
+#
+# =============================================================================
+
+jumpserver_vault:
+  secret_key: "REPLACE_WITH_RANDOM_50_CHARS"
+  bootstrap_token: "REPLACE_WITH_RANDOM_24_CHARS"
+  key_version: 1
+  generated_by: jumpserver-vault-init.sh

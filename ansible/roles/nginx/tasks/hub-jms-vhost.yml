@@ -1,0 +1,56 @@
+# =============================================================================
+# nginx role — 仅刷新 JumpServer vhost（阶段 G4）
+# =============================================================================
+#
+# 在 JumpServer 监听 127.0.0.1:8080 后，将 deploy_status 设为 ready 并重载
+# jms.internal 反代配置（替代 G2 维护页 503）。
+#
+# 调用方式（hub-g4-jumpserver.yml）：
+#   vars: nginx_jumpserver_deploy_status: ready
+#
+# =============================================================================
+
+---
+
+- name: Deploy JumpServer upstream status JSON (ready)
+  ansible.builtin.template:
+    src: jms-status.json.j2
+    dest: "{{ nginx_infra_ops_www_root }}/jms-status.json"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  tags: [nginx, nginx-jms-vhost]
+
+- name: Deploy JumpServer reverse proxy site (proxy mode)
+  ansible.builtin.template:
+    src: hub-jms.conf.j2
+    dest: "{{ nginx_sites_available_dir }}/hub-internal-jms.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  tags: [nginx, nginx-jms-vhost]
+
+- name: Stat JumpServer proxy site configuration for enablement
+  ansible.builtin.stat:
+    path: "{{ nginx_sites_available_dir }}/hub-internal-jms.conf"
+  register: hub_jms_vhost_site_stat
+  tags: [nginx, nginx-jms-vhost]
+
+- name: Enable JumpServer reverse proxy site
+  ansible.builtin.file:
+    src: "{{ nginx_sites_available_dir }}/hub-internal-jms.conf"
+    dest: "{{ nginx_sites_enabled_dir }}/hub-internal-jms.conf"
+    state: link
+  when: hub_jms_vhost_site_stat.stat.exists | default(false)
+  notify: Reload nginx
+  tags: [nginx, nginx-jms-vhost]
+
+- name: Verify Nginx configuration syntax after JumpServer vhost refresh
+  ansible.builtin.command: nginx -t
+  register: nginx_jms_syntax_check
+  changed_when: false
+  failed_when: nginx_jms_syntax_check.rc != 0
+  when: not ansible_check_mode
+  tags: [nginx, nginx-jms-vhost, verify]

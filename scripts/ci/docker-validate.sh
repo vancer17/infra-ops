@@ -61,7 +61,19 @@ for label in jumpserver/docker-compose.yml monitoring/docker-compose.yml; do
   fi
 
   ci_log "Validating compose: ${label}"
+  compose_dir="$(dirname "${compose_file}")"
+  temp_env=false
+  if [[ "${label}" == "jumpserver/docker-compose.yml" ]] \
+    && [[ ! -f "${compose_dir}/.env" ]] \
+    && [[ -f "${compose_dir}/.env.example" ]]; then
+    cp "${compose_dir}/.env.example" "${compose_dir}/.env"
+    temp_env=true
+    ci_log "  using ${compose_dir}/.env.example as temporary .env for config validation"
+  fi
   docker compose -f "${compose_file}" config >/dev/null
+  if [[ "${temp_env}" == "true" ]]; then
+    rm -f "${compose_dir}/.env"
+  fi
   validated=$((validated + 1))
 done
 

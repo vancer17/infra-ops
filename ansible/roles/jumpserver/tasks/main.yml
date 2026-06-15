@@ -1,0 +1,115 @@
+# =============================================================================
+# jumpserver role — 主任务
+# =============================================================================
+#
+# 在 Hub 上部署 JumpServer jms_all（Docker Compose），监听 127.0.0.1:8080。
+# 前提：hub-g3-docker.yml 已完成（deploy ∈ docker 组，目录已创建）。
+#
+# =============================================================================
+
+---
+
+- name: Assert JumpServer is enabled in inventory
+  ansible.builtin.assert:
+    that:
+      - jumpserver_enabled | bool
+    fail_msg: "Set jumpserver.enabled=true in group_vars/all/jumpserver.yml"
+  tags: [jumpserver, preflight]
+
+- name: Assert JumpServer vault secrets are defined
+  ansible.builtin.assert:
+    that:
+      - jumpserver_secret_key | length >= 32
+      - jumpserver_bootstrap_token | length >= 16
+    fail_msg: >-
+      Run ./scripts/mgmt/jumpserver-vault-init.sh and apply with
+      --vault-password-file .vault_pass
+  tags: [jumpserver, preflight]
+
+- name: Ensure JumpServer project directory exists
+  ansible.builtin.file:
+    path: "{{ jumpserver_project_dir }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0755"
+  tags: [jumpserver, config]
+
+- name: Ensure JumpServer data directory exists
+  ansible.builtin.file:
+    path: "{{ jumpserver_data_volume_host_path }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0750"
+  tags: [jumpserver, config]
+
+- name: Deploy JumpServer environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ jumpserver_project_dir }}/.env"
+    owner: deploy
+    group: deploy
+    mode: "0600"
+  tags: [jumpserver, config]
+
+- name: Deploy JumpServer Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ jumpserver_project_dir }}/docker-compose.yml"
+    owner: deploy
+    group: deploy
+    mode: "0644"
+  tags: [jumpserver, config]
+
+- name: Pull and start JumpServer stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ jumpserver_project_dir }}"
+    state: present
+    pull: always
+    recreate: auto
+  become: true
+  become_user: deploy
+  register: jumpserver_compose
+  when: not ansible_check_mode
+  tags: [jumpserver, compose]
+
+- name: Preview JumpServer Compose deployment (check mode)
+  ansible.builtin.debug:
+    msg: >-
+      check mode: would deploy {{ jumpserver_image }} to {{ jumpserver_project_dir }}
+      publishing {{ jumpserver_http_publish_host }}:{{ jumpserver_http_publish_port }}
+  when: ansible_check_mode
+  tags: [jumpserver, compose]
+
+- name: Wait for JumpServer HTTP endpoint on loopback
+  ansible.builtin.uri:
+    url: "{{ jumpserver_health_url }}"
+    status_code: "{{ jumpserver_health_status_codes }}"
+    follow_redirects: none
+  register: jumpserver_health
+  until: jumpserver_health is succeeded
+  retries: "{{ jumpserver_health_retries }}"
+  delay: "{{ jumpserver_health_delay }}"
+  when: not ansible_check_mode
+  tags: [jumpserver, verify]
+
+- name: Show JumpServer container status
+  ansible.builtin.command:
+    cmd: docker ps --filter "name={{ jumpserver_container_name }}"
+  become: true
+  become_user: deploy
+  register: jumpserver_ps
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [jumpserver, verify]
+
+- name: JumpServer deployment summary
+  ansible.builtin.debug:
+    msg:
+      - "JumpServer image: {{ jumpserver_image }}"
+      - "Listen: {{ jumpserver_http_publish_host }}:{{ jumpserver_http_publish_port }}"
+      - "Container: {{ jumpserver_ps.stdout | default('skipped in check mode') }}"
+      - "Next: hub-g4 playbook refreshes Nginx vhost; commit jumpserver.status=operational and nginx.jumpserver.deploy_status=ready"
+      - "Web: https://jms.internal/ (via Hub Nginx, WG only)"
+  tags: [jumpserver, verify]

@@ -1,0 +1,150 @@
+# =============================================================================
+# Ansible Playbook：Hub 阶段 G4 — 部署 JumpServer Compose（jms_all）
+# =============================================================================
+#
+# 【用途】
+#   在 G3（Hub Docker）与 G2（Nginx jms.internal 预留）完成后：
+#     1. 部署 JumpServer jms_all 至 /opt/mgmt/jumpserver
+#     2. 监听 127.0.0.1:8080（供 Nginx 反代）
+#     3. 刷新 Nginx jms vhost（deploy_status=ready）
+#
+# 【前提】
+#   - hub_docker.status=operational
+#   - nginx.status=operational
+#   - jumpserver_vault.yml 已创建（./scripts/mgmt/jumpserver-vault-init.sh）
+#
+# 【执行位置】
+#   ci-01（yax）上以 deploy 用户运行。
+#
+# 【常用命令】
+#   make stage-g4-jumpserver-preflight
+#
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#   export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+#
+#   ansible-playbook ansible/playbooks/hub-g4-jumpserver.yml \
+#     -i ansible/inventories/mgmt/ \
+#     --limit hub-01 \
+#     --vault-password-file .vault_pass
+#
+#   ./scripts/mgmt/verify-hub-jumpserver-remote.sh
+#
+# 【成功后】
+#   更新 group_vars：
+#     jumpserver.status=operational
+#     nginx.jumpserver.deploy_status=ready
+#   更新 docs/assets/hub-01.yaml lifecycle
+#
+# =============================================================================
+
+---
+- name: Deploy JumpServer Compose on Hub (stage G4)
+  hosts: mgmt_hub
+  become: true
+  gather_facts: true
+
+  vars:
+    nginx_jumpserver_deploy_status: ready
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "hub-g4-jumpserver requires Debian 12+"
+      tags: [hub-g4-jumpserver, preflight]
+
+    - name: Assert Hub Docker is operational before JumpServer deploy
+      ansible.builtin.assert:
+        that:
+          - hub_docker.enabled | default(false) | bool
+          - hub_docker.status | default('') == 'operational'
+          - docker_install | default(false) | bool
+        fail_msg: "Complete hub-g3-docker.yml before hub-g4-jumpserver"
+      tags: [hub-g4-jumpserver, preflight]
+
+    - name: Assert Hub Nginx is operational before JumpServer deploy
+      ansible.builtin.assert:
+        that:
+          - nginx.status | default('') == 'operational'
+          - nginx.enabled | default(false) | bool
+          - nginx_gateway | default(false) | bool
+        fail_msg: "Complete stage G1/G2 before hub-g4-jumpserver"
+      tags: [hub-g4-jumpserver, preflight]
+
+    - name: Assert Hub SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Hub must use deploy@ steady SSH"
+      tags: [hub-g4-jumpserver, preflight]
+
+    - name: Assert WireGuard is operational
+      ansible.builtin.assert:
+        that:
+          - wireguard.status | default('') == 'operational'
+        fail_msg: "Complete stage F before hub-g4-jumpserver"
+      tags: [hub-g4-jumpserver, preflight]
+
+    - name: Assert internal DNS is operational before JumpServer deploy
+      ansible.builtin.assert:
+        that:
+          - internal_dns.status | default('') == 'operational'
+          - internal_dns.enabled | default(false) | bool
+          - dns_gateway | default(false) | bool
+        fail_msg: "Complete hub-g2.yml before hub-g4-jumpserver"
+      tags: [hub-g4-jumpserver, preflight]
+
+    - name: Assert JumpServer gateway host flag
+      ansible.builtin.assert:
+        that:
+          - jumpserver_gateway | default(false) | bool
+          - jumpserver.enabled | default(false) | bool
+        fail_msg: "Set jumpserver_gateway and jumpserver.enabled on hub-01"
+      tags: [hub-g4-jumpserver, preflight]
+
+  tasks:
+    - name: Deploy JumpServer via Docker Compose
+      ansible.builtin.import_role:
+        name: jumpserver
+      tags: [hub-g4-jumpserver, jumpserver]
+
+    - name: Refresh Nginx JumpServer vhost to proxy mode
+      ansible.builtin.import_role:
+        name: nginx
+        tasks_from: hub-jms-vhost
+      tags: [hub-g4-jumpserver, nginx-jms-vhost]
+
+  post_tasks:
+    - name: Flush Nginx handlers after JumpServer vhost refresh
+      ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
+      tags: [hub-g4-jumpserver, nginx-jms-vhost]
+
+    - name: Verify jms.internal returns success via local Nginx
+      ansible.builtin.uri:
+        url: "https://127.0.0.1/"
+        validate_certs: false
+        status_code: [200, 302, 401]
+        headers:
+          Host: jms.internal
+      register: hub_g4_jms_https
+      retries: 5
+      delay: 5
+      until: hub_g4_jms_https is succeeded
+      when: not ansible_check_mode
+      tags: [hub-g4-jumpserver, verify]
+
+    - name: Hub G4 JumpServer deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "JumpServer deployed on {{ inventory_hostname }}"
+          - "Image: {{ jumpserver_image }}"
+          - "Upstream: {{ jumpserver_http_publish_host }}:{{ jumpserver_http_publish_port }}"
+          - "Nginx: jms.internal proxy mode (deploy_status=ready for this run)"
+          - "Verify: ./scripts/mgmt/verify-hub-jumpserver-remote.sh"
+          - "Update inventory: jumpserver.status=operational, nginx.jumpserver.deploy_status=ready"
+          - "Login: https://jms.internal/ user={{ jumpserver.default_admin_user | default('admin') }} (change default password)"
+      tags: [hub-g4-jumpserver, verify]
