@@ -15,6 +15,7 @@
 | **F2** | ci-01 WireGuard Client（`wireguard-peer.yml`）+ Hub↔CI 握手 | 通过 |
 | **F2-5** | `access_mode: wireguard`；Ansible 经 `10.200.0.1` 连 Hub | 通过 |
 | **F3-1** | 自动化检查（`stage-f-preflight`、`inventory-mgmt`、`secret-scan`） | 通过 |
+| **F3-2** | GitHub `ANSIBLE_VAULT_PASSWORD`（dev Environment）+ `wireguard-hub.yml --check --diff` | 通过 |
 
 **不在本期验收范围**：JumpServer、关公网 SSH（`network_phase: steady`）、GitHub Self-hosted Runner 注册、运维笔记本 Client 实机接入、dev-02/test-01 纳入 WG。
 
@@ -81,6 +82,31 @@ ci-01 / yax（10.200.0.2）─────────┼──→ Hub-01（10.2
 
 ---
 
+## 五之二、F3-2 GitHub Vault Secret 验收
+
+**日志**：`logs/console-acceptance.log`（`wireguard-hub.yml --check --diff`）
+
+| # | 检查项 | 结果 |
+|---|--------|------|
+| 1 | GitHub Environment `dev` → `ANSIBLE_VAULT_PASSWORD` | 已配置（与 ci-01 `.vault_pass` 一致） |
+| 2 | Vault 解密 `wireguard_vault.yml` | OK（Hub 私钥断言通过） |
+| 3 | `wireguard-hub.yml --check --diff` | `ok=15 changed=0 failed=0` |
+| 4 | 台账 | `ci-01.yaml` → `github_vault_password`；`registry.yaml` → `github_secrets` |
+
+**验证命令**（ci-01）：
+
+```bash
+export ANSIBLE_VAULT_PASSWORD_FILE=~/infra-ops/.vault_pass
+export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+ansible-playbook ansible/playbooks/wireguard-hub.yml \
+  -i ansible/inventories/mgmt/ --limit hub-01 \
+  --vault-password-file .vault_pass --check --diff
+```
+
+**说明**：`deploy.yml` 在 GitHub Actions 中写入 `.vault_pass` 后行为与上述本地 dry-run 一致；**Self-hosted Runner 注册**仍为可选后续，非本项阻塞。
+
+---
+
 ## 六、Inventory / 台账对齐
 
 | 文件 | 关键字段 |
@@ -90,7 +116,7 @@ ci-01 / yax（10.200.0.2）─────────┼──→ Hub-01（10.2
 | `main.yml` (mgmt) | `network_phase: wireguard` |
 | `registry.yaml` | `network_phase: wireguard` |
 | `hub-01.yaml` | `wireguard_status: operational`，`wireguard_server_status: installed` |
-| `ci-01.yaml` | `wireguard_status: operational`，`wireguard_client` 验收块 |
+| `ci-01.yaml` | `wireguard_status: operational`，`wireguard_client`、`github_vault_password` 验收块 |
 
 ---
 
@@ -100,8 +126,8 @@ ci-01 / yax（10.200.0.2）─────────┼──→ Hub-01（10.2
 |----|------|--------|
 | 公网 SSH 仍开放 | Bootstrap 安全组未收口；`network_phase` 仍为 `wireguard` 非 `steady` | 二期 |
 | Hub 与 Dev 共用 `sg-bp122tjy3h95um8kv4f9` | 仅 Hub 应监听 51820；建议迁移 `sg-hub-wg` | 二期 |
-| GitHub Runner | `runner_status: not_registered` | 握手后可选 |
-| `ANSIBLE_VAULT_PASSWORD` | 手工 playbook 用 `.vault_pass`；`deploy.yml` 前须配 Secret | 上 Runner 前 |
+| GitHub Runner | `runner_status: not_registered`；`deploy.yml` 所需 Secret 已齐 | 握手后可选 |
+| `ANSIBLE_VAULT_PASSWORD` | **已配置**（dev Environment）；本地 dry-run `wireguard-hub.yml --check` 通过 | — |
 | developer-laptop | Hub 已登记 Peer，笔记本 Client 未配置 | 可选 |
 | dev-02 Bootstrap + WG | `bootstrap_status: pending` | 后续 |
 | 应用层（dev-app） | 待业务栈确定 | 后续 |

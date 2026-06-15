@@ -78,9 +78,10 @@ host:
     configured:
       - ANSIBLE_SSH_PRIVATE_KEY
       - ANSIBLE_SSH_KNOWN_HOSTS
-    required_before_stage_f_deploy:
       - ANSIBLE_VAULT_PASSWORD
-    note: "VAULT 须与 ci-01 上 .vault_pass 一致；deploy.yml 解密 wireguard_vault.yml"
+    required_before_stage_f_deploy: []
+    environment: dev
+    note: "ANSIBLE_VAULT_PASSWORD 与 ci-01 .vault_pass 一致；deploy.yml 解密 wireguard_vault.yml"
 
   ssh_deploy_key:
     comment: "infra-ci-deploy@121.41.58.20"
@@ -105,7 +106,26 @@ host:
     ansible_private_key: ansible/keys/infra-ci-deploy
     vault_password_file: .vault_pass
     git_identity_note: "ci-01 上 commit 前须配置 git user.name / user.email（deploy 用户）"
-    note: "阶段 E 完成：setup-control-plane-env.sh all；wg-keys all-hub + vault-encrypt-hub"
+    note: "阶段 E 密钥 + GitHub ANSIBLE_VAULT_PASSWORD（dev Environment）已配置"
+
+  # GitHub ANSIBLE_VAULT_PASSWORD 验收（2026-06-14，logs/console-acceptance.log §wireguard-hub dry-run）
+  github_vault_password:
+    completed_at: "2026-06-14"
+    github_environment: dev
+    secret_name: ANSIBLE_VAULT_PASSWORD
+    local_file: .vault_pass
+    vault_encrypted_file: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml
+    deploy_workflow: .github/workflows/deploy.yml
+    checks:
+      local_vault_view: ok
+      github_secret_configured: ok
+      wireguard_hub_playbook_check_diff: ok
+    verification_command: |
+      ansible-playbook ansible/playbooks/wireguard-hub.yml \
+        -i ansible/inventories/mgmt/ --limit hub-01 \
+        --vault-password-file .vault_pass --check --diff
+    verification_result: "PLAY RECAP hub-01 ok=15 changed=0 failed=0"
+    pending: github_runner_registration_for_deploy_yml
 
   # 阶段 F2 ci-01 WireGuard Client 验收（2026-06-14，wireguard-peer.yml + console-acceptance.log）
   wireguard_client:
@@ -155,4 +175,6 @@ host:
       vault_view: ok
       secret_scan: ok
       stage_f_preflight: ok
-    conclusion: "阶段 F 最小组网验收通过；Runner / 笔记本 Client 为可选后续"
+      github_ansible_vault_password: ok
+      wireguard_hub_check_diff: ok
+    conclusion: "阶段 F 最小组网验收通过；GitHub VAULT 已配；Runner 注册为 deploy.yml 可选后续"
