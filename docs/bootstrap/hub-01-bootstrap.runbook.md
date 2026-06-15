@@ -169,9 +169,27 @@ REMOTE
 ## 下一步
 
 - 控制面环境：`./scripts/dev/setup-control-plane-env.sh all`
+- **deploy sudo（阶段 F 前置）**：`./scripts/mgmt/apply-hub-deploy-sudo.sh`
 - WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
 - WG Server：`ansible/playbooks/wireguard-hub.yml`（阶段 F；需 `--vault-password-file .vault_pass`）
 - 控制台确认 UDP 51820 已按 `dev-ecs-bootstrap.rules.yaml` IN-WG-* 添加
+
+## 阶段 F 前置：deploy 免密 sudo
+
+`wireguard-hub.yml` 使用 `become: true`。Hub 上 `deploy` 须能 `sudo -n`（`mgmt/bootstrap.yml` → `sudo_mgmt: true`）。
+
+**新 Hub**：在 `ssh-keys steady` **之前** 的 bootstrap 中会自动写入。
+
+**已 steady 且无 sudo 的 Hub**（会报 `Missing sudo password`）：
+
+```bash
+# ci-01 上
+./scripts/mgmt/apply-hub-deploy-sudo.sh          # 检测；失败则打印工作台命令
+./scripts/mgmt/apply-hub-deploy-sudo.sh --console # 仅打印 root 一次性命令
+
+# 控制台修复后再次执行（Ansible 幂等同步）：
+./scripts/mgmt/apply-hub-deploy-sudo.sh
+```
 
 ## 故障排查
 
@@ -179,6 +197,7 @@ REMOTE
 |------|------|
 | `--list-hosts` 无 hub-01 | 确认 `bootstrap.yml` 使用 `hosts: dev:mgmt` |
 | preflight SSH 失败 | 查 Hub 安全组是否放行 `172.21.226.38/32`；确认 `~/.ssh/config` 对 Hub IP 指定 `IdentityFile` |
+| `sudo: a password is required`（wireguard-hub / gather_facts） | Hub deploy 无免密 sudo；运行 `./scripts/mgmt/apply-hub-deploy-sudo.sh` |
 | `sudo: a password is required`（`delegate_to: localhost`） | 控制机 task 须 `become: false`；用 `deploy` 跑 Ansible 时**不要**在控制机 sudo。更新仓库后重新 `apply` |
 | verify 要求 docker | 确认 `mgmt/bootstrap.yml` 中 `docker_install: false` |
 | verify 报 RDS | 确认 `mgmt/bootstrap.yml` 中 `rds_verify: false` |

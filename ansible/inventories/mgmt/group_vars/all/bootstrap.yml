@@ -39,10 +39,16 @@ bootstrap_base_packages:
 
 # 操作系统账号（与 dev 保持一致，便于统一运维习惯）
 # Hub 首期无 Docker，deploy 不加 docker 组
+#
+# sudo_docker: false — Hub 不装 Docker，不写 docker 相关 sudoers
+# sudo_mgmt: true    — 管理面 deploy 须免密 sudo，供 wireguard-hub.yml 等 become: true
+#   新 Hub：在 ssh-keys steady **之前** bootstrap 即会写入（见 hub-01-bootstrap.runbook.md）
+#   已 steady 且无 sudo 的 Hub：一次性用 scripts/mgmt/apply-hub-deploy-sudo.sh
 bootstrap_users:
   deploy:
     groups: []
     sudo_docker: false
+    sudo_mgmt: true
   jump_ops:
     shell: /usr/sbin/nologin
 

@@ -76,6 +76,7 @@ bootstrap_users:
   deploy:
     groups: [docker]       # YAML 行内列表；等价于 groups: \n  - docker
     sudo_docker: true      # true 时写入 /etc/sudoers.d/deploy，仅允许 docker 相关命令
+    sudo_mgmt: false        # 应用节点不用全量 sudo；管理面 Hub 见 mgmt/bootstrap.yml
   jump_ops:
     shell: /usr/sbin/nologin
 

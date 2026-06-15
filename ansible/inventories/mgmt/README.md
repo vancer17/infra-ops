@@ -46,6 +46,9 @@ make inventory-mgmt
 ./scripts/wireguard/wg-keys.sh all-hub
 ./scripts/wireguard/wg-keys.sh vault-encrypt-hub
 
+# 阶段 F 前置：Hub deploy 免密 sudo
+./scripts/mgmt/apply-hub-deploy-sudo.sh
+
 # Bootstrap Hub（已完成 2026-06-14；日常用 deploy 密钥）
 export ANSIBLE_INVENTORY=ansible/inventories/mgmt/
 ansible hub-01 -m ping -u deploy --private-key=ansible/keys/infra-ci-deploy
