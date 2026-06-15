@@ -107,7 +107,15 @@
         name: deploy
         groups: docker
         append: true
+      register: hub_g3_deploy_docker_group
       when: not ansible_check_mode
+      tags: [hub-g3-docker, docker, users]
+
+    - name: Reset SSH connection after adding deploy to docker group
+      ansible.builtin.meta: reset_connection
+      when:
+        - not ansible_check_mode
+        - hub_g3_deploy_docker_group is changed
       tags: [hub-g3-docker, docker, users]
 
     - name: Preview deploy docker group membership (check mode)
@@ -154,13 +162,13 @@
       when: not ansible_check_mode
       tags: [hub-g3-docker, verify, docker]
 
-    - name: Run Docker smoke container as deploy user
+    - name: Run Docker smoke container as deploy user with docker group
       ansible.builtin.command:
         argv:
+          - sg
           - docker
-          - run
-          - --rm
-          - "{{ hub_docker.smoke_image | default(bootstrap_docker_smoke_image) }}"
+          - -c
+          - "docker run --rm {{ hub_docker.smoke_image | default(bootstrap_docker_smoke_image) }}"
       become: true
       become_user: deploy
       register: hub_g3_smoke
