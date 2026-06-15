@@ -1,0 +1,29 @@
+# =============================================================================
+# nginx role handlers
+# =============================================================================
+
+---
+
+- name: Validate Nginx configuration before reload
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  listen: Reload nginx
+
+- name: Reload Nginx systemd unit
+  ansible.builtin.systemd:
+    name: nginx
+    state: reloaded
+    enabled: true
+  listen: Reload nginx
+
+- name: Validate Nginx configuration before restart
+  ansible.builtin.command: nginx -t
+  changed_when: false
+  listen: Restart nginx
+
+- name: Restart Nginx systemd unit
+  ansible.builtin.systemd:
+    name: nginx
+    state: restarted
+    enabled: true
+  listen: Restart nginx

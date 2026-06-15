@@ -1,0 +1,25 @@
+# =============================================================================
+# nginx role 默认值（可被 inventory group_vars/all/nginx.yml 覆盖）
+# =============================================================================
+#
+# Hub 管理面网关专用；Dev 应用 Nginx 后续可复用本 role 并覆盖变量。
+#
+# =============================================================================
+
+---
+
+# Debian sites-available / sites-enabled 路径
+nginx_sites_available_dir: /etc/nginx/sites-available
+nginx_sites_enabled_dir: /etc/nginx/sites-enabled
+nginx_snippets_dir: /etc/nginx/snippets
+
+# SSL 文件路径（由 inventory nginx.ssl.* 派生）
+nginx_ssl_dir: "{{ nginx.ssl.directory | default('/etc/nginx/ssl') }}"
+nginx_ssl_certificate_path: "{{ nginx_ssl_dir }}/{{ nginx.ssl.certificate_file | default('hub-internal.crt') }}"
+nginx_ssl_private_key_path: "{{ nginx_ssl_dir }}/{{ nginx.ssl.private_key_file | default('hub-internal.key') }}"
+
+# JumpServer 上游（未部署时 Nginx 对该 vhost 返回 502）
+nginx_jumpserver_upstream: "{{ nginx.jumpserver_upstream | default('127.0.0.1:8080') }}"
+
+# 健康检查路径
+nginx_health_uri: "{{ nginx.health_uri | default('/health') }}"

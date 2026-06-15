@@ -169,6 +169,21 @@ for host_name in "${mgmt_hosts[@]}"; do
     fi
     ci_log "  ${host_name}: wireguard.enabled=true OK (Hub Server 已登记)"
   fi
+
+  nginx_enabled="$(resolved_host_var "${host_name}" "nginx.enabled")"
+  nginx_status="$(resolved_host_var "${host_name}" "nginx.status")"
+  nginx_gateway="$(resolved_host_var "${host_name}" "nginx_gateway")"
+  ci_log "  ${host_name}: nginx.enabled=${nginx_enabled:-<unset>} status=${nginx_status:-<unset>}"
+
+  if [[ "${nginx_status}" == "operational" ]]; then
+    if [[ "${nginx_enabled}" != "true" ]]; then
+      ci_die "host ${host_name}: nginx.status=operational 但 nginx.enabled 不为 true"
+    fi
+    if [[ "${nginx_gateway}" != "true" ]]; then
+      ci_die "host ${host_name}: nginx.status=operational 但 nginx_gateway 不为 true"
+    fi
+    ci_log "  ${host_name}: nginx operational OK (Hub gateway 已登记)"
+  fi
 done
 
 # -----------------------------------------------------------------------------
@@ -210,6 +225,18 @@ if [[ -f "${wireguard_peer_playbook}" ]]; then
     ci_log "wireguard-peer.yml --list-hosts OK for ci-01 (mgmt inventory)"
   else
     ci_die "wireguard-peer.yml does not target ci-01; check hosts: wireguard_peers"
+  fi
+fi
+
+nginx_hub_playbook="${CI_REPO_ROOT}/ansible/playbooks/nginx-hub.yml"
+if [[ -f "${nginx_hub_playbook}" ]]; then
+  ngx_list_out="$(ci_cd ansible-playbook "${nginx_hub_playbook}" \
+    -i "${MGMT_INVENTORY}" \
+    --list-hosts 2>/dev/null || true)"
+  if grep -q 'hub-01' <<<"${ngx_list_out}"; then
+    ci_log "nginx-hub.yml --list-hosts OK for hub-01 (mgmt inventory)"
+  else
+    ci_die "nginx-hub.yml does not target hub-01; check hosts: mgmt_hub"
   fi
 fi
 

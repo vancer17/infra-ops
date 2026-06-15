@@ -57,3 +57,6 @@ bootstrap_status: "{{ mgmt_hosts['hub-01'].bootstrap_status | default('pending')
 
 # Hub 是否为 WireGuard Server（供未来 wireguard role 判断 server/client 模式）
 wireguard_server: "{{ mgmt_hosts['hub-01'].wireguard_server | default(true) }}"
+
+# Hub 是否为管理面 Nginx 网关（供 nginx role / nginx-hub.yml 判断）
+nginx_gateway: true

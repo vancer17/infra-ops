@@ -1,0 +1,11 @@
+# =============================================================================
+# WebSocket upgrade map — http 上下文（JumpServer 终端需要）
+# =============================================================================
+# Managed by Ansible infra-ops (nginx role)
+# 须置于 conf.d/（http 块内），不可放在 server 块内。
+# =============================================================================
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
