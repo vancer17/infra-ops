@@ -65,6 +65,7 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | **Hub↔ci-01 隧道** | `wireguard.status: operational`（F1 Server + F2 Client 握手已验收） |
 | **Ansible 连 Hub** | mgmt `access_mode: wireguard` → `ansible_host` = **`10.200.0.1`**（**已验收**，`logs/console-check.log`） |
 | **F3-1 自动化** | **已通过**（`make stage-f-preflight`、`secret-scan`；`logs/console-acceptance.log`） |
+| **GitHub VAULT** | **`ANSIBLE_VAULT_PASSWORD` 已配**（dev Environment）；`wireguard-hub.yml --check --diff` 通过 |
 | **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
 | **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
 | **下一里程碑** | `network_phase: steady`（关公网 SSH、JumpServer — 未开始） |

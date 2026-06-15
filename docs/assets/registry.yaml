@@ -55,6 +55,23 @@ stage_f2_5_acceptance:
     - network_phase_steady
 
 # -----------------------------------------------------------------------------
+# github_secrets — GitHub Environment dev（ci-01 控制面配置，2026-06-14）
+# -----------------------------------------------------------------------------
+github_secrets:
+  environment: dev
+  configured:
+    - ANSIBLE_SSH_PRIVATE_KEY
+    - ANSIBLE_SSH_KNOWN_HOSTS
+    - ANSIBLE_VAULT_PASSWORD
+  vault_password:
+    local_file: .vault_pass
+    vault_file: ansible/inventories/mgmt/group_vars/all/wireguard_vault.yml
+    configured_at: "2026-06-14"
+    verified_by: "wireguard-hub.yml --check --diff (logs/console-acceptance.log)"
+  pending:
+    - self_hosted_runner_registration
+
+# -----------------------------------------------------------------------------
 # stage_f3_acceptance — F3-1 自动化验收（ci-01，2026-06-14）
 # -----------------------------------------------------------------------------
 stage_f3_acceptance:
@@ -72,7 +89,9 @@ stage_f3_acceptance:
     vault_view: ok
     secret_scan_gitleaks: ok
     stage_f_preflight: ok
-  conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过"
+    github_ansible_vault_password: ok
+    wireguard_hub_check_diff: ok
+  conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过；GitHub dev ANSIBLE_VAULT_PASSWORD 已配"
 
 # -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
@@ -196,7 +215,7 @@ hosts:
     bootstrap_completed_at: "2026-06-14"
     wireguard_status: operational
     wireguard_client_installed_at: "2026-06-14"
-    note: "F2-5 + F3-1 已验收；Runner 可选 register-github-runner.sh"
+    note: "F2-5 + F3-1 已验收；GitHub VAULT 已配；Runner 可选 register-github-runner.sh"
 
   dev-01:
     asset_file: dev-01.yaml

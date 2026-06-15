@@ -57,7 +57,7 @@ Peer 公钥
 
 | Secret | 内容 |
 |--------|------|
-| `ANSIBLE_VAULT_PASSWORD` | 与仓库根目录 `.vault_pass` 相同，供 `deploy.yml` 解密 vault |
+| `ANSIBLE_VAULT_PASSWORD` | 与仓库根目录 `.vault_pass` 相同，供 `deploy.yml` 解密 vault（**已配置**，2026-06-14） |
 
 ## 相关文档
 
