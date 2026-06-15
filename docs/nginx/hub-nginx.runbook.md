@@ -18,7 +18,7 @@ export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
 chmod +x scripts/mgmt/stage-g1-nginx-preflight.sh
 ./scripts/mgmt/stage-g1-nginx-preflight.sh
 
-# 预览（仅看 diff；openssl/symlink/nginx -t 在 check mode 下按存在性跳过；post_tasks 验收亦跳过）
+# 预览（仅看 diff；handler reload、post_tasks 验收在 check mode 下跳过）
 ansible-playbook ansible/playbooks/nginx-hub.yml \
   -i ansible/inventories/mgmt/ \
   --limit hub-01 \

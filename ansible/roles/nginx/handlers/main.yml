@@ -1,12 +1,18 @@
 # =============================================================================
 # nginx role handlers
 # =============================================================================
+#
+# --check 模式下 template 仍会 notify 并排队 handler，但服务可能尚未安装；
+# 所有 handler 在 ansible_check_mode 时跳过，避免 systemctl reload 误报失败。
+#
+# =============================================================================
 
 ---
 
 - name: Validate Nginx configuration before reload
   ansible.builtin.command: nginx -t
   changed_when: false
+  when: not ansible_check_mode
   listen: Reload nginx
 
 - name: Reload Nginx systemd unit
@@ -14,11 +20,13 @@
     name: nginx
     state: reloaded
     enabled: true
+  when: not ansible_check_mode
   listen: Reload nginx
 
 - name: Validate Nginx configuration before restart
   ansible.builtin.command: nginx -t
   changed_when: false
+  when: not ansible_check_mode
   listen: Restart nginx
 
 - name: Restart Nginx systemd unit
@@ -26,4 +34,5 @@
     name: nginx
     state: restarted
     enabled: true
+  when: not ansible_check_mode
   listen: Restart nginx
