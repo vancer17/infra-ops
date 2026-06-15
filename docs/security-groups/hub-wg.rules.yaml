@@ -1,0 +1,171 @@
+# =============================================================================
+# Hub-01 独占安全组规则（阶段 G0 — Nginx / JumpServer 前置）
+# =============================================================================
+#
+# 【适用】
+#   hub-01（121.43.49.58 / 172.21.127.123 / WG 10.200.0.1）
+#   仅 Hub 实例绑定本规则集；Dev/ci 使用 sg-dev-ecs-bootstrap（见 dev-ecs-bootstrap.rules.yaml）
+#
+# 【权威来源】
+#   2026-06-15 控制台入方向规则 + logs/console-acceptance.log（DescribeSecurityGroupAttribute）
+#   验收：笔记本 WG handshake、ping 10.200.0.1；ci-01 SSH@10.200.0.1、私网 SSH 172.21.127.123
+#
+# 【与 bootstrap 共用组的关系】
+#   2026-06-14 前 Hub 曾与 Dev 共用 sg-bp122tjy3h95um8kv4f9；
+#   2026-06-15 起 Hub 使用独占规则集（本文件）；历史见 hub-bootstrap.rules.yaml
+#
+# 【待补规则（部署 Hub Nginx 前）】
+#   - IN-HTTP-WG：TCP 80 ← 10.200.0.0/16
+#   - IN-SSH-WG：TCP 22 ← 10.200.0.0/16（steady 收口公网 SSH 后）
+#
+# =============================================================================
+
+schema_version: "1"
+phase: wireguard
+subphase: g0_hub_sg_nginx_prep
+updated_at: "2026-06-15"
+acceptance_log: logs/console-acceptance.log
+
+security_group:
+  name: sg-hub-wg
+  # 验收日志 CI 节 export HUB_SG_ID=sg-bp122tjy3h95um8kv4f9 用于 Describe；
+  # 若控制台 hub-01 实例页显示其他 id，以实例绑定为准并更新本字段与 hub-01.yaml
+  id: sg-bp122tjy3h95um8kv4f9
+  description: "Hub 独占 — WG Server + 管理面 Nginx/JumpServer；51820 对 0.0.0.0/0（家用动态 IP）"
+  region: cn-hangzhou
+  vpc_id: vpc-bp1jmugctnhj97dbjyx31
+  bound_hosts: [hub-01]
+  replaces_shared_bootstrap: true
+  replaced_at: "2026-06-15"
+
+rules:
+  inbound:
+    - id: IN-WG-UDP-ANY
+      aliyun_rule_id: sgr-bp1dj80jgt3t6bwbkufz
+      priority: 1
+      policy: accept
+      protocol: udp
+      port_range: "51820/51820"
+      source: "0.0.0.0/0"
+      description: "IN-WG-UDP-ANY（仅 Hub；靠 WG 密钥）"
+      note: "家用宽带无固定 IP；勿改为对 22/80/443 开放 0.0.0.0/0"
+
+    - id: IN-SSH-WORKBENCH
+      aliyun_rule_id: sgr-bp11v6ilb1no6lrl2uwy
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "100.104.0.0/16"
+      description: "阿里云 Workbench 服务"
+      note: "控制台救急；保留"
+
+    - id: IN-SSH-OFFICE-HOME
+      aliyun_rule_id: sgr-bp1c038erqg74bbqrujg
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "125.121.146.255/32"
+      description: "IN-SSH-OFFICE（办公网，暂时保留）"
+      note: "当前家用出口 IP（2026-06-15）；换宽带后失效，应改走 WG 或更新 /32"
+      expires_at_phase: steady
+
+    - id: IN-SSH-CI
+      aliyun_rule_id: sgr-bp1330fss0ihf8wg4ti0
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "121.41.58.20/32"
+      description: "IN-SSH-CI（CI 机公网，暂时保留）"
+      expires_at_phase: steady
+
+    - id: IN-SSH-CI-PRIVATE
+      aliyun_rule_id: sgr-bp1dy38j42dkzjs2ak4t
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "172.21.226.38/32"
+      description: "IN-SSH-CI-PRIVATE（CI 机私网）"
+      note: "同 VPC 应急；验收 2026-06-15 CI-private-SSH-OK"
+
+    - id: IN-HTTPS-WG
+      aliyun_rule_id: sgr-bp1ccisfpuo4q0g9dxgr
+      priority: 1
+      policy: accept
+      protocol: tcp
+      port_range: "443/443"
+      source: "10.200.0.0/16"
+      description: "IN-HTTPS-WG（Nginx / JumpServer）"
+      note: "2026-06-15 nc 为 connection refused（Nginx 未装），属预期"
+
+  pending_inbound:
+    - id: IN-HTTP-WG
+      policy: accept
+      protocol: tcp
+      port_range: "80/80"
+      source: "10.200.0.0/16"
+      description: "IN-HTTP-WG-Nginx"
+      reason: "Hub Nginx 部署前添加"
+
+    - id: IN-SSH-WG
+      policy: accept
+      protocol: tcp
+      port_range: "22/22"
+      source: "10.200.0.0/16"
+      description: "IN-SSH-WG"
+      reason: "steady 阶段主 SSH 路径；添加后可删公网 /32 SSH"
+
+  removed_inbound:
+    - id: IN-WG-UDP-OFFICE-LEGACY
+      source: "115.195.216.251/32"
+      protocol: udp
+      port_range: "51820/51820"
+      removed_at: "2026-06-15"
+      reason: "由 IN-WG-UDP-ANY 0.0.0.0/0 覆盖；旧公司固定 IP 不适用家用网络"
+
+    - id: IN-WG-UDP-CI-REDUNDANT
+      source: "121.41.58.20/32"
+      protocol: udp
+      port_range: "51820/51820"
+      removed_at: "2026-06-15"
+      reason: "已由 0.0.0.0/0 覆盖"
+
+    - id: IN-SSH-OFFICE-LEGACY
+      source: "115.195.216.251/32"
+      protocol: tcp
+      port_range: "22/22"
+      removed_at: "2026-06-15"
+      reason: "旧台账公司 IP；已改用当前家用 125.121.146.255 或 WG"
+
+  outbound:
+    - id: OUT-ALL
+      priority: 1
+      policy: accept
+      protocol: all
+      port_range: "-1/-1"
+      destination: "0.0.0.0/0"
+      description: "Allow-all-egress"
+
+  implicit_deny:
+    - "禁止 0.0.0.0/0 入站 TCP 22（除 Workbench 网段外无全局 22）"
+    - "禁止 0.0.0.0/0 入站 TCP 80/443"
+    - "UDP 51820 允许 0.0.0.0/0 仅因 WG 密钥认证 + 家用动态 IP"
+
+acceptance:
+  completed_at: "2026-06-15"
+  log: logs/console-acceptance.log
+  checks:
+    laptop_wg_handshake: ok
+    laptop_ping_hub_wg: ok
+    laptop_nc_80: "connection_refused_expected"
+    laptop_nc_443: "connection_refused_expected"
+    ci_wg_handshake: ok
+    ci_ping_hub_wg: ok
+    ci_ssh_hub_via_wg: ok
+    ci_nc_80: "connection_refused_expected"
+    ci_nc_443: "connection_refused_expected"
+    ci_ssh_private_vpc: ok
+  next: "添加 IN-HTTP-WG；Ansible 部署 Hub Nginx（nginx-hub.yml）"

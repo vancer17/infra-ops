@@ -19,11 +19,12 @@
 #
 #   阶段 F1（2026-06-14）：wireguard-hub.yml apply 完成 → wireguard_status: server_up
 #   阶段 F3（2026-06-14）：F3-1 自动化验收通过 — 见 stage_f3_acceptance、docs/acceptance/20260614-阶段F-WireGuard验收报告.md
+#   阶段 G0（2026-06-15）：Hub 独占安全组 + Nginx 前置验收 — 见 stage_g0_hub_security_group
 #
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-14"
+updated_at: "2026-06-15"
 updated_by: "infra-ops"
 
 host:
@@ -65,19 +66,23 @@ host:
     ci_access_from: private
     ansible_hub_via: wireguard
 
-  # --- 安全组（控制台创建后填入 id；规则见 docs/security-groups/hub-bootstrap.rules.yaml）---
+  # --- 安全组（2026-06-15 起 Hub 独占规则集；历史 bootstrap 见 hub-bootstrap.rules.yaml）---
   security_groups:
-    bootstrap:
+    active:
+      - id: sg-bp122tjy3h95um8kv4f9
+        name: sg-hub-wg
+        phase: wireguard
+        subphase: g0_hub_sg_nginx_prep
+        rules_file: docs/security-groups/hub-wg.rules.yaml
+        bound_at: "2026-06-15"
+        note: "Hub 实例独占绑定；UDP 51820 对 0.0.0.0/0（家用动态 IP）；80 待添加、443 已放行 WG 网段"
+    historical:
       - id: sg-bp122tjy3h95um8kv4f9
         name: sg-dev-ecs-bootstrap
         phase: bootstrap
         rules_file: docs/security-groups/dev-ecs-bootstrap.rules.yaml
-        note: "与 Dev 共用 id；UDP 51820 见 dev-ecs-bootstrap IN-WG-*；阶段 F 前须在控制台确认已添加"
-    target:
-      - id: null
-        name: "sg-hub-wg"
-        phase: wireguard
-        note: "目标态：Hub 独立安全组，避免 Dev 实例继承 UDP 51820 入站"
+        superseded_at: "2026-06-15"
+        note: "2026-06-14 前 Hub 曾与 Dev 共用同一 id 与规则集"
 
   ram_role:
     name: null
@@ -86,9 +91,14 @@ host:
 
   access_whitelist:
     ci_public_ip: "121.41.58.20/32"
+    ci_private_ip: "172.21.226.38/32"
     office_egress_ips:
+      - "125.121.146.255/32"
+    office_egress_ips_legacy:
       - "115.195.216.251/32"
-    wireguard_future: "10.200.0.0/16"
+    office_egress_note: "家用宽带动态 IP；换网后更新 IN-SSH-OFFICE 或改走 WG"
+    wireguard_cidr: "10.200.0.0/16"
+    workbench_cidr: "100.104.0.0/16"
 
   ansible:
     inventory: ansible/inventories/mgmt/
@@ -208,6 +218,30 @@ host:
     optional_skipped:
       - udp_51820_probe_without_flag
     conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过；GitHub VAULT 已配"
+
+  # 阶段 G0 Hub 独占安全组与 Nginx 前置验收（2026-06-15，logs/console-acceptance.log）
+  stage_g0_hub_security_group:
+    completed_at: "2026-06-15"
+    acceptance_doc: docs/acceptance/20260615-阶段G0-Hub安全组与Nginx前置验收.md
+    acceptance_log: logs/console-acceptance.log
+    rules_file: docs/security-groups/hub-wg.rules.yaml
+    security_group_id: sg-bp122tjy3h95um8kv4f9
+    checks:
+      laptop_wg_handshake: ok
+      laptop_ping_hub_wg: ok
+      laptop_nc_80: connection_refused_expected
+      laptop_nc_443: connection_refused_expected
+      ci_wg_handshake: ok
+      ci_ping_hub_wg: ok
+      ci_ssh_hub_via_wg: ok
+      ci_nc_80: connection_refused_expected
+      ci_nc_443: connection_refused_expected
+      ci_ssh_private_vpc: ok
+    pending:
+      - console_add_in_http_wg_80
+      - ansible_nginx_hub
+      - steady_in_ssh_wg_and_retire_public_ssh
+    note: "80/443 refused 因 Hub 未装 Nginx，非安全组阻断"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

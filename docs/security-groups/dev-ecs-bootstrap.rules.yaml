@@ -1,17 +1,17 @@
 # Dev ECS Bootstrap 阶段安全组规则
-# 适用：dev-01, dev-02, hub-01（当前控制台均绑定 id sg-bp122tjy3h95um8kv4f9）
+# 适用：dev-01, dev-02, ci-01（bootstrap 期）
+# hub-01 自 2026-06-15 起使用独占规则集 docs/security-groups/hub-wg.rules.yaml，不再适用本文件
 #
 # 【2026-06-08 资产台账修订】
 #   CI 源 IP：47.98.161.33（已退役）→ 121.41.58.20（ci-01 替代机，与 dev-01 同 ECS）
 #   须与 docs/assets/registry.yaml、network.yml security_whitelist 保持一致
 #
-# 【2026-06-14 Hub 共用本组】
-#   hub-01 绑定同一 security_group id；Hub SSH 私网来源见 IN-SSH-CI-PRIVATE-HUB。
-#   WireGuard UDP 51820（IN-WG-*）为 Hub WG Server 预置；阶段 F 前须在控制台确认已添加。
+# 【2026-06-14 Hub 曾共用本组（历史）】
+#   2026-06-15 起 hub-01 已迁移 hub-wg.rules.yaml。
 #
 schema_version: "1"
 phase: bootstrap
-updated_at: "2026-06-14"
+updated_at: "2026-06-15"
 security_group:
   name: sg-dev-ecs-bootstrap
   id: sg-bp122tjy3h95um8kv4f9
