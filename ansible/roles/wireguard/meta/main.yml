@@ -1,0 +1,15 @@
+---
+# =============================================================================
+# wireguard role 元数据
+# =============================================================================
+# 用途：Hub WireGuard Server（阶段 F）与后续 Peer Client（wireguard-peer.yml）
+# 依赖：ansible.posix（sysctl）；inventory 提供 wireguard* / wireguard_vault*
+# =============================================================================
+galaxy_info:
+  role_name: wireguard
+  author: infra-ops
+  description: Install and configure WireGuard Hub Server or ECS Peer client
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies: []

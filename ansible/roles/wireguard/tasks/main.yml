@@ -1,0 +1,19 @@
+# =============================================================================
+# wireguard role 默认入口
+# =============================================================================
+#
+# Hub playbook 使用 tasks_from: server 直接调用 server.yml。
+# 默认 main.yml 在 wireguard_server=true 时同样走 Server 路径，便于 ad-hoc：
+#
+#   ansible-playbook ... -e "wireguard_server=true" --tags wireguard
+#
+# Client 模式（ci-01 Peer）由 wireguard-peer.yml 在后续阶段实现。
+#
+# =============================================================================
+
+---
+
+- name: Apply WireGuard Hub server tasks
+  ansible.builtin.import_tasks: server.yml
+  when: wireguard_server | default(false) | bool
+  tags: [wireguard, server]

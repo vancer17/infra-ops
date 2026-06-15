@@ -70,10 +70,19 @@ if [[ -d "${playbooks_dir}" ]]; then
       # 传入相对 repo root 的路径，与 CI 原逻辑一致
       rel="${playbook#"${CI_REPO_ROOT}/"}"
       syntax_check_playbook "${rel}"
-      # bootstrap / ssh-keys 使用 dev:mgmt，额外用 mgmt inventory 做 syntax-check
+      # bootstrap / ssh-keys / wireguard-hub 使用 dev:mgmt 或 mgmt_hub，用 mgmt inventory syntax-check
       if [[ -d "${CI_ANSIBLE_INVENTORY_MGMT}" ]] \
-        && [[ "${rel}" == ansible/playbooks/bootstrap.yml || "${rel}" == ansible/playbooks/ssh-keys.yml ]]; then
-        ci_log "Syntax check (mgmt inventory): ${rel}"
+        && [[ "${rel}" == ansible/playbooks/bootstrap.yml \
+          || "${rel}" == ansible/playbooks/ssh-keys.yml \
+          || "${rel}" == ansible/playbooks/wireguard-hub.yml ]]; then
+        if [[ -z "${ANSIBLE_VAULT_PASSWORD_FILE:-}" && -f "${CI_REPO_ROOT}/.vault_pass" ]]; then
+          export ANSIBLE_VAULT_PASSWORD_FILE="${CI_REPO_ROOT}/.vault_pass"
+        fi
+        if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+          ci_log "Syntax check (mgmt inventory + vault): ${rel}"
+        else
+          ci_log "Syntax check (mgmt inventory): ${rel}"
+        fi
         ci_cd ansible-playbook "${rel}" \
           --syntax-check \
           -i "${CI_ANSIBLE_INVENTORY_MGMT}"

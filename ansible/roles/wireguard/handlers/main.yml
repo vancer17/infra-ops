@@ -1,0 +1,17 @@
+# =============================================================================
+# wireguard role handlers
+# =============================================================================
+#
+# 配置变更后重载 wg 接口。使用 systemd restart wg-quick@wg0，
+# 等价于 wg-quick down && wg-quick up，适合 Server 端 Peer 列表变更。
+#
+# =============================================================================
+
+---
+
+- name: Restart wireguard interface
+  ansible.builtin.systemd:
+    name: "{{ wireguard_systemd_unit }}"
+    enabled: true
+    state: restarted
+  listen: Restart wireguard interface
