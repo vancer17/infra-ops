@@ -18,7 +18,7 @@
 #   原 Hub 恢复后：更新 registry.yaml replacements，迁移 WG 配置，勿直接删除本文件历史。
 #
 #   阶段 F1（2026-06-14）：wireguard-hub.yml apply 完成 → wireguard_status: server_up
-#   阶段 F2（2026-06-14）：wireguard-peer.yml on ci-01 + 握手验收 → operational
+#   阶段 F3（2026-06-14）：F3-1 自动化验收通过 — 见 stage_f3_acceptance、docs/acceptance/20260614-阶段F-WireGuard验收报告.md
 #
 # =============================================================================
 
@@ -183,6 +183,28 @@ host:
       hub_ansible_host_10_200_0_1: ok
       ansible_ping_from_ci_01: ok
     note: "steady 阶段再评估关公网 SSH / JumpServer"
+
+  # 阶段 F3 自动化验收（2026-06-14，ci-01 logs/console-acceptance.log）
+  stage_f3_acceptance:
+    completed_at: "2026-06-14"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    prior_logs:
+      f2_tunnel: logs/console-acceptance.log
+      f2_5_inventory: logs/console-check.log
+    script: scripts/mgmt/stage-f-preflight.sh
+    checks:
+      inventory_mgmt: ok
+      wg_keys_verify_hub: ok
+      wg_keys_verify_peer_ci_01: ok
+      ci_01_private_on_controller: ok
+      deploy_wireguard_sudo: ok
+      vault_view: ok
+      secret_scan_gitleaks: ok
+      stage_f_preflight: ok
+    optional_skipped:
+      - udp_51820_probe_without_flag
+    conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

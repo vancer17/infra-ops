@@ -41,6 +41,7 @@ make ci
 | `make syntax` | Playbook `--syntax-check` |
 | `make inventory` | Dev inventory 解析 + 跨 VPC `ansible_host` 校验 |
 | `make inventory-mgmt` | Mgmt inventory 解析（hub-01 `ansible_host` 校验） |
+| `make stage-f-preflight` | WireGuard 阶段 F 预检（F3-1 已通过时可作回归） |
 
 实机 Bootstrap（SSH、改 ECS）**不在** `make ci` 内，见 [Bootstrap Runbook](docs/bootstrap/dev-01-bootstrap.runbook.md)。
 
@@ -54,11 +55,12 @@ infra-ops/
 ├── ansible/
 │   ├── inventories/dev/        # Dev 主机与 group_vars
 │   ├── inventories/mgmt/       # Hub 管理面（hub-01）
-│   ├── playbooks/              # bootstrap.yml、ssh-keys.yml …
-│   └── roles/                  # common、docker …
+│   ├── playbooks/              # bootstrap.yml、ssh-keys.yml、wireguard-*.yml …
+│   └── roles/                  # common、docker、wireguard …
 ├── scripts/
 │   ├── ci/                     # 静态检查脚本（CI 与 make 共用）
 │   ├── dev/                    # bootstrap.sh、ssh-keys.sh（实机）
+│   ├── mgmt/                   # stage-f-preflight、apply-hub-deploy-sudo.sh …
 │   └── wireguard/              # wg-keys.sh（WG 密钥生成与保管）
 ├── .github/workflows/
 │   ├── ci.yml                  # PR 静态门禁
@@ -78,7 +80,10 @@ infra-ops/
 | [docs/bootstrap/hub-01-bootstrap.runbook.md](docs/bootstrap/hub-01-bootstrap.runbook.md) | Hub-01 Bootstrap（阶段 C，`ssh_done` 2026-06-14） |
 | [docs/bootstrap/dev-ssh-keys.runbook.md](docs/bootstrap/dev-ssh-keys.runbook.md) | SSH 密钥体系（1.3） |
 | [docs/wireguard/wg-keys.runbook.md](docs/wireguard/wg-keys.runbook.md) | WireGuard 密钥生成与保管（Hub） |
-| [docs/wireguard/stage-f-console-checklist.md](docs/wireguard/stage-f-console-checklist.md) | 阶段 F 前控制台 UDP 51820 核对 |
+| [docs/wireguard/stage-f3-acceptance-runbook.md](docs/wireguard/stage-f3-acceptance-runbook.md) | 阶段 F3 验收（自动化检查） |
+| [docs/acceptance/20260614-阶段F-WireGuard验收报告.md](docs/acceptance/20260614-阶段F-WireGuard验收报告.md) | **阶段 F 验收报告**（F1–F3-1） |
+| [docs/wireguard/stage-f2-5-runbook.md](docs/wireguard/stage-f2-5-runbook.md) | Ansible 经 WG 收口（F2-5） |
+| [docs/wireguard/stage-f-console-checklist.md](docs/wireguard/stage-f-console-checklist.md) | 安全组 UDP 51820 核对（审计参考） |
 | [docs/plan/20260608-开发环境（Dev）部署计划.md](docs/plan/20260608-开发环境（Dev）部署计划.md) | 分阶段部署计划 |
 
 ## 三层检查（勿混淆）
