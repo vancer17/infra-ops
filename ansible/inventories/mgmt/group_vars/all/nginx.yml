@@ -9,8 +9,7 @@
 #   访问路径：WG Client → 10.200.0.1:443 → Nginx → 本机 upstream（如 JumpServer）
 #   安全组：IN-HTTPS-WG、IN-HTTP-WG（2026-06-15 G1 验收）
 #
-# 【状态】2026-06-15 G1 apply + 实机验收通过（logs/console-acceptance.log）
-#         2026-06-16 G2 JumpServer upstream 细化 + jms/status（hub-g2.yml）
+# 【状态】2026-06-15 G1 apply + 实机验收通过；2026-06-16 G2 JumpServer 维护页 + jms/status
 #
 # 【维护】变更 SAN 见 docs/nginx/hub-nginx.runbook.md「TLS 证书轮换」
 #

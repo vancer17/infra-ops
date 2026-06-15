@@ -2,7 +2,7 @@
 
 在 Hub `10.200.0.1`（wg0）上运行 **dnsmasq**，为 WireGuard 内网提供 `*.internal` 解析。
 
-**状态（实施前）**：`internal_dns.enabled: true`，`internal_dns.status: not_started`（apply 后改为 `operational`）。
+**状态（2026-06-16）**：`internal_dns.status: operational`（G2 验收通过，见 `logs/console-acceptance.log`）。
 
 ## 解析表
 
@@ -19,9 +19,13 @@
 
 ## 安全组
 
-Hub 须在 **pending_inbound → IN-DNS-WG** 于控制台落地后 apply：UDP 53 ← `10.200.0.0/16`（见 `docs/security-groups/hub-wg.rules.yaml`）。
+**IN-DNS-WG** 已添加并验收（UDP 53 ← `10.200.0.0/16`，见 `docs/security-groups/hub-wg.rules.yaml` inbound）。
 
-## 实施步骤（ci-01）
+## 实施记录（2026-06-16 已完成）
+
+G2 已于 ci-01 与办公笔记本验收通过，inventory `internal_dns.status: operational`。
+
+历史实施步骤（归档）：
 
 ```bash
 cd ~/infra-ops
@@ -44,10 +48,6 @@ ansible-playbook ansible/playbooks/wireguard-peer.yml \
   -i ansible/inventories/mgmt/ \
   --limit ci-01 \
   --vault-password-file .vault_pass
-
-# 4. 更新 inventory
-#    internal_dns.status: operational
-#    docs/assets/hub-01.yaml → stage_g2_internal_dns
 
 make inventory-mgmt
 ```
@@ -80,7 +80,7 @@ curl -k -o /dev/null -w "%{http_code}\n" https://jms.internal/
 # 期望：503（JumpServer 未部署）
 ```
 
-验收报告：`docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md`
+验收报告：`docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md`（**已通过，2026-06-16**）
 
 ## 相关文件
 
