@@ -23,7 +23,7 @@
 #     -i ansible/inventories/mgmt/ \
 #     --limit hub-01 \
 #     --check --diff
-#   （--check 仅预览 diff；post_tasks 验收在 check mode 下跳过）
+# 预览（仅看 diff；不安装/启动服务，handler 与 post_tasks 验收均跳过）
 #
 #   ansible-playbook ansible/playbooks/nginx-hub.yml \
 #     -i ansible/inventories/mgmt/ \
