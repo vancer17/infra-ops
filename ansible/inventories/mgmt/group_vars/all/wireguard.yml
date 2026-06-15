@@ -3,11 +3,11 @@
 # =============================================================================
 #
 # 【状态】
-#   wireguard.status: server_up — Hub wg0 已监听 51820；Peer 尚未握手（待 F2 wireguard-peer）
-#   wireguard.enabled: true      — wireguard-hub.yml 已于 2026-06-14 apply 成功
+#   wireguard.status: operational — F1 Hub Server + F2 ci-01 Client 握手已完成（2026-06-14）
+#   wireguard.enabled: true       — wireguard-hub.yml 已于 2026-06-14 apply 成功
 #
-# 【勿提前切换】
-#   ci_connectivity.access_mode 仍为 public（network.yml）；握手成功后再改 wireguard
+# 【F2-4 后仍保持（直至 F2-5 收口）】
+#   ci_connectivity.access_mode 仍为 public（network.yml）；稳定后再改 wireguard
 #   network_phase 仍为 bootstrap（main.yml / registry.yaml）
 #
 # 【与 wireguard_keys.yml / wireguard_vault.yml 分工】
@@ -61,11 +61,12 @@ wireguard:
 
   ip_forward: true
 
-  # not_started → keys_ready（阶段 E）→ server_up（阶段 F1）→ operational（F2 握手）
-  status: server_up
+  # not_started → keys_ready（E）→ server_up（F1）→ operational（F2 握手）
+  status: operational
 
   keys_ready_at: "2026-06-14"
   server_up_at: "2026-06-14"
+  operational_at: "2026-06-14"
 
 # -----------------------------------------------------------------------------
 # wireguard_peers_planned — Hub [Peer] 规划（公钥可提交 Git；私钥在 keys/*.private）
@@ -77,7 +78,9 @@ wireguard_peers_planned:
     hub_peer: true
     allowed_ips: "10.200.0.0/16"
     persistent_keepalive: 25
-    note: "CI 控制机 + 与 dev-01 同 ECS；阶段 F2 wireguard-peer.yml"
+    hub_peer_connected: true
+    client_installed_at: "2026-06-14"
+    note: "CI 控制机 + 与 dev-01 同 ECS；wireguard-peer.yml apply + handshake OK"
 
   - name: dev-01
     wg_ip: "10.200.1.1"

@@ -92,6 +92,7 @@ platform_hosts:
     replaces_planned_ip: "47.97.19.58"
     wireguard_server: true
     bootstrap_status: ssh_done
+    wireguard_status: operational
   ci-01:
     public_ip: "121.41.58.20"
     private_ip: "172.21.226.38"
@@ -100,6 +101,8 @@ platform_hosts:
     instance_id: "i-bp14czvx1exdi6cmrt2r"
     replaces_planned_ip: "47.98.161.33"
     same_ecs_as: dev-01
+    wireguard_status: operational
+    wireguard_client_installed_at: "2026-06-14"
 
 # -----------------------------------------------------------------------------
 # dev_hosts — Dev inventory 主机的网络台账（与 docs/assets/dev-*.yaml 对齐）
