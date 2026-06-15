@@ -61,8 +61,6 @@ export ANSIBLE_INVENTORY="$INVENTORY"
 export ANSIBLE_LIMIT="$LIMIT"
 export ANSIBLE_PRIVATE_KEY_FILE="$PRIVATE_KEY"
 
-resolve_inventory_context
-
 hub_host="$(resolve_ansible_host)"
 
 print_console_instructions() {
