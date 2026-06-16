@@ -88,7 +88,7 @@ wireguard_peers_planned:
     allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev_ops }}"
     persistent_keepalive: 25
     hub_peer_connected: true
-    note: "开发/运维；原 developer-laptop 已更名；公钥 laptop-zhengyaoyuan.pub"
+    note: "开发/运维；2026-06-16 F6 验收 operational（develop）；原 developer-laptop 更名"
 
   - name: laptop-billmiao
     wg_ip: "10.200.10.2"
@@ -98,7 +98,8 @@ wireguard_peers_planned:
     role: dev
     allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
     persistent_keepalive: 25
-    note: "待 generate-peer laptop-billmiao → sync-inventory → wireguard-hub.yml"
+    hub_peer_connected: false
+    note: "Hub 已登记（2026-06-16）；待 wg0.conf 分发与 Client 握手"
 
   - name: laptop-sammao
     wg_ip: "10.200.10.3"
@@ -108,7 +109,8 @@ wireguard_peers_planned:
     role: dev
     allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
     persistent_keepalive: 25
-    note: "待 generate-peer"
+    hub_peer_connected: false
+    note: "Hub 已登记（2026-06-16）；待 Client 握手"
 
   - name: laptop-zhu
     wg_ip: "10.200.10.4"
@@ -118,7 +120,8 @@ wireguard_peers_planned:
     role: dev
     allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
     persistent_keepalive: 25
-    note: "待 generate-peer"
+    hub_peer_connected: false
+    note: "Hub 已登记（2026-06-16）；待 Client 握手"
 
   - name: laptop-xinxin
     wg_ip: "10.200.10.5"
@@ -128,4 +131,5 @@ wireguard_peers_planned:
     role: dev
     allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
     persistent_keepalive: 25
-    note: "待 generate-peer"
+    hub_peer_connected: false
+    note: "Hub 已登记（2026-06-16）；待 Client 握手"

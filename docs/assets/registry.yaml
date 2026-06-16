@@ -238,7 +238,7 @@ hosts:
     hub_jumpserver_asset_hub_status: onboarded
     hub_jumpserver_asset_hub_onboarded_at: "2026-06-17"
     hub_security_group_rules: docs/security-groups/hub-wg.rules.yaml
-    note: "F2-5 + F3-1 已验收；G0–G4 operational；G5 Hub-01 资产纳管 onboarded；下一步授权/MFA、Dev-01 纳管、改 admin 密码、关公网 SSH"
+    note: "F2-5 + F3-1 已验收；G0–G5 operational；F6 Client 池 Hub 已登记（四人待 Client 握手）；下一步分发 wg0.conf、JumpServer 授权/MFA、Dev-01 纳管"
 
   ci-01:
     asset_file: ci-01.yaml
@@ -312,6 +312,7 @@ hosts:
 # 2026-06-14：F2-5 Ansible 经 WG 收口已验收（console-check.log）
 # 2026-06-14：F3-1 自动化验收通过（stage-f-preflight、secret-scan）
 # 2026-06-16：G2 Hub dnsmasq + WG Client DNS=10.200.0.1 验收通过（console-acceptance.log G2 节）
+# 2026-06-16：F6 五人 Client 池 Hub 登记 + zhengyaoyuan 握手验收（console-acceptance.log F6 节）
 wireguard_plan:
   status: operational
   peer_model: single_peer_ci_01
@@ -343,26 +344,32 @@ wireguard_plan:
         wg_ip: "10.200.10.1"
         role: dev_ops
         status: operational
+        hub_registered_at: "2026-06-16"
+        client_handshake_at: "2026-06-16"
       - peer: laptop-billmiao
         person: billmiao
         wg_ip: "10.200.10.2"
         role: dev
-        status: pending_key
+        status: hub_registered
+        hub_registered_at: "2026-06-16"
       - peer: laptop-sammao
         person: sammao
         wg_ip: "10.200.10.3"
         role: dev
-        status: pending_key
+        status: hub_registered
+        hub_registered_at: "2026-06-16"
       - peer: laptop-zhu
         person: zhu
         wg_ip: "10.200.10.4"
         role: dev
-        status: pending_key
+        status: hub_registered
+        hub_registered_at: "2026-06-16"
       - peer: laptop-xinxin
         person: xinxin
         wg_ip: "10.200.10.5"
         role: dev
-        status: pending_key
+        status: hub_registered
+        hub_registered_at: "2026-06-16"
 
 # -----------------------------------------------------------------------------
 # shared_cloud_dependencies — 跨主机共享的云产品（非 ECS）

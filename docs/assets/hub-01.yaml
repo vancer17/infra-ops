@@ -26,11 +26,12 @@
 #   阶段 G3（2026-06-17）：Hub 启用 Docker CE — 见 stage_g3_hub_docker（验收通过）
 #   阶段 G4（2026-06-17）：Hub JumpServer Compose — 见 stage_g4_hub_jumpserver（验收通过）
 #   阶段 G5（2026-06-17）：Hub-01 JumpServer 资产纳管 — 见 stage_g5_jumpserver_asset_hub（验收通过）
+#   阶段 F6（2026-06-16）：五人 WG Client 池 Hub 登记 — 见 stage_f6_wireguard_client_pool
 #
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-17"
+updated_at: "2026-06-16"
 updated_by: "infra-ops"
 
 host:
@@ -140,6 +141,8 @@ host:
     jumpserver_operational_at: "2026-06-17"
     jumpserver_asset_hub_status: onboarded
     jumpserver_asset_hub_onboarded_at: "2026-06-17"
+    wireguard_client_pool_status: hub_registered
+    wireguard_client_pool_hub_registered_at: "2026-06-16"
     baota_installed: false
 
   # 阶段 E 密钥验收（2026-06-14，ci-01 上 wg-keys all-hub + vault-encrypt-hub）
@@ -423,6 +426,59 @@ host:
       - jumpserver_asset_dev_01
       - paramiko_script_into_infra_ops_optional
     conclusion: "Hub-01 已完成 Ansible jump_ops 准备 + JMS 账号推送与测试连接；下一步授权与 Dev-ECS 纳管"
+
+  # 阶段 F6 五人 WG Client 池（2026-06-16，logs/console-acceptance.log）
+  stage_f6_wireguard_client_pool:
+    status: hub_registered
+    completed_at: "2026-06-16"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    acceptance_doc: docs/acceptance/20260616-阶段F6-WireGuard人员Client池验收.md
+    ledger: docs/assets/wireguard-clients.yaml
+    playbook: ansible/playbooks/wireguard-hub.yml
+    scripts:
+      - scripts/wireguard/generate-team-laptop-peers.sh
+      - scripts/wireguard/render-laptop-conf.sh
+    hub_wg_peers_total: 6
+    hub_wg_peers:
+      - name: ci-01
+        wg_ip: "10.200.0.2"
+        handshake: ok
+      - name: laptop-zhengyaoyuan
+        wg_ip: "10.200.10.1"
+        handshake: ok
+        client_endpoint: "125.121.146.255"
+      - name: laptop-billmiao
+        wg_ip: "10.200.10.2"
+        handshake: pending
+      - name: laptop-sammao
+        wg_ip: "10.200.10.3"
+        handshake: pending
+      - name: laptop-zhu
+        wg_ip: "10.200.10.4"
+        handshake: pending
+      - name: laptop-xinxin
+        wg_ip: "10.200.10.5"
+        handshake: pending
+    client_acceptance_zhengyaoyuan:
+      host: develop
+      checks:
+        hub_wg_handshake: ok
+        curl_jms_internal_https_200: ok
+        nc_hub_443_open: ok
+        ping_jms_internal: ok
+    checks:
+      generate_team_laptop_peers: ok
+      laptop_pub_files_committed: ok
+      wireguard_hub_apply: ok
+      hub_wg_show_six_peers: ok
+      ci_01_handshake: ok
+      laptop_zhengyaoyuan_handshake: ok
+    pending:
+      - render_and_deliver_wg0_conf_billmiao_sammao_zhu_xinxin
+      - client_handshake_four_dev_laptops
+      - update_member_status_to_operational_after_handshake
+    conclusion: "Hub 已登记 ci-01 + 五人笔记本 Peer；zhengyaoyuan Client operational；四人待 wg0.conf 分发与握手"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史
