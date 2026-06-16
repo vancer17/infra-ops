@@ -99,6 +99,7 @@ make jumpserver-asset-prep LIMIT=dev-01
 | 现象 | 处理 |
 |------|------|
 | 测试连接 Permission denied | 是否已账号推送；AllowUsers 是否含 jump_ops |
+| `verify-jumpserver-asset-remote` 对 `.ssh` Permission denied | 旧版脚本用 deploy 直读私有目录会误报；已改为 `ansible -b`；`deploy` 无权读 `0750` home 属正常 |
 | Hub 资产连不上 | 换 `172.21.127.123`；确认 JumpServer 容器能访问宿主机 22 |
 | Ansible 报 steady 未完成 | 先 `ssh-keys.sh steady` |
 | dev-02 失败 | 先 bootstrap dev-02 |
