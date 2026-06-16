@@ -173,7 +173,8 @@ host:
       ansible_ping_hub_via_wg: ok
     optional:
       github_runner: not_registered
-      developer_laptop_peer: docs/wireguard/developer-laptop-client.md
+      laptop_peers_ledger: docs/assets/wireguard-clients.yaml
+      laptop_peer_ops_doc: docs/wireguard/developer-laptop-client.md
 
   # 阶段 F3 自动化验收（2026-06-14，与 hub-01 stage_f3_acceptance 同步）
   stage_f3_acceptance:

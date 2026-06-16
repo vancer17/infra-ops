@@ -1,0 +1,74 @@
+# =============================================================================
+# WireGuard 人员 Client 台账（client_pool 10.200.10.0/24）
+# =============================================================================
+#
+# 【用途】
+#   记录每位同事的 Peer 名、WG 地址、角色与 Client AllowedIPs。
+#   与 ansible/inventories/mgmt/group_vars/all/wireguard.yml 中
+#   wireguard_peers_planned（laptop-*）保持同步。
+#
+# 【密钥流程】
+#   1. ./scripts/wireguard/wg-keys.sh generate-peer <peer_name>
+#   2. ./scripts/wireguard/wg-keys.sh sync-inventory
+#   3. ansible-playbook ansible/playbooks/wireguard-hub.yml -i ansible/inventories/mgmt/ --limit hub-01
+#   4. ./scripts/wireguard/render-laptop-conf.sh <peer_name> → 安全渠道交付同事
+#
+# 【来源】
+#   logs/remark.log（2026-06-17）
+#
+# =============================================================================
+
+schema_version: "1"
+updated_at: "2026-06-17"
+updated_by: "infra-ops"
+
+pool:
+  cidr: "10.200.10.0/24"
+  description: "开发人员与运维办公笔记本 WireGuard Client"
+
+# Client 侧 AllowedIPs（写入 wg0.conf [Peer] AllowedIPs）
+allowed_ips_profiles:
+  dev:
+    description: "开发：管理 + Dev + Test；不含 Prod 10.200.3.0/24"
+    value: "10.200.0.0/24, 10.200.1.0/24, 10.200.2.0/24"
+  dev_ops:
+    description: "开发兼运维：全网段（仍禁止误连 Prod 依赖授权与路由规划）"
+    value: "10.200.0.0/16"
+
+members:
+  - peer_name: laptop-zhengyaoyuan
+    display_name: zhengyaoyuan
+    role: dev_ops
+    wg_ip: "10.200.10.1"
+    allowed_ips_profile: dev_ops
+    status: operational
+    note: "原 developer-laptop；公钥已迁移至 laptop-zhengyaoyuan.pub"
+
+  - peer_name: laptop-billmiao
+    display_name: billmiao
+    role: dev
+    wg_ip: "10.200.10.2"
+    allowed_ips_profile: dev
+    status: pending_key
+    note: "generate-peer 后 sync-inventory + wireguard-hub.yml"
+
+  - peer_name: laptop-sammao
+    display_name: sammao
+    role: dev
+    wg_ip: "10.200.10.3"
+    allowed_ips_profile: dev
+    status: pending_key
+
+  - peer_name: laptop-zhu
+    display_name: zhu
+    role: dev
+    wg_ip: "10.200.10.4"
+    allowed_ips_profile: dev
+    status: pending_key
+
+  - peer_name: laptop-xinxin
+    display_name: xinxin
+    role: dev
+    wg_ip: "10.200.10.5"
+    allowed_ips_profile: dev
+    status: pending_key

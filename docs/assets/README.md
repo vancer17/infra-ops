@@ -89,5 +89,6 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - [WireGuard F3 验收](../wireguard/stage-f3-acceptance-runbook.md)
 - [WireGuard F2-5 收口](../wireguard/stage-f2-5-runbook.md)
 - [办公笔记本 WG Client 接入指南（分发给同事）](../wireguard/办公笔记本-WG-Client-接入指南.md)
+- [人员笔记本 WG 台账（wireguard-clients.yaml）](wireguard-clients.yaml)
 - [运维笔记本 WG Client（简版）](../wireguard/developer-laptop-client.md)
 - [企业环境实施方案](../20260608-ECS%20企业环境实施方案.md) §4 网络与 WireGuard

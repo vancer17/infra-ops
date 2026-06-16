@@ -58,7 +58,7 @@ Hub 密钥（本期重点）:
   show-hub-pub        打印 Hub 公钥（配置 Peer 时填入 Hub 的 [Peer]）
 
 Peer 密钥（实施各 Peer 客户端时使用）:
-  generate-peer NAME  生成 Peer 密钥对（如 ci-01、developer-laptop）
+  generate-peer NAME  生成 Peer 密钥对（如 ci-01、laptop-billmiao）
   verify-peer NAME    校验指定 Peer 密钥对
 
 Inventory / Vault:

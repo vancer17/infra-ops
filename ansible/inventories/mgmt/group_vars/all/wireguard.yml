@@ -35,13 +35,26 @@ wireguard_peer_model:
   # single_peer_ci_01：yax 上仅一个 wg0 客户端，地址 10.200.0.2
   decision: single_peer_ci_01
   colocated_hosts: [ci-01, dev-01]
-  # 阶段 F Hub Server 上必须出现的 [Peer] 名称（对应 wireguard_peers_planned[].name）
+  # Hub Server 上登记的 Client Peer（有 public_key 的才会写入 wg0.conf）
   hub_active_peers:
     - ci-01
-    - developer-laptop
+    - laptop-zhengyaoyuan
+    - laptop-billmiao
+    - laptop-sammao
+    - laptop-zhu
+    - laptop-xinxin
   # 仅 inventory/台账文档化，不在 Hub 上建 [Peer]
   hub_inactive_peers:
     - dev-01
+
+# -----------------------------------------------------------------------------
+# wireguard_client_pool — 人员 Client 网段与 AllowedIPs 配置档
+# -----------------------------------------------------------------------------
+# 台账 SSOT：docs/assets/wireguard-clients.yaml
+wireguard_client_pool:
+  cidr: "10.200.10.0/24"
+  allowed_ips_dev: "10.200.0.0/24, 10.200.1.0/24, 10.200.2.0/24"
+  allowed_ips_dev_ops: "10.200.0.0/16"
 
 # -----------------------------------------------------------------------------
 # wireguard — Server 接口参数
@@ -95,9 +108,53 @@ wireguard_peers_planned:
     hub_peer: false
     note: "Dev-02 替代机 Bootstrap 后纳入；届时 hub_peer: true"
 
-  - name: developer-laptop
+  - name: laptop-zhengyaoyuan
     wg_ip: "10.200.10.1"
     public_key: eQhU5QVENi3gPq4KxjFDqe/orLX75cs73aLOrSaRsnM=
     hub_peer: true
-    optional: true
-    note: "运维笔记本；公钥见 keys/wireguard/developer-laptop.pub；私钥仅保留在笔记本本地"
+    member: zhengyaoyuan
+    role: dev_ops
+    allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev_ops }}"
+    persistent_keepalive: 25
+    hub_peer_connected: true
+    note: "开发/运维；原 developer-laptop 已更名；公钥 laptop-zhengyaoyuan.pub"
+
+  - name: laptop-billmiao
+    wg_ip: "10.200.10.2"
+    public_key: null
+    hub_peer: true
+    member: billmiao
+    role: dev
+    allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
+    persistent_keepalive: 25
+    note: "待 generate-peer laptop-billmiao → sync-inventory → wireguard-hub.yml"
+
+  - name: laptop-sammao
+    wg_ip: "10.200.10.3"
+    public_key: null
+    hub_peer: true
+    member: sammao
+    role: dev
+    allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
+    persistent_keepalive: 25
+    note: "待 generate-peer"
+
+  - name: laptop-zhu
+    wg_ip: "10.200.10.4"
+    public_key: null
+    hub_peer: true
+    member: zhu
+    role: dev
+    allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
+    persistent_keepalive: 25
+    note: "待 generate-peer"
+
+  - name: laptop-xinxin
+    wg_ip: "10.200.10.5"
+    public_key: null
+    hub_peer: true
+    member: xinxin
+    role: dev
+    allowed_ips_client: "{{ wireguard_client_pool.allowed_ips_dev }}"
+    persistent_keepalive: 25
+    note: "待 generate-peer"

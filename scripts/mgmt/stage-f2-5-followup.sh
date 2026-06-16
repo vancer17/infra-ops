@@ -171,7 +171,9 @@ GitHub Self-hosted Runner（可选，deploy.yml 需要）:
 
 运维笔记本 WireGuard Client（可选）:
   见 docs/wireguard/developer-laptop-client.md
-  模板: ansible/keys/wireguard/developer-laptop.conf.example
+  模板: ansible/keys/wireguard/laptop-zhengyaoyuan.conf.example
+  开发: ansible/keys/wireguard/laptop-client-dev.conf.example
+  台账: docs/assets/wireguard-clients.yaml
 
 本期不做（steady 阶段）:
   - 关闭 Bootstrap 公网 SSH

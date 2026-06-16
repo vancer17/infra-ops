@@ -9,7 +9,7 @@ Hub 与 Peer 的 WireGuard 密钥对存放位置。保管策略与 SSH 密钥（
 | `hub.private` | **否** | Hub 私钥；`wg-keys.sh generate-hub` 生成 |
 | `hub.pub` | **是** | Hub 公钥；Peer 客户端配置需要 |
 | `<peer>.private` | **否** | Peer 私钥（如 `ci-01.private`） |
-| `ci-01.pub` / `developer-laptop.pub` | **是** | Peer 公钥；Hub `[Peer]` 需要 |
+| `ci-01.pub` / `laptop-*.pub` | **是** | Peer 公钥；Hub `[Peer]` 需要 |
 | `*.example` | 是 | 格式示例 |
 
 `sync-inventory` 使用 **ruamel.yaml** 更新公钥字段，**保留本文件顶部注释**。
@@ -30,7 +30,12 @@ chmod +x scripts/wireguard/wg-keys.sh
 
 # Peer 密钥（实施各 Peer 时）
 ./scripts/wireguard/wg-keys.sh generate-peer ci-01
+./scripts/wireguard/wg-keys.sh generate-peer laptop-billmiao
 ./scripts/wireguard/wg-keys.sh sync-inventory
+
+# 批量为开发同学生成笔记本 Peer（见 docs/assets/wireguard-clients.yaml）
+./scripts/wireguard/generate-team-laptop-peers.sh
+./scripts/wireguard/render-laptop-conf.sh laptop-billmiao /tmp/wg0.conf
 ```
 
 ## 保管层次

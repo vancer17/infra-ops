@@ -106,7 +106,7 @@ Stage F core (F1/F2/F2-5/F3) completed — use as reference / re-run checklist:
   [x] ci_connectivity.access_mode: wireguard; hub ansible_host=10.200.0.1
   [x] GitHub Environment Secret ANSIBLE_VAULT_PASSWORD = ci-01 .vault_pass (2026-06-14)
   [ ] Self-hosted Runner: optional — register-github-runner.sh (ci-01.yaml runner_status)
-  [ ] developer-laptop Client: optional (Hub Peer registered, no handshake yet)
+  [ ] laptop-zhengyaoyuan Client: optional (Hub Peer registered; team peers见 wireguard-clients.yaml)
 
 Re-verify Hub dry-run:
   ansible-playbook ansible/playbooks/wireguard-hub.yml \\

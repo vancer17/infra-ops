@@ -1,0 +1,19 @@
+# =============================================================================
+# WireGuard Client — laptop-zhengyaoyuan（zhengyaoyuan，开发/运维）
+# =============================================================================
+# 地址：10.200.10.1/32
+# 私钥：仅保存在笔记本；替换 REPLACE_WITH_PRIVATE_KEY
+# 公钥：ansible/keys/wireguard/laptop-zhengyaoyuan.pub
+# 台账：docs/assets/wireguard-clients.yaml
+# =============================================================================
+
+[Interface]
+PrivateKey = REPLACE_WITH_PRIVATE_KEY
+Address = 10.200.10.1/32
+DNS = 10.200.0.1
+
+[Peer]
+PublicKey = MNczHi1IQ4l8zkEPIQL1sPxSEPputkPdo2neaZWkFj8=
+Endpoint = 121.43.49.58:51820
+AllowedIPs = 10.200.0.0/16
+PersistentKeepalive = 25

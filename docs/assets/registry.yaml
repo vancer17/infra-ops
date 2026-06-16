@@ -334,8 +334,35 @@ wireguard_plan:
       address: "10.200.2.1/32"
       optional_this_phase: true
   client_pool:
-    description: "开发人员笔记本"
+    description: "开发人员与运维办公笔记本"
     cidr: "10.200.10.0/24"
+    ledger: docs/assets/wireguard-clients.yaml
+    members:
+      - peer: laptop-zhengyaoyuan
+        person: zhengyaoyuan
+        wg_ip: "10.200.10.1"
+        role: dev_ops
+        status: operational
+      - peer: laptop-billmiao
+        person: billmiao
+        wg_ip: "10.200.10.2"
+        role: dev
+        status: pending_key
+      - peer: laptop-sammao
+        person: sammao
+        wg_ip: "10.200.10.3"
+        role: dev
+        status: pending_key
+      - peer: laptop-zhu
+        person: zhu
+        wg_ip: "10.200.10.4"
+        role: dev
+        status: pending_key
+      - peer: laptop-xinxin
+        person: xinxin
+        wg_ip: "10.200.10.5"
+        role: dev
+        status: pending_key
 
 # -----------------------------------------------------------------------------
 # shared_cloud_dependencies — 跨主机共享的云产品（非 ECS）
