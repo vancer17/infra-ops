@@ -60,12 +60,15 @@ Hub (121.43.49.58 → 内网 10.200.0.1)
 | Hub 公网地址 | `121.43.49.58` |
 | Hub 端口 | `51820`（UDP） |
 | Hub 公钥 | `MNczHi1IQ4l8zkEPIQL1sPxSEPputkPdo2neaZWkFj8=` |
-| 本机地址示例 | `10.200.10.1/32`（每人不同，以分配为准） |
+| 本机地址示例 | `10.200.10.x/32`（每人不同，见 `docs/assets/wireguard-clients.yaml`） |
 | 内网 DNS（阶段 G2 后） | `10.200.0.1`（Hub dnsmasq，解析 `*.internal`） |
-| 可访问网段 | `10.200.0.0/24`、`10.200.1.0/24` |
+| 可访问网段 | 开发：`10.200.0.0/24`、`10.200.1.0/24`、`10.200.2.0/24`；运维另含全网段 |
 | 保活间隔 | `25` 秒 |
 
-配置模板（私钥需替换）：仓库路径 `ansible/keys/wireguard/developer-laptop.conf.example`
+配置由 infra 通过 `./scripts/wireguard/render-laptop-conf.sh <peer_name>` 生成后经安全渠道交付。模板参考：
+
+- 运维：`ansible/keys/wireguard/laptop-zhengyaoyuan.conf.example`
+- 开发：`ansible/keys/wireguard/laptop-client-dev.conf.example`
 
 ---
 
@@ -316,7 +319,7 @@ curl -s ifconfig.me
      --vault-password-file .vault_pass
    ```
 
-3. 根据 `developer-laptop.conf.example` 生成 `wg0.conf`，经 **安全渠道** 发送私钥与配置。
+3. 执行 `./scripts/wireguard/render-laptop-conf.sh <peer-name>` 生成 `wg0.conf`，经 **安全渠道** 发送给同事（勿通过普通聊天工具发私钥）。
 4. 家庭宽带无固定 IP 时，Hub 安全组 UDP **51820** 可对 `0.0.0.0/0` 放行（仅 WG 端口；SSH 仍限源）。详见内部讨论与 `stage-f-console-checklist.md`。
 5. 用户验收通过后，更新台账 / 验收记录。
 
@@ -326,7 +329,9 @@ curl -s ifconfig.me
 
 | 资源 | 路径 |
 |------|------|
-| 配置模板 | `ansible/keys/wireguard/developer-laptop.conf.example` |
+| 人员台账 | `docs/assets/wireguard-clients.yaml` |
+| 配置模板（运维） | `ansible/keys/wireguard/laptop-zhengyaoyuan.conf.example` |
+| 配置模板（开发） | `ansible/keys/wireguard/laptop-client-dev.conf.example` |
 | 运维简版 | [`developer-laptop-client.md`](developer-laptop-client.md) |
 | Hub 公钥文件 | `ansible/keys/wireguard/hub.pub` |
 | WireGuard 官方安装 | https://www.wireguard.com/install/ |

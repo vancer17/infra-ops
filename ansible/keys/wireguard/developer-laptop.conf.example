@@ -1,23 +1,8 @@
 # =============================================================================
-# WireGuard Client — 运维笔记本（developer-laptop）
+# DEPRECATED — 已更名为 laptop-zhengyaoyuan
 # =============================================================================
-# 地址：10.200.10.1/32（Hub 已登记此 Peer）
-# 私钥：仅保存在笔记本，替换下方 REPLACE_WITH_DEVELOPER_LAPTOP_PRIVATE_KEY
-# 公钥：ansible/keys/wireguard/developer-laptop.pub（已提交 Git）
-# Hub：121.43.49.58:51820
-# 文档（分发给同事）：docs/wireguard/办公笔记本-WG-Client-接入指南.md
-# 运维简版：docs/wireguard/developer-laptop-client.md
+# 请使用：
+#   ansible/keys/wireguard/laptop-zhengyaoyuan.conf.example
+#   docs/assets/wireguard-clients.yaml（五人台账）
+#   ./scripts/wireguard/render-laptop-conf.sh laptop-zhengyaoyuan
 # =============================================================================
-
-[Interface]
-PrivateKey = REPLACE_WITH_DEVELOPER_LAPTOP_PRIVATE_KEY
-Address = 10.200.10.1/32
-# 阶段 G2：Hub dnsmasq 内网 DNS（hub-g2.yml + internal_dns.status=operational 后启用）
-DNS = 10.200.0.1
-
-[Peer]
-# hub-01
-PublicKey = MNczHi1IQ4l8zkEPIQL1sPxSEPputkPdo2neaZWkFj8=
-Endpoint = 121.43.49.58:51820
-AllowedIPs = 10.200.0.0/24, 10.200.1.0/24
-PersistentKeepalive = 25

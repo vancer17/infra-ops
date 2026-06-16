@@ -4,7 +4,7 @@
 #
 # 【用途】
 #   在 hub-01 上安装 WireGuard Server：wg0 @ 10.200.0.1，UDP 51820，
-#   登记 inventory 中 hub_active_peers（ci-01、developer-laptop）。
+#   登记 inventory 中 hub_active_peers（ci-01、laptop-*）。
 #
 # 【前提】
 #   - 阶段 C：Hub Bootstrap + SSH steady（deploy@172.21.127.123）

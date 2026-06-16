@@ -8,7 +8,7 @@
 #   wireguard.listen_port          — 51820
 #   wireguard.interface            — wg0
 #   wireguard_peers_planned        — Peer 公钥列表
-#   wireguard_peer_model.hub_active_peers — 仅登记 ci-01、developer-laptop 等
+#   wireguard_peer_model.hub_active_peers — ci-01、laptop-* 等
 #
 # 执行顺序：包 → ip_forward → 解析 Peer → 写配置 → 启服务 → 验收
 #
@@ -64,7 +64,7 @@
       - wireguard_hub_peers_resolved | length > 0
     fail_msg: >-
       No Hub peers resolved. Check wireguard_peers_planned public_key and
-      wireguard_peer_model.hub_active_peers (expected ci-01, developer-laptop).
+      wireguard_peer_model.hub_active_peers (expected ci-01, laptop-*).
   tags: [wireguard, wireguard-hub, server]
 
 # -----------------------------------------------------------------------------
