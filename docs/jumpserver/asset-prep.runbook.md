@@ -52,8 +52,10 @@ make jumpserver-asset-prep LIMIT=dev-01
 
 | 节点路径 | 资产 | 说明 |
 |----------|------|------|
-| `Mgmt/Hub` | Hub-01 | |
+| `Mgmt/Hub` | Hub-01 | **G5 已完成**（2026-06-17） |
 | `Dev/ECS` | Dev-01、Dev-02 | **Dev-01 与 ci-01 同机，只录 Dev-01，勿重复建 ci-01 资产** |
+| `Test/ECS` | （预留） | 空 |
+| `Prod/ECS` | （预留） | 空 |
 
 ### 3.2 账户模板（建议先建一次，后续批量复用）
 
@@ -83,6 +85,15 @@ make jumpserver-asset-prep LIMIT=dev-01
 2. 测试连接 → 应成功  
 3. 授权：将资产/节点授权给运维用户组（平台用户一人一号 + MFA）
 
+### 3.5 Hub-01 完成清单（G5，2026-06-17）
+
+- [x] Ansible `jumpserver-asset-prep` + `verify-jumpserver-asset-remote.sh hub-01`
+- [x] 节点 `Mgmt/Hub`、`Dev/ECS`（及 Test/Prod 预留）已建
+- [x] 资产 Hub-01 @ `10.200.0.1`；账户模板 `linux-jump-ops`（`jump_ops`）
+- [x] 账号推送 + 测试连接成功
+- [x] **未**录入 `deploy`；**未**建 ci-01 重复资产
+- [ ] 资产授权 + MFA + Web 终端端到端（见 [G5 验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)）
+
 ## 四、验收标准
 
 | # | 项 | 标准 |
@@ -104,9 +115,12 @@ make jumpserver-asset-prep LIMIT=dev-01
 | Ansible 报 steady 未完成 | 先 `ssh-keys.sh steady` |
 | dev-02 失败 | 先 bootstrap dev-02 |
 | JMS 上 ci-01 与 Dev-01 重复 | 删除 ci-01 资产，仅保留 Dev-01（同 ECS） |
+| JMS 测试连接失败（paramiko） | Hub 上 `/opt/mgmt/jumpserver/install-paramiko.sh`；容器内 `python3` 与 `/opt/py3` 版本不一致时以控制台测试为准 |
+| Hub 自连 Broken pipe | 不以 `ssh deploy@10.200.0.1` 自连作为验收依据；以 JMS 测试连接为准 |
 
 ## 六、相关文档
 
 - [asset-prep.md](asset-prep.md)
 - [hub-jumpserver.runbook.md](hub-jumpserver.runbook.md)
+- [G5 Hub-01 验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)
 - 企业方案 §8.3–8.4 资产分组与系统用户

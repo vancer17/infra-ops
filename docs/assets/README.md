@@ -25,6 +25,7 @@
 | [RDS MySQL 实例现状与 Dev 规划](../rds/20260615-RDS-MySQL-实例现状与Dev规划.md) | **云数据库**：实例规格、已有库表、连接地址、白名单、Dev 规划 |
 | [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) | **对象存储**：Bucket 现状、RAM/前缀规划、阶段 H 验收清单 |
 | [阶段 G RDS 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) | `app_dev` 内网连通与 prod 隔离验收 |
+| [阶段 G5 Hub 资产纳管验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md) | JumpServer Hub-01 `jump_ops` + 账号推送 |
 
 ## 与 Inventory 的分工
 
@@ -42,12 +43,12 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - **mgmt** 管理面：`ansible/inventories/mgmt/`（hub-01）
 - ci-01 与 dev-01 同机：mgmt `wireguard_peers` 组管理 ci-01 WG Client；dev inventory 管 dev-01 应用
 
-## Bootstrap / 数据层进度（2026-06-15）
+## Bootstrap / 数据层进度（2026-06-17）
 
 | 主机 / 资源 | 状态 | 备注 |
 |-------------|------|------|
 | ci-01 / dev-01 | `ssh_done` | WG operational；**RDS `app_dev` operational** |
-| hub-01 | `ssh_done` | WG Server operational |
+| hub-01 | `ssh_done` | WG Server operational；**G4 JumpServer + G5 Hub 资产纳管 onboarded** |
 | dev-02 | `pending` | RDS 白名单 pending_bootstrap |
 | test-01 | `pending` | 未纳入 |
 | RDS `app_dev` | **operational** | 内网 host；见 [阶段 G 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) |
@@ -72,12 +73,12 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | **GitHub VAULT** | **`ANSIBLE_VAULT_PASSWORD` 已配**（dev Environment）；`wireguard-hub.yml --check --diff` 通过 |
 | **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
 | **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
-| **下一里程碑** | RDS 外网关闭；`DB_PASSWORD` Secrets；`network_phase: steady`（JumpServer） |
+| **下一里程碑** | JumpServer 授权/MFA + Dev-01 纳管；改 admin 默认密码；`network_phase: steady`（关公网 SSH） |
 
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
 - **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
 - **验收日志**：F2 隧道 + F3-1 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
-- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)
+- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)、[阶段 G5 Hub 资产纳管](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)
 
 ## 相关文档
 
