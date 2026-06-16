@@ -117,7 +117,9 @@ dev_hosts:
   dev-01:
     public_ip: "121.41.58.20"
     private_ip: "172.21.226.38"
+    # 逻辑规划段 Dev 地址；实机 WG 流量经 ci-01 同机 Peer 10.200.0.2（见 app.domains.wg_ip）
     wg_ip: "10.200.1.1"
+    hub_peer_wg_ip: "10.200.0.2"
     role: dev_app
     instance_id: "i-bp14czvx1exdi6cmrt2r"
     # 跨 VPC 回退地址；同 VPC 时 host_vars 优先 internal
@@ -125,6 +127,9 @@ dev_hosts:
     ansible_host_internal: "172.21.226.38"
     same_ecs_as_ci: true
     bootstrap_status: bootstrap_done
+    # 业务 Nginx / 占位 API：inventory 阶段 2 变量见 group_vars nginx.yml、app.yml
+    nginx_app_status: not_started
+    app_deploy_status: placeholder
   dev-02:
     public_ip: "112.124.104.223"
     private_ip: "172.21.127.124"
@@ -150,10 +155,43 @@ optional_hosts:
 # -----------------------------------------------------------------------------
 # app_ports — Dev 环境应用监听端口
 # -----------------------------------------------------------------------------
+# 消费者：nginx.yml listen/upstream、app.yml placeholder.listen_port、安全组文档
+# 8080 仅本机回环；公网由 Nginx 80/443 承接（见 remark.log IN-*-PUBLIC-DEV）
 app_ports:
   http: 80
   https: 443
   app: 8080
+
+# -----------------------------------------------------------------------------
+# security_group_ingress — Dev ECS 入站摘要（与控制台 remark.log 对齐，Ansible 不改云）
+# -----------------------------------------------------------------------------
+security_group_ingress:
+  security_group_id: sg-bp122tjy3h95um8kv4f9
+  summary_ref: logs/remark.log
+  rules:
+    - id: IN-HTTP-WG
+      protocol: tcp
+      port: 80
+      source: "10.200.0.0/16"
+    - id: IN-HTTPS-WG
+      protocol: tcp
+      port: 443
+      source: "10.200.0.0/16"
+    - id: IN-HTTPS-PUBLIC-DEV
+      protocol: tcp
+      port: 443
+      source: "0.0.0.0/0"
+      note: "小程序 / 外网 HTTPS API"
+    - id: IN-HTTP-PUBLIC-DEV
+      protocol: tcp
+      port: 80
+      source: "0.0.0.0/0"
+      note: "可 301 至 443"
+  not_exposed:
+    - port: 8080
+      note: "应用容器仅 127.0.0.1，由 Nginx 反代"
+    - port: 1883
+      note: "MQTT 待独立规划"
 
 # -----------------------------------------------------------------------------
 # host_firewall — 目标机 ufw 策略（Bootstrap 期不启用）

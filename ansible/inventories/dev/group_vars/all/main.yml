@@ -7,13 +7,17 @@
 #   dev-02…）都会自动加载的**环境级公共变量**。
 #
 # 【与同目录其他文件的分工】
-#   main.yml      → 本文件：环境标识、时区/语言、OSS 等非敏感「全环境常量」
-#   bootstrap.yml → 1.2 Bootstrap 专用（用户、Docker 开关、SSH 阶段等）
-#   network.yml   → 网络拓扑、RDS、跨 VPC、安全组白名单引用 IP 等
+#   main.yml           → 本文件：环境标识、时区/语言、OSS 等非敏感「全环境常量」
+#   bootstrap.yml      → 1.2 Bootstrap 专用（用户、Docker 开关、SSH 阶段等）
+#   network.yml        → 网络拓扑、RDS、跨 VPC、安全组白名单引用 IP 等
+#   app.yml            → 应用/占位 API、Compose 路径、客户端类型文档化
+#   nginx.yml          → dev-01 业务 Nginx 网关（与 Hub mgmt nginx 分离）
+#   secrets.yml        → ansible-vault 加密的 DB 密码等（仅 secrets.yml.example 进 Git）
+#   ssh.yml            → SSH 密钥与连接用户
 #
-#   三者合并后才是 dev-01 的完整变量集；Ansible 按文件名字母序加载：
-#     bootstrap.yml → main.yml → network.yml
-#   若键名冲突，后加载的文件覆盖先加载的（当前三个文件键名无冲突）。
+#   Ansible 按文件名字母序合并 group_vars/all/*.yml：
+#     app → bootstrap → main → network → nginx → secrets → ssh
+#   另有 group_vars/dev_app/main.yml、host_vars/<host>.yml
 #
 # 【谁在消费这些变量】
 #   timezone、locale  → roles/common/tasks/base.yml（装系统时区与 locale）

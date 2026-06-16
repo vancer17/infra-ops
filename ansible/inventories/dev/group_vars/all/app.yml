@@ -1,0 +1,124 @@
+# =============================================================================
+# Ansible Inventory 变量：Dev 应用部署与占位 API
+# =============================================================================
+#
+# 【这个文件是什么】
+#   业务容器（Docker Compose）、占位 API、环境变量键名的 SSOT。
+#   供后续 dev-app.yml、app_deploy role、.env.j2 模板消费。
+#
+# 【与 nginx.yml 的分工】
+#   app.yml   → 容器镜像、Compose 路径、监听地址、/health、ENV 等
+#   nginx.yml → 80/443 统一出口、反代到 app.upstream
+#
+# 【占位 API】
+#   暂无真实业务进程时，deploy_status=placeholder，使用轻量 HTTP 容器监听
+#   127.0.0.1:8080，供 Nginx 与小程序/外网连通性验收。
+#
+# 【敏感信息】
+#   DB_PASSWORD 等见 secrets.yml.example / GitHub Secrets，不进 Git 明文
+#
+# =============================================================================
+
+---
+
+app:
+  # 阶段 2：仅变量；阶段 3 dev-app.yml apply 占位容器后改为 true
+  enabled: false
+
+  # placeholder → 占位 API；operational → 真实业务镜像
+  deploy_status: placeholder
+
+  # ---------------------------------------------------------------------------
+  # compose — Docker Compose 布局（与 bootstrap 目录约定一致）
+  # ---------------------------------------------------------------------------
+  compose:
+    project_dir: /opt/app/compose
+    env_file: /opt/app/compose/.env
+    compose_file: docker-compose.yml
+    project_name: dev-app
+
+  # ---------------------------------------------------------------------------
+  # placeholder — 占位 HTTP 服务（无真实业务时使用）
+  # ---------------------------------------------------------------------------
+  placeholder:
+    enabled: true
+    # 国内 ECS 优先镜像站；完整覆盖可设 image: hashicorp/http-echo:0.2.3
+    registry_prefix: "5yrqsf19ms2mh4.xuanyuan.run/hashicorp"
+    image_name: http-echo
+    image_tag: "0.2.3"
+    image_pull_policy: missing
+    container_name: dev-app-placeholder
+    listen_host: "127.0.0.1"
+    listen_port: 8080
+    # 容器内 echo 默认路径 /；健康检查可由 Nginx location = /health 直接 return 200
+    health_path: /health
+    health_expect_status: 200
+    echo_text: "infra-ops dev placeholder api"
+    restart_policy: unless-stopped
+    # 仅绑定回环，禁止 0.0.0.0:8080 对公网暴露
+    publish_host: "127.0.0.1"
+
+  # ---------------------------------------------------------------------------
+  # image — 真实业务镜像（业务栈确定后由 CI 传入 IMAGE_TAG）
+  # ---------------------------------------------------------------------------
+  image:
+    repository: null
+    tag: null
+    # 容器内监听端口（与宿主机 app.listen.port 映射为 host:container）
+    container_port: 8080
+    # 示例：registry.cn-hangzhou.aliyuncs.com/your-ns/your-app
+    pull_policy: missing
+
+  # ---------------------------------------------------------------------------
+  # listen — 应用容器监听（与 nginx.upstream 对齐）
+  # ---------------------------------------------------------------------------
+  listen:
+    host: "127.0.0.1"
+    port: 8080
+
+  # ---------------------------------------------------------------------------
+  # env — 写入 .env.j2 的非敏感键（真值来自 Secrets / vault）
+  # ---------------------------------------------------------------------------
+  env:
+    ENV: development
+    LOG_LEVEL: DEBUG
+    SWAGGER_ENABLED: "true"
+    # 与 main.yml env_name 映射
+    APP_ENV: dev
+
+  # ---------------------------------------------------------------------------
+  # domains — 与 nginx.server_names、Hub internal_dns 对齐
+  # ---------------------------------------------------------------------------
+  domains:
+    internal: dev-app.internal
+    public_ip: "121.41.58.20"
+    wg_ip: "10.200.0.2"
+
+  # ---------------------------------------------------------------------------
+  # clients — 预期请求来源（文档化；鉴权在应用层实现）
+  # ---------------------------------------------------------------------------
+  clients:
+    - type: wireguard_developer
+      note: "开发人员经 dev-app.internal"
+    - type: mini_program
+      note: "微信小程序 HTTPS API；需公网 443 与后续正式域名"
+    - type: hardware_device
+      note: "硬件 HTTP API；MQTT 独立规划，不经本 HTTP 栈"
+    - type: public_internet
+      note: "remark.log IN-HTTPS-PUBLIC-DEV"
+
+  # ---------------------------------------------------------------------------
+  # health — 发布与 Nginx 探活共用
+  # ---------------------------------------------------------------------------
+  health:
+    path: /health
+    expect_status: 200
+    interval_seconds: 30
+    timeout_seconds: 5
+    # 探活重试：delay 默认 interval_seconds/6；retries 默认 12（见 app_deploy defaults）
+
+  # ---------------------------------------------------------------------------
+  # rds / oss — 引用 network.yml / main.yml（模板中可拼接）
+  # ---------------------------------------------------------------------------
+  use_rds_from_inventory: true
+  use_oss_from_inventory: true

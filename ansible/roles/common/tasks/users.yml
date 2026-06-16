@@ -162,6 +162,21 @@
   tags: [common, bootstrap, sudo, sudo_docker]
 
 # -----------------------------------------------------------------------------
+# Task 4c：配置 deploy 应用主机 sudo（dev-01 Nginx / apt）
+# -----------------------------------------------------------------------------
+# 与 sudo_docker 并存：写入独立 drop-in，避免覆盖 docker sudoers
+- name: Configure deploy sudo for application host (dev_app)
+  ansible.builtin.template:
+    src: sudoers-deploy-app-host.j2
+    dest: /etc/sudoers.d/deploy-app-host
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  when: deploy_sudo_app_host | default(false) | bool
+  tags: [common, bootstrap, sudo, sudo_app_host]
+
+# -----------------------------------------------------------------------------
 # Task 4b：配置 deploy 管理面 sudo（Hub 等 mgmt 主机）
 # -----------------------------------------------------------------------------
 # 模块：template — templates/sudoers-deploy-mgmt.j2

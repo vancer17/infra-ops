@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: app_deploy
+  author: infra-ops
+  description: Deploy Dev application stack via Docker Compose (placeholder or production image)
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies: []

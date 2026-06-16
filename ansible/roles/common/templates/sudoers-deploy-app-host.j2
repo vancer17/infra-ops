@@ -1,0 +1,5 @@
+# Managed by Ansible infra-ops — dev-01 app host deploy passwordless sudo
+# Consumer: roles/common/tasks/users.yml (deploy_sudo_app_host)
+# Scope: dev_app group (nginx-dev.yml apt/systemd, dev-app.yml become)
+# Required for: Ansible become: true on dev-01 as deploy@ user
+deploy ALL=(ALL) NOPASSWD: ALL

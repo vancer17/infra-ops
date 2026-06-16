@@ -8,7 +8,7 @@
 galaxy_info:
   role_name: nginx
   author: infra-ops
-  description: Install and configure host Nginx gateway on Hub (management plane)
+  description: Install and configure host Nginx gateway (Hub mgmt + Dev app)
   license: MIT
   min_ansible_version: "2.14"
 

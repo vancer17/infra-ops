@@ -1,0 +1,173 @@
+# =============================================================================
+# Ansible Playbook：Dev 业务层 Nginx 网关
+# =============================================================================
+#
+# 【用途】
+#   在 dev-01 安装宿主机 Nginx，提供业务统一出口：
+#     - https://dev-app.internal / https://10.200.0.2（WG 内网）
+#     - https://121.41.58.20（公网 API / 小程序联调）
+#     - 反代 127.0.0.1:8080（占位 API 或真实应用）
+#
+# 【前提】
+#   - dev-app.yml 已部署占位容器（推荐；/health 由 Nginx 直接返回，但 / 需上游）
+#   - 安全组：IN-HTTP/HTTPS-WG、IN-HTTP/HTTPS-PUBLIC-DEV（见 remark.log）
+#   - deploy@dev-01 steady SSH + deploy-app-host sudoers
+#
+# 【常用命令】
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#
+#   make stage-dev-nginx-preflight
+#
+#   ansible-playbook ansible/playbooks/nginx-dev.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01 \
+#     --check --diff
+#
+#   ansible-playbook ansible/playbooks/nginx-dev.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01
+#
+# 【成功后】
+#   更新 group_vars/all/nginx.yml：
+#     nginx.enabled: true
+#     nginx.status: operational
+#   验收：
+#     curl -sk https://127.0.0.1/health
+#     curl -sk https://dev-app.internal/health   # WG + DNS
+#     curl -sk https://121.41.58.20/health       # 公网
+#
+# =============================================================================
+
+---
+- name: Deploy Dev application Nginx gateway
+  hosts: dev_app
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "nginx-dev playbook requires Debian 12+"
+      tags: [nginx, nginx-dev, preflight]
+
+    - name: Assert target is Dev application Nginx gateway host
+      ansible.builtin.assert:
+        that:
+          - nginx_app_gateway | default(false) | bool
+        fail_msg: "nginx_app_gateway must be true on dev-01 (see host_vars/dev-01.yml)"
+      tags: [nginx, nginx-dev, preflight]
+
+    - name: Assert Dev Nginx gateway mode in inventory
+      ansible.builtin.assert:
+        that:
+          - nginx.gateway_mode | default('') == 'app'
+        fail_msg: "nginx.gateway_mode must be app in group_vars/all/nginx.yml"
+      tags: [nginx, nginx-dev, preflight]
+
+    - name: Assert Dev SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Dev must use deploy@ steady SSH before nginx-dev apply"
+      tags: [nginx, nginx-dev, preflight]
+
+    - name: Probe application upstream before Dev Nginx
+      ansible.builtin.uri:
+        url: "http://{{ nginx.upstream.host | default('127.0.0.1') }}:{{ nginx.upstream.port | default(8080) }}/"
+        status_code: 200
+      register: nginx_dev_upstream_probe
+      failed_when: false
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev, preflight]
+
+    - name: Warn when application upstream is not reachable
+      ansible.builtin.debug:
+        msg: >-
+          WARN: application upstream is not responding on
+          {{ nginx.upstream.host | default('127.0.0.1') }}:{{ nginx.upstream.port | default(8080) }}.
+          Run dev-app.yml first for full proxy verification; Nginx /health still works.
+      when:
+        - not ansible_check_mode
+        - nginx_dev_upstream_probe is defined
+        - nginx_dev_upstream_probe is failed
+      tags: [nginx, nginx-dev, preflight]
+
+  tasks:
+    - name: Configure Dev application Nginx gateway
+      ansible.builtin.import_role:
+        name: nginx
+        tasks_from: dev-app
+      tags: [nginx, nginx-dev]
+
+    - name: Flush handlers so post_tasks verify running Nginx configuration
+      ansible.builtin.meta: flush_handlers
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev]
+
+  post_tasks:
+    - name: Wait for Nginx to listen on HTTPS port
+      ansible.builtin.wait_for:
+        port: "{{ nginx.listen.https | default(443) }}"
+        host: 127.0.0.1
+        timeout: 30
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev, verify]
+
+    - name: Wait for Nginx to listen on HTTP port
+      ansible.builtin.wait_for:
+        port: "{{ nginx.listen.http | default(80) }}"
+        host: 127.0.0.1
+        timeout: 30
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev, verify]
+
+    - name: Verify local HTTPS health endpoint
+      ansible.builtin.uri:
+        url: "https://127.0.0.1{{ nginx.health_uri | default('/health') }}"
+        validate_certs: false
+        status_code: 200
+      register: nginx_dev_local_health
+      changed_when: false
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev, verify]
+
+    - name: Verify proxied root via HTTPS when upstream is live
+      ansible.builtin.uri:
+        url: "https://127.0.0.1/"
+        validate_certs: false
+        status_code: 200
+      register: nginx_dev_proxy_root
+      changed_when: false
+      failed_when: false
+      when:
+        - not ansible_check_mode
+        - nginx_dev_upstream_probe is defined
+        - nginx_dev_upstream_probe is succeeded
+      tags: [nginx, nginx-dev, verify]
+
+    - name: Gather service facts for Nginx verification
+      ansible.builtin.service_facts:
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev, verify]
+
+    - name: Verify Nginx is active in systemd
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['nginx.service'].state == 'running'
+        fail_msg: "nginx.service is not running after apply"
+      when: not ansible_check_mode
+      tags: [nginx, nginx-dev, verify]
+
+    - name: Dev Nginx deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Dev application Nginx applied on {{ inventory_hostname }}"
+          - "Health: https://127.0.0.1{{ nginx.health_uri | default('/health') }} (use -k for self-signed)"
+          - "WG: https://dev-app.internal{{ nginx.health_uri | default('/health') }}"
+          - "Public: https://{{ app.domains.public_ip | default('121.41.58.20') }}{{ nginx.health_uri | default('/health') }}"
+          - "Update inventory: nginx.enabled=true, nginx.status=operational"
+      tags: [nginx, nginx-dev, verify]

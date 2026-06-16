@@ -1,0 +1,24 @@
+# =============================================================================
+# Ansible Inventory 变量：dev_app 组（主应用节点）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   仅对 inventory 分组 dev_app 下的主机（当前 dev-01）生效。
+#   声明「哪台机器跑业务 Nginx + 应用容器」。
+#
+# 【与 dev_worker 的分工】
+#   dev_app    → dev-01：Nginx 统一出口 + Web/API 容器
+#   dev_worker → dev-02：Redis / Worker（无业务 Nginx）
+#
+# =============================================================================
+
+---
+
+# dev_app 组内主机均参与应用层 playbook 的 hosts: dev_app 目标
+app_group_role: primary_app
+
+# 本组负责宿主机业务 Nginx（dev-02 不设置 nginx_app_gateway）
+nginx_app_gateway_expected: true
+
+# dev-01：Ansible nginx-dev / dev-app playbook 需要 deploy 免密 sudo（become: true）
+deploy_sudo_app_host: true

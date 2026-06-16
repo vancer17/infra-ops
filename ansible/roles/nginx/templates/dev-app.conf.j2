@@ -1,0 +1,88 @@
+# =============================================================================
+# Dev 业务层 Nginx — dev-app.internal / 公网 API 统一出口
+# =============================================================================
+# Managed by Ansible infra-ops (nginx role)
+# gateway_mode: {{ nginx.gateway_mode | default('app') }}
+# upstream: {{ nginx_app_upstream_host }}:{{ nginx_app_upstream_port }}
+# http_to_https.scope: {{ nginx_http_to_https_scope }}
+# =============================================================================
+
+{% if nginx_http_to_https_enabled | bool %}
+{% if nginx_http_to_https_scope == 'public_only' and nginx_app_server_names_http_redirect | length > 0 %}
+server {
+    listen {{ nginx_listen_http }} default_server;
+    listen [::]:{{ nginx_listen_http }} default_server;
+    server_name {{ nginx_app_server_names_http_redirect | join(' ') }};
+
+    return 301 https://$host$request_uri;
+}
+
+{% if nginx_app_server_names_http_internal | length > 0 %}
+server {
+    listen {{ nginx_listen_http }};
+    listen [::]:{{ nginx_listen_http }};
+    server_name {{ nginx_app_server_names_http_internal | join(' ') }};
+
+    access_log {{ nginx_app_access_log }};
+    error_log {{ nginx_app_error_log }};
+
+    client_max_body_size {{ nginx_app_client_max_body_size }};
+
+    location = {{ nginx_health_uri }} {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        proxy_pass http://{{ nginx_app_upstream_name }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout {{ nginx_app_proxy_read_timeout }};
+        proxy_connect_timeout {{ nginx_app_proxy_connect_timeout }};
+    }
+}
+{% endif %}
+{% else %}
+server {
+    listen {{ nginx_listen_http }} default_server;
+    listen [::]:{{ nginx_listen_http }} default_server;
+    server_name {{ nginx_app_server_names_http_redirect | join(' ') }};
+
+    return 301 https://$host$request_uri;
+}
+{% endif %}
+{% endif %}
+
+server {
+    listen {{ nginx_listen_https }} ssl default_server;
+    listen [::]:{{ nginx_listen_https }} ssl default_server;
+    server_name {{ nginx_app_all_server_names | join(' ') }};
+
+    include {{ nginx_snippets_dir }}/ssl-dev-app.conf;
+
+    access_log {{ nginx_app_access_log }};
+    error_log {{ nginx_app_error_log }};
+
+    client_max_body_size {{ nginx_app_client_max_body_size }};
+
+    location = {{ nginx_health_uri }} {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        proxy_pass http://{{ nginx_app_upstream_name }};
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout {{ nginx_app_proxy_read_timeout }};
+        proxy_connect_timeout {{ nginx_app_proxy_connect_timeout }};
+    }
+}

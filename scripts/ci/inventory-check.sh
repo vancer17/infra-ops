@@ -145,6 +145,35 @@ for host_name in "${dev_hosts[@]}"; do
   else
     ci_log "WARN: host ${host_name}: rds.host not set in merged vars"
   fi
+
+  # ---------------------------------------------------------------------------
+  # 业务 Nginx / 应用变量（阶段 2 inventory；dev-01 为网关主机）
+  # ---------------------------------------------------------------------------
+  nginx_app_gw="$(resolved_host_var "${host_name}" "nginx_app_gateway")"
+  nginx_app_gw="${nginx_app_gw:-false}"
+
+  if [[ "${nginx_app_gw}" == "true" ]]; then
+    gw_mode="$(resolved_host_var "${host_name}" "nginx.gateway_mode")"
+    nginx_upstream_port="$(resolved_host_var "${host_name}" "nginx.upstream.port")"
+    app_port="$(resolved_host_var "${host_name}" "app_ports.app")"
+    app_listen_port="$(resolved_host_var "${host_name}" "app.listen.port")"
+    nginx_status="$(resolved_host_var "${host_name}" "nginx.status")"
+    app_deploy="$(resolved_host_var "${host_name}" "app.deploy_status")"
+    internal_domain="$(resolved_host_var "${host_name}" "app.domains.internal")"
+
+    [[ "${gw_mode}" == "app" ]] || ci_die "host ${host_name}: nginx.gateway_mode must be 'app' (got ${gw_mode})"
+    [[ -n "${nginx_upstream_port}" ]] || ci_die "host ${host_name}: nginx.upstream.port is empty"
+    [[ -n "${app_port}" ]] || ci_die "host ${host_name}: app_ports.app is empty"
+    [[ "${nginx_upstream_port}" == "${app_port}" ]] \
+      || ci_die "host ${host_name}: nginx.upstream.port (${nginx_upstream_port}) != app_ports.app (${app_port})"
+    [[ "${app_listen_port}" == "${app_port}" ]] \
+      || ci_die "host ${host_name}: app.listen.port (${app_listen_port}) != app_ports.app (${app_port})"
+    [[ "${internal_domain}" == "dev-app.internal" ]] \
+      || ci_log "WARN: host ${host_name}: app.domains.internal=${internal_domain} (expected dev-app.internal)"
+
+    ci_log "  ${host_name}: nginx.gateway_mode=${gw_mode} nginx.status=${nginx_status:-<unset>} app.deploy_status=${app_deploy:-<unset>}"
+    ci_log "  ${host_name}: nginx upstream 127.0.0.1:${nginx_upstream_port} internal=${internal_domain} OK"
+  fi
 done
 
 ci_log "inventory-check OK"

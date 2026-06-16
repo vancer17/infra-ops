@@ -7,6 +7,8 @@
 #   same_vpc_as_dev=true 时使用 172.21.226.38（本机私网）
 #   注意：dev-01 与 ci-01 同 ECS，Ansible 从 CI 机执行时 SSH 本机私网地址
 #
+# 业务层（阶段 2 inventory）：
+#   nginx_app_gateway / app_deploy_host → group_vars/all/nginx.yml、app.yml
 # 资产来源：docs/assets/dev-01.yaml
 # =============================================================================
 ansible_host: >-
@@ -20,6 +22,18 @@ ansible_host: >-
     else dev_hosts['dev-01'].ansible_host_internal
   }}
 ansible_user: "{{ ssh_inventory_user | default('root') }}"
+
+# -----------------------------------------------------------------------------
+# nginx_app_gateway — 本机承担 Dev 业务层 Nginx 统一出口（80/443 → :8080）
+# -----------------------------------------------------------------------------
+# 消费者：nginx-dev.yml、roles/nginx dev-app 任务
+# 与 hub-01 的 nginx_gateway（管理面）不同键名，避免误用 Hub playbook
+nginx_app_gateway: true
+
+# -----------------------------------------------------------------------------
+# app_deploy_host — 应用 Compose / 占位 API 部署在此主机
+# -----------------------------------------------------------------------------
+app_deploy_host: true
 
 # JumpServer 资产纳管控制台参考
 jumpserver_asset_console:

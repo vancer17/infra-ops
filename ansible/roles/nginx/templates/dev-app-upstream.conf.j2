@@ -1,0 +1,10 @@
+# =============================================================================
+# Dev 业务 Nginx — upstream 与应用反代
+# =============================================================================
+# Managed by Ansible infra-ops (nginx role / dev-app gateway)
+# =============================================================================
+
+upstream {{ nginx_app_upstream_name }} {
+    server {{ nginx_app_upstream_host }}:{{ nginx_app_upstream_port }};
+    keepalive 16;
+}

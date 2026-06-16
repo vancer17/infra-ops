@@ -2,6 +2,9 @@
 # infra-ops — 基础设施与运维仓库
 # =============================================================================
 
+# Dev inventory vault 明文（仅提交 secrets.yml.example）
+ansible/inventories/dev/group_vars/all/secrets.yml
+
 # Ansible 1.3 CI 部署私钥（公钥 infra-ci-deploy.pub 可提交）
 ansible/keys/infra-ci-deploy
 !ansible/keys/infra-ci-deploy.pub
