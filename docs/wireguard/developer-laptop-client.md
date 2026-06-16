@@ -53,5 +53,6 @@ ssh deploy@10.200.0.1 'sudo wg show wg0'
 ## 相关文档
 
 - [办公笔记本-WG-Client-接入指南.md](./办公笔记本-WG-Client-接入指南.md)
+- [Clash Verge 与 WG/SSH 共存指南](./clash-verge-wg-ssh-bypass.md)（分发 WG 时，若对方使用跨境代理一并发送）
 - [wireguard-clients.yaml](../assets/wireguard-clients.yaml)
 - [stage-f-console-checklist.md](./stage-f-console-checklist.md)

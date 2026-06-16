@@ -274,6 +274,7 @@ ssh -i ~/.ssh/infra-ci-deploy deploy@10.200.0.2 hostname
 | 更换 Wi-Fi / 宽带 | 一般 **无需改配置**；若长期无法 handshake，联系 infra |
 | 访问 Dev 应用 | 先连 WG，再访问 `10.200.0.2:8080` 或未来内网域名 |
 | 访问 JumpServer | 先连 WG，浏览器打开 `https://jms.internal/` |
+| 同时使用 Clash Verge 翻墙 | 须配置 bypass 规则，见 [Clash Verge 与 WG/SSH 共存指南](./clash-verge-wg-ssh-bypass.md) |
 
 **注意**：未连接 WG 时，无法访问 `10.200.x.x` 内网地址。
 
@@ -293,6 +294,7 @@ ssh -i ~/.ssh/infra-ci-deploy deploy@10.200.0.2 hostname
 | 私钥与 Hub 登记公钥不匹配 | 确认使用的是 infra **本次分配**的私钥，不要自己重新 `wg genkey` 后不告知 infra |
 | 本地防火墙拦截 UDP 出站 | 关闭或放行 WireGuard / UDP 出站 |
 | Hub Endpoint 写错 | 确认为 `121.43.49.58:51820` |
+| **Clash Verge 等代理客户端抢占路由** | 按 [Clash Verge 与 WG/SSH 共存指南](./clash-verge-wg-ssh-bypass.md) 配置 DIRECT 与 TUN 排除；或临时关闭 TUN |
 
 自检公网 IP：
 
@@ -317,7 +319,13 @@ curl -s ifconfig.me
 
 **不要**自行添加 `10.200.3.0/24`（生产网段）或其他未授权网段；需变更请联系 infra。
 
-### Q5：笔记本丢失或私钥泄露
+### Q5：同时使用 Clash Verge，WG 或 SSH 异常
+
+**含义**：跨境代理（尤其 **TUN 模式**）可能拦截 WireGuard UDP 或内网 `10.200.x.x` 流量。
+
+**处理**：按 **[Clash Verge 与 WG/SSH 共存指南](./clash-verge-wg-ssh-bypass.md)** 添加前置 DIRECT 规则与 Merge 配置。快速自检：Clash 日志中 `121.43.49.58` 须为 `DIRECT`。
+
+### Q6：笔记本丢失或私钥泄露
 
 **立即联系 infra**：吊销对应 Peer、轮换密钥、重新 apply Hub 配置。
 
@@ -369,6 +377,7 @@ curl -s ifconfig.me
 | 配置模板（运维） | `ansible/keys/wireguard/laptop-zhengyaoyuan.conf.example` |
 | 配置模板（开发） | `ansible/keys/wireguard/laptop-client-dev.conf.example` |
 | 运维简版 | [`developer-laptop-client.md`](developer-laptop-client.md) |
+| Clash Verge 共存配置 | [clash-verge-wg-ssh-bypass.md](./clash-verge-wg-ssh-bypass.md) |
 | Hub 公钥文件 | `ansible/keys/wireguard/hub.pub` |
 | WireGuard 官方安装 | https://www.wireguard.com/install/ |
 
