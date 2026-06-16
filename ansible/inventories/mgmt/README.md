@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-17）**：阶段 F WireGuard、G1 Nginx、G2 内网 DNS、G3 Hub Docker、**G4 JumpServer `operational`**。**下一步**：`jumpserver-asset-prep`（jump_ops）→ JumpServer 控制台资产/账号推送 → 修改默认管理员密码、评估关公网 SSH。
+**hub-01 状态（2026-06-17）**：阶段 F WireGuard、G1 Nginx、G2 内网 DNS、G3 Hub Docker、G4 JumpServer `operational`、**G5 Hub-01 资产纳管 `onboarded`**。**下一步**：JumpServer 授权/MFA、Dev-01 纳管、修改默认管理员密码、评估关公网 SSH。
 
 ## 用途
 
@@ -84,7 +84,7 @@ WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
 阶段 G2 内网 DNS：`docs/dns/hub-internal-dns.runbook.md`（`make stage-g2-preflight`）；验收：`docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md`  
 阶段 G3 Hub Docker：`docs/docker/hub-docker.runbook.md`（`make stage-g3-docker-preflight`）；验收：`docs/acceptance/20260617-阶段G3-Hub-Docker验收.md`  
 阶段 G4 JumpServer：`docs/jumpserver/hub-jumpserver.runbook.md`（`make stage-g4-jumpserver-preflight`）；验收：`docs/acceptance/20260617-阶段G4-JumpServer验收.md`  
-JumpServer 资产纳管：`docs/jumpserver/asset-prep.runbook.md`（`make stage-jumpserver-asset-preflight LIMIT=hub-01`）
+JumpServer 资产纳管：`docs/jumpserver/asset-prep.runbook.md`（`make stage-jumpserver-asset-preflight LIMIT=hub-01`）；**Hub-01 G5 验收**：`docs/acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md`
 
 ## 资产同步
 

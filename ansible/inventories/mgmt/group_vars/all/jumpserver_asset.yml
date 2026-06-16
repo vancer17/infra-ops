@@ -35,6 +35,20 @@ jumpserver_asset:
     protocol_ssh_port: 22
     protocol_sftp_port: 22
     account_template_suggested: linux-jump-ops
+    # JumpServer 控制台节点树（录入参考；不自动调 JMS API）
+    nodes:
+      - path: Mgmt/Hub
+        assets: [Hub-01]
+        status: hub_onboarded
+      - path: Dev/ECS
+        assets: [Dev-01, Dev-02]
+        status: pending
+      - path: Test/ECS
+        assets: []
+        status: reserved
+      - path: Prod/ECS
+        assets: []
+        status: reserved
 
   jump_ops:
     enabled: true

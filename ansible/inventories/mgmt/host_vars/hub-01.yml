@@ -78,3 +78,6 @@ jumpserver_asset_console:
   address_primary: "10.200.0.1"
   address_fallback: "172.21.127.123"
   platform: Linux
+
+# G5（2026-06-17）：Ansible prep + JMS 账号推送与测试连接已完成
+jumpserver_asset_onboarded: true

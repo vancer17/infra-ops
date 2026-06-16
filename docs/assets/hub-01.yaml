@@ -25,6 +25,7 @@
 #   阶段 G2（2026-06-16）：Hub 内网 DNS + JumpServer upstream 细化 — 见 stage_g2_internal_dns（验收通过）
 #   阶段 G3（2026-06-17）：Hub 启用 Docker CE — 见 stage_g3_hub_docker（验收通过）
 #   阶段 G4（2026-06-17）：Hub JumpServer Compose — 见 stage_g4_hub_jumpserver（验收通过）
+#   阶段 G5（2026-06-17）：Hub-01 JumpServer 资产纳管 — 见 stage_g5_jumpserver_asset_hub（验收通过）
 #
 # =============================================================================
 
@@ -137,6 +138,8 @@ host:
     docker_operational_at: "2026-06-17"
     jumpserver_status: operational
     jumpserver_operational_at: "2026-06-17"
+    jumpserver_asset_hub_status: onboarded
+    jumpserver_asset_hub_onboarded_at: "2026-06-17"
     baota_installed: false
 
   # 阶段 E 密钥验收（2026-06-14，ci-01 上 wg-keys all-hub + vault-encrypt-hub）
@@ -370,9 +373,56 @@ host:
       inventory_nginx_deploy_ready: ok
     pending:
       - jumpserver_admin_password_rotation
-      - jumpserver_asset_onboarding
+      - jumpserver_asset_dev_ecs_onboarding
+      - jumpserver_platform_authorization_mfa
       - steady_in_ssh_wg_and_retire_public_ssh
     conclusion: "阶段 G4 验收通过；jms.internal 反代 JumpServer jms_all；deploy_status=ready"
+
+  # 阶段 G5 Hub-01 JumpServer 资产纳管（2026-06-17，logs/console-acceptance.log + console-check.log）
+  stage_g5_jumpserver_asset_hub:
+    status: onboarded
+    completed_at: "2026-06-17"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    acceptance_doc: docs/acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md
+    playbook: ansible/playbooks/jumpserver-asset-prep.yml
+    preflight_script: scripts/mgmt/stage-jumpserver-asset-preflight.sh
+    verify_script: scripts/mgmt/verify-jumpserver-asset-remote.sh
+    runbook: docs/jumpserver/asset-prep.runbook.md
+    jumpserver_console:
+      asset_name: Hub-01
+      node: Mgmt/Hub
+      address_primary: "10.200.0.1"
+      address_fallback: "172.21.127.123"
+      account_template: linux-jump-ops
+      linux_user: jump_ops
+      nodes_created:
+        - Mgmt/Hub
+        - Dev/ECS
+        - Test/ECS
+        - Prod/ECS
+    checks:
+      ansible_jumpserver_asset_prep: ok
+      verify_jumpserver_asset_remote: ok
+      jump_ops_bash_shell: ok
+      jump_ops_ssh_dir_700: ok
+      sshd_allow_users_jump_ops: ok
+      jump_ops_sudoers: ok
+      inventory_mgmt: ok
+      secret_scan_gitleaks: ok
+      jms_account_push: ok
+      jms_test_connection: ok
+      deploy_not_in_jms_accounts: ok
+    operational_notes:
+      - paramiko_dual_python_in_jms_container_documented
+      - hub_local_script_install_paramiko_sh
+      - hub_ssh_self_via_wg_broken_pipe_not_used_for_acceptance
+    pending:
+      - jumpserver_asset_authorization_user_groups
+      - jumpserver_web_terminal_e2e_non_admin
+      - jumpserver_asset_dev_01
+      - paramiko_script_into_infra_ops_optional
+    conclusion: "Hub-01 已完成 Ansible jump_ops 准备 + JMS 账号推送与测试连接；下一步授权与 Dev-ECS 纳管"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史

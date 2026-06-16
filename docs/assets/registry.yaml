@@ -94,6 +94,35 @@ stage_f3_acceptance:
   conclusion: "阶段 F 最小组网（Hub + ci-01）验收通过；GitHub dev ANSIBLE_VAULT_PASSWORD 已配"
 
 # -----------------------------------------------------------------------------
+# stage_g5_acceptance — G5 Hub-01 JumpServer 资产纳管（ci-01，2026-06-17）
+# -----------------------------------------------------------------------------
+stage_g5_acceptance:
+  completed_at: "2026-06-17"
+  control_host: ci-01
+  target_host: hub-01
+  acceptance_log: logs/console-acceptance.log
+  acceptance_report: docs/acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md
+  playbook: ansible/playbooks/jumpserver-asset-prep.yml
+  runbook: docs/jumpserver/asset-prep.runbook.md
+  jumpserver_console:
+    asset: Hub-01
+    node: Mgmt/Hub
+    address: "10.200.0.1"
+    account_template: linux-jump-ops
+    linux_user: jump_ops
+  checks:
+    ansible_jumpserver_asset_prep: ok
+    verify_jumpserver_asset_remote: ok
+    jms_account_push: ok
+    jms_test_connection: ok
+    deploy_not_in_jms_accounts: ok
+  pending:
+    - jumpserver_platform_authorization_mfa
+    - jumpserver_asset_dev_01
+    - jumpserver_web_terminal_e2e
+  conclusion: "Hub-01 Ansible jump_ops + JMS 账号推送与测试连接完成；Dev ECS 与授权待办"
+
+# -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
 # -----------------------------------------------------------------------------
 # 事实：截图中 4 台运行中实例均在同一 VPC，分属两个 vSwitch（子网）。
@@ -206,8 +235,10 @@ hosts:
     hub_docker_operational_at: "2026-06-17"
     hub_jumpserver_status: operational
     hub_jumpserver_operational_at: "2026-06-17"
+    hub_jumpserver_asset_hub_status: onboarded
+    hub_jumpserver_asset_hub_onboarded_at: "2026-06-17"
     hub_security_group_rules: docs/security-groups/hub-wg.rules.yaml
-    note: "F2-5 + F3-1 已验收；G0–G4 operational；下一步 JumpServer 资产纳管 / 改默认密码 / 关公网 SSH"
+    note: "F2-5 + F3-1 已验收；G0–G4 operational；G5 Hub-01 资产纳管 onboarded；下一步授权/MFA、Dev-01 纳管、改 admin 密码、关公网 SSH"
 
   ci-01:
     asset_file: ci-01.yaml

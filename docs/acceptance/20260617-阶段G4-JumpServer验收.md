@@ -78,7 +78,9 @@ dig +short @10.200.0.1 jms.internal
 ## 六、下一步
 
 - [ ] 浏览器登录 `https://jms.internal/`，修改 `admin` / `ChangeMe` 默认密码
-- [ ] JumpServer 资产纳管（Dev ECS 等）
+- [x] JumpServer 资产纳管 — **Hub-01**（见 [G5 验收](./20260617-阶段G5-JumpServer资产纳管-Hub验收.md)）
+- [ ] JumpServer 资产纳管 — Dev ECS（Dev-01；**勿**重复建 ci-01 资产）
+- [ ] JumpServer 平台授权 + MFA；Web 终端端到端验证
 - [ ] 评估关公网 SSH / 安全组收口（`steady_in_ssh_wg`）
 - [ ] 可选：Self-hosted Runner、dev-02 Bootstrap
 
