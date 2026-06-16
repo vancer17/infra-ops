@@ -67,6 +67,7 @@ cmd_preflight() {
 
 cmd_apply() {
   local host="$1"
+  shift
   local inv
   inv="$(resolve_inventory "$host")"
   export ANSIBLE_INVENTORY="$inv"
