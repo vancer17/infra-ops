@@ -1,0 +1,91 @@
+# =============================================================================
+# Ansible Playbook：JumpServer 资产纳管 — Linux 系统用户准备
+# =============================================================================
+#
+# 【用途】
+#   在 JumpServer 控制台录入资产并「账号推送」之前，将目标 ECS 上的 jump_ops
+#   从 Bootstrap 占位（nologin）升级为可登录运维账号，并刷新 sshd AllowUsers。
+#
+# 【不做什么】
+#   - 不调用 JumpServer API
+#   - 不向 jump_ops 写入 SSH 公钥（由堡垒机账号推送）
+#   - 不配置 deploy 用户（CI 专用，永不录入 JumpServer）
+#
+# 【目标主机】
+#   inventory 组 jumpserver_assets：
+#     mgmt: hub-01
+#     dev:  dev-01, dev-02（dev-02 须先 bootstrap）
+#
+# 【前置条件】
+#   - bootstrap.yml + ssh-keys.sh steady 已完成
+#   - jumpserver.status=operational（Hub G4）
+#
+# 【执行示例】
+#   ./scripts/mgmt/jumpserver-asset-prep.sh preflight hub-01
+#   ./scripts/mgmt/jumpserver-asset-prep.sh apply hub-01
+#
+#   ansible-playbook ansible/playbooks/jumpserver-asset-prep.yml \
+#     -i ansible/inventories/mgmt/ --limit hub-01
+#
+# =============================================================================
+
+---
+- name: Prepare Linux users for JumpServer asset onboarding
+  hosts: jumpserver_assets
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.distribution == 'Debian'
+          - ansible_facts.distribution_major_version | int >= 12
+        fail_msg: "jumpserver-asset-prep requires Debian 12+"
+      tags: [jumpserver_asset, preflight, always]
+
+    - name: Assert JumpServer Hub is operational (mgmt hosts only)
+      ansible.builtin.assert:
+        that:
+          - jumpserver.status | default('not_started') == 'operational'
+        fail_msg: >-
+          Complete hub-g4-jumpserver.yml before asset prep on mgmt hosts
+      when: jumpserver_gateway | default(false) | bool
+      tags: [jumpserver_asset, preflight, always]
+
+  roles:
+    - role: jump_ops
+      tags: [jumpserver_asset, jump_ops]
+
+  post_tasks:
+    - name: Verify jump_ops login shell
+      ansible.builtin.command:
+        cmd: getent passwd jump_ops
+      register: jump_ops_passwd
+      changed_when: false
+      tags: [jumpserver_asset, verify]
+
+    - name: Assert jump_ops shell is bash
+      ansible.builtin.assert:
+        that:
+          - jump_ops_passwd.stdout is search('/bin/bash')
+        fail_msg: "jump_ops shell is not /bin/bash"
+      tags: [jumpserver_asset, verify]
+
+    - name: Verify sshd AllowUsers includes jump_ops
+      ansible.builtin.command:
+        cmd: grep -E '^AllowUsers .*\bjump_ops\b' /etc/ssh/sshd_config.d/99-dev-bootstrap.conf
+      register: sshd_allow_jump_ops
+      changed_when: false
+      failed_when: sshd_allow_jump_ops.rc != 0
+      tags: [jumpserver_asset, verify]
+
+    - name: JumpServer asset prep summary
+      ansible.builtin.debug:
+        msg:
+          - "jump_ops ready on {{ inventory_hostname }}"
+          - "Console asset: {{ jumpserver_asset_console.name | default(inventory_hostname) }}"
+          - "Suggested address: {{ jumpserver_asset_console.address_primary | default('see host_vars') }}"
+          - "Node: {{ jumpserver_asset_console.node | default('see runbook') }}"
+          - "Next: JumpServer UI → 资产 → 从模板添加 linux-jump-ops → 账号推送 → 测试连接"
+      tags: [jumpserver_asset, verify]

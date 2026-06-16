@@ -79,7 +79,8 @@ if [[ -d "${playbooks_dir}" ]]; then
           || "${rel}" == ansible/playbooks/nginx-hub.yml \
           || "${rel}" == ansible/playbooks/hub-g2.yml \
           || "${rel}" == ansible/playbooks/hub-g3-docker.yml \
-          || "${rel}" == ansible/playbooks/hub-g4-jumpserver.yml ]]; then
+          || "${rel}" == ansible/playbooks/hub-g4-jumpserver.yml \
+          || "${rel}" == ansible/playbooks/jumpserver-asset-prep.yml ]]; then
         if [[ -z "${ANSIBLE_VAULT_PASSWORD_FILE:-}" && -f "${CI_REPO_ROOT}/.vault_pass" ]]; then
           export ANSIBLE_VAULT_PASSWORD_FILE="${CI_REPO_ROOT}/.vault_pass"
         fi

@@ -1,10 +1,14 @@
 # Managed by Ansible — phase {{ ssh_phase }}
 {% if ssh_phase == 'steady' %}
 PermitRootLogin no
-AllowUsers deploy
+{% if jumpserver_asset.enabled | default(false) and jumpserver_asset.jump_ops.enabled | default(false) %}
+AllowUsers {{ ssh_allow_users_steady_with_jump_ops | join(' ') }}
+{% else %}
+AllowUsers {{ ssh_allow_users_steady_default | join(' ') }}
+{% endif %}
 {% else %}
 PermitRootLogin prohibit-password
-AllowUsers root deploy
+AllowUsers {{ ssh_allow_users_bootstrap_default | join(' ') }}
 {% endif %}
 PasswordAuthentication no
 PubkeyAuthentication yes

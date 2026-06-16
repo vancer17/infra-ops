@@ -1,0 +1,46 @@
+# =============================================================================
+# jump_ops role — 主任务入口
+# =============================================================================
+#
+# 将 Bootstrap 期占位用户 jump_ops（nologin）升级为可供 JumpServer 纳管的运维账号：
+#   - 可登录 shell + home 目录
+#   - .ssh 目录权限（公钥由 JumpServer 账号推送写入）
+#   - 有限 sudo（ops 配置）
+#   - sshd AllowUsers 增加 jump_ops（steady 阶段）
+#
+# 不触碰 deploy 用户与 authorized_keys（CI 专用）。
+#
+# =============================================================================
+
+---
+- name: Assert jumpserver_asset prep is enabled
+  ansible.builtin.assert:
+    that:
+      - jump_ops_enabled | bool
+    fail_msg: >-
+      Set jumpserver_asset.enabled=true (host in jumpserver_assets group)
+      before running jumpserver-asset-prep.yml
+  tags: [jump_ops, preflight, always]
+
+- name: Assert SSH steady phase completed
+  ansible.builtin.assert:
+    that:
+      - ssh_phase | default('bootstrap') == 'steady'
+      - ssh_keys_configured | default(false) | bool
+    fail_msg: >-
+      Complete ssh-keys.sh steady before jump_ops prep
+      (deploy@ must work; root SSH will include jump_ops in AllowUsers only after steady)
+  tags: [jump_ops, preflight, always]
+
+- name: Import jump_ops user tasks
+  ansible.builtin.import_tasks: jump_ops_user.yml
+  tags: [jump_ops, user]
+
+- name: Import jump_readonly user tasks
+  ansible.builtin.import_tasks: jump_readonly_user.yml
+  when: jump_readonly_enabled | bool
+  tags: [jump_ops, user, jump_readonly]
+
+- name: Import SSH AllowUsers refresh
+  ansible.builtin.import_tasks: ssh_allow.yml
+  tags: [jump_ops, ssh]

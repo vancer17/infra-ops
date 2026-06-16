@@ -1,0 +1,15 @@
+---
+# jump_ops role — 默认变量（可被 inventory 覆盖）
+
+jump_ops_enabled: "{{ jumpserver_asset.enabled | default(false) }}"
+jump_ops_user: "{{ jumpserver_asset.jump_ops.user | default('jump_ops') }}"
+jump_ops_shell: "{{ jumpserver_asset.jump_ops.shell | default('/bin/bash') }}"
+jump_ops_create_home: "{{ jumpserver_asset.jump_ops.create_home | default(true) }}"
+jump_ops_sudo_profile: "{{ jumpserver_asset.jump_ops.sudo_profile | default('ops') }}"
+
+jump_readonly_enabled: "{{ jumpserver_asset.jump_readonly.enabled | default(false) }}"
+jump_readonly_user: "{{ jumpserver_asset.jump_readonly.user | default('jump_readonly') }}"
+jump_readonly_shell: "{{ jumpserver_asset.jump_readonly.shell | default('/bin/bash') }}"
+jump_readonly_sudo_profile: "{{ jumpserver_asset.jump_readonly.sudo_profile | default('none') }}"
+
+jump_ops_manage_authorized_keys: "{{ jumpserver_asset.manage_authorized_keys | default(false) }}"
