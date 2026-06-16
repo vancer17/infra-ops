@@ -14,17 +14,21 @@
 #   4. ./scripts/wireguard/render-laptop-conf.sh <peer_name> → 安全渠道交付同事
 #
 # 【来源】
-#   logs/remark.log（2026-06-17）
+#   logs/remark.log（人员名单）
+#   logs/console-acceptance.log（2026-06-16 F6 验收）
 #
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-17"
+updated_at: "2026-06-16"
 updated_by: "infra-ops"
 
 pool:
   cidr: "10.200.10.0/24"
   description: "开发人员与运维办公笔记本 WireGuard Client"
+  hub_peers_registered_at: "2026-06-16"
+  acceptance_log: logs/console-acceptance.log
+  acceptance_doc: docs/acceptance/20260616-阶段F6-WireGuard人员Client池验收.md
 
 # Client 侧 AllowedIPs（写入 wg0.conf [Peer] AllowedIPs）
 allowed_ips_profiles:
@@ -40,35 +44,56 @@ members:
     display_name: zhengyaoyuan
     role: dev_ops
     wg_ip: "10.200.10.1"
+    public_key: eQhU5QVENi3gPq4KxjFDqe/orLX75cs73aLOrSaRsnM=
     allowed_ips_profile: dev_ops
     status: operational
-    note: "原 developer-laptop；公钥已迁移至 laptop-zhengyaoyuan.pub"
+    hub_registered_at: "2026-06-16"
+    client_handshake_at: "2026-06-16"
+    client_endpoint: "125.121.146.255"
+    client_checks:
+      hub_wg_handshake: ok
+      ping_jms_internal: ok
+      https_jms_internal_200: ok
+      nc_hub_443_open: ok
+    note: "原 developer-laptop 更名；运维笔记本 develop"
 
   - peer_name: laptop-billmiao
     display_name: billmiao
     role: dev
     wg_ip: "10.200.10.2"
+    public_key: amJRuTOVH3AA1Mgf/+6JXn0Oo7sY+Zo59jE9wnLDgy0=
     allowed_ips_profile: dev
-    status: pending_key
-    note: "generate-peer 后 sync-inventory + wireguard-hub.yml"
+    status: hub_registered
+    hub_registered_at: "2026-06-16"
+    client_handshake_at: null
+    note: "Hub 已登记；待 render-laptop-conf 分发 wg0.conf 与 Client 握手"
 
   - peer_name: laptop-sammao
     display_name: sammao
     role: dev
     wg_ip: "10.200.10.3"
+    public_key: 4+w1dnRAsV0ifYNiJXpb9mGjOzyQddoN4s/dDGMQLjY=
     allowed_ips_profile: dev
-    status: pending_key
+    status: hub_registered
+    hub_registered_at: "2026-06-16"
+    client_handshake_at: null
 
   - peer_name: laptop-zhu
     display_name: zhu
     role: dev
     wg_ip: "10.200.10.4"
+    public_key: 3B28NbvljAXyJdgLb4ECv7LeTarrjgZNYf4DMwvKKF0=
     allowed_ips_profile: dev
-    status: pending_key
+    status: hub_registered
+    hub_registered_at: "2026-06-16"
+    client_handshake_at: null
 
   - peer_name: laptop-xinxin
     display_name: xinxin
     role: dev
     wg_ip: "10.200.10.5"
+    public_key: MWa0HomywNIH07j9HQ/MIaZ5urmXOdwuquaPygQ9lTg=
     allowed_ips_profile: dev
-    status: pending_key
+    status: hub_registered
+    hub_registered_at: "2026-06-16"
+    client_handshake_at: null
