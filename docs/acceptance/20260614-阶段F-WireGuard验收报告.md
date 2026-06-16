@@ -130,7 +130,7 @@ ansible-playbook ansible/playbooks/wireguard-hub.yml \
 | `ANSIBLE_VAULT_PASSWORD` | **已配置**（dev Environment）；本地 dry-run `wireguard-hub.yml --check` 通过 | — |
 | developer-laptop | Hub 已登记 Peer，笔记本 Client 未配置 | 可选 |
 | dev-02 Bootstrap + WG | `bootstrap_status: pending` | 后续 |
-| 应用层（dev-app） | 待业务栈确定 | 后续 |
+| 应用层（dev-app） | 占位 API + 业务 Nginx operational（2026-06-16） | 真实业务镜像待 CI |
 
 ---
 

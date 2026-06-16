@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-17"
+updated_at: "2026-06-16"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -121,6 +121,42 @@ stage_g5_acceptance:
     - jumpserver_asset_dev_01
     - jumpserver_web_terminal_e2e
   conclusion: "Hub-01 Ansible jump_ops + JMS 账号推送与测试连接完成；Dev ECS 与授权待办"
+
+# -----------------------------------------------------------------------------
+# stage_dev_app_acceptance — Dev 业务 Nginx + 占位 API（dev-01，2026-06-16）
+# -----------------------------------------------------------------------------
+stage_dev_app_acceptance:
+  completed_at: "2026-06-16"
+  control_host: ci-01
+  target_host: dev-01
+  acceptance_log: logs/console-acceptance.log
+  acceptance_report: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
+  runbook: docs/nginx/dev-nginx.runbook.md
+  playbooks:
+    - ansible/playbooks/dev-app.yml
+    - ansible/playbooks/nginx-dev.yml
+  checks:
+    placeholder_loopback_8080: ok
+    docker_container_dev_app_placeholder: ok
+    wg_https_dev_app_internal_health: ok
+    wg_https_dev_app_internal_root: ok
+    public_https_health: ok
+    public_http_to_https_301: ok
+  app:
+    deploy_status: placeholder
+    enabled: true
+  nginx_app:
+    status: operational
+    gateway_mode: app
+    domains:
+      internal: dev-app.internal
+      public_ip: "121.41.58.20"
+  pending:
+    - github_runner_registration
+    - real_business_image_via_ci
+    - dev_02_bootstrap_redis
+    - trusted_ca_and_domain_for_mini_program
+  conclusion: "Dev 业务 Nginx + 占位 API operational；真实业务镜像与 Runner 待接通"
 
 # -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
@@ -238,7 +274,7 @@ hosts:
     hub_jumpserver_asset_hub_status: onboarded
     hub_jumpserver_asset_hub_onboarded_at: "2026-06-17"
     hub_security_group_rules: docs/security-groups/hub-wg.rules.yaml
-    note: "F2-5 + F3-1 已验收；G0–G5 operational；F6 Client 池 Hub 已登记（四人待 Client 握手）；下一步分发 wg0.conf、JumpServer 授权/MFA、Dev-01 纳管"
+    note: "F2-5 + F3-1 已验收；G0–G5 operational；F6 Client 池 Hub 已登记；**Dev 阶段 3 业务 Nginx + 占位 API operational（2026-06-16）**"
 
   ci-01:
     asset_file: ci-01.yaml
@@ -272,7 +308,11 @@ hosts:
     inventory_group: dev_app
     bootstrap_status: ssh_done
     same_ecs_as: ci-01
-    note: "与 ci-01 同 ECS；SSH steady；应用层待业务栈确定"
+    nginx_app_status: operational
+    app_deploy_status: placeholder
+    nginx_app_operational_at: "2026-06-16"
+    app_placeholder_operational_at: "2026-06-16"
+    note: "与 ci-01 同 ECS；业务 Nginx + 占位 API operational；真实业务镜像待 CI"
 
   dev-02:
     asset_file: dev-02.yaml

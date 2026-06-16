@@ -127,8 +127,8 @@ dev_hosts:
     ansible_host_internal: "172.21.226.38"
     same_ecs_as_ci: true
     bootstrap_status: bootstrap_done
-    # 业务 Nginx / 占位 API：inventory 阶段 2 变量见 group_vars nginx.yml、app.yml
-    nginx_app_status: not_started
+    # 业务 Nginx / 占位 API（2026-06-16 阶段 3 验收）
+    nginx_app_status: operational
     app_deploy_status: placeholder
   dev-02:
     public_ip: "112.124.104.223"

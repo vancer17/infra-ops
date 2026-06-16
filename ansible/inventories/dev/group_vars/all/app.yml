@@ -10,9 +10,9 @@
 #   app.yml   → 容器镜像、Compose 路径、监听地址、/health、ENV 等
 #   nginx.yml → 80/443 统一出口、反代到 app.upstream
 #
-# 【占位 API】
-#   暂无真实业务进程时，deploy_status=placeholder，使用轻量 HTTP 容器监听
-#   127.0.0.1:8080，供 Nginx 与小程序/外网连通性验收。
+# 【状态】
+#   enabled: true / deploy_status: placeholder（2026-06-16 阶段 3 验收）
+#   operational → 真实业务镜像由 CI 更新 app.image.* 后 apply
 #
 # 【敏感信息】
 #   DB_PASSWORD 等见 secrets.yml.example / GitHub Secrets，不进 Git 明文
@@ -22,8 +22,8 @@
 ---
 
 app:
-  # 阶段 2：仅变量；阶段 3 dev-app.yml apply 占位容器后改为 true
-  enabled: false
+  # 2026-06-16 阶段 3 验收：占位 API operational
+  enabled: true
 
   # placeholder → 占位 API；operational → 真实业务镜像
   deploy_status: placeholder

@@ -16,10 +16,7 @@
 #   应用 8080 不对公网开放（安全组无 8080 入站）
 #
 # 【状态】
-#   enabled: false  → 仅完成 Inventory（阶段 2）；待 nginx-dev.yml apply 后改 true
-#   status: not_started | configured | operational
-#
-# 【维护】
+#   enabled: true / status: operational（2026-06-16 阶段 3 验收）
 #   变更 server_name / SSL 后同步 docs/assets/dev-01.yaml、make inventory
 #
 # =============================================================================
@@ -30,11 +27,10 @@ nginx:
   # app = 业务网关；勿与 Hub 的 gateway_mode: mgmt 混用
   gateway_mode: app
 
-  # 阶段 2：变量就绪；阶段 3 nginx-dev.yml 成功后改为 true
-  enabled: false
+  # 2026-06-16 阶段 3 验收
+  enabled: true
 
-  # not_started → inventory 已定义；configured → playbook 已跑；operational → 验收通过
-  status: not_started
+  status: operational
 
   package_name: nginx
   remove_default_site: true
