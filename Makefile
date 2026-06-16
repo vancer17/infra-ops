@@ -54,6 +54,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
         stage-g4-jumpserver-preflight jumpserver-vault-init \
         stage-jumpserver-asset-preflight jumpserver-asset-prep-preflight jumpserver-asset-prep \
         stage-e-preflight control-plane-setup \
+        stage-dev-app-preflight stage-dev-nginx-preflight \
         apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
 # -----------------------------------------------------------------------------
@@ -90,6 +91,8 @@ help:
 	@echo "              See: docs/jumpserver/asset-prep.runbook.md"
 	@echo "  Hub sudo: make apply-hub-deploy-sudo  (fix Missing sudo password)"
 	@echo "  CI WG sudo: make apply-ci-wireguard-sudo  (F2 deploy-wireguard on ci-01)"
+	@echo "  Dev app:  make stage-dev-app-preflight   (before dev-app.yml on dev-01)"
+	@echo "            make stage-dev-nginx-preflight (before nginx-dev.yml; run dev-app first)"
 	@echo ""
 	@echo "Individual checks (same as CI jobs):"
 	@echo "  make yamllint       YAML format (.yamllint.yml)"
@@ -250,3 +253,13 @@ stage-e-preflight:
 		$(if $(INSTALL_WG),--install-wireguard,) \
 		$(if $(SKIP_REMOTE),--skip-remote,)
 	@echo "[make] stage-e-preflight OK"
+
+SCRIPTS_DEV := $(REPO_ROOT)/scripts/dev
+
+stage-dev-app-preflight:
+	bash "$(SCRIPTS_DEV)/stage-dev-app-preflight.sh"
+	@echo "[make] stage-dev-app-preflight OK"
+
+stage-dev-nginx-preflight:
+	bash "$(SCRIPTS_DEV)/stage-dev-nginx-preflight.sh"
+	@echo "[make] stage-dev-nginx-preflight OK"

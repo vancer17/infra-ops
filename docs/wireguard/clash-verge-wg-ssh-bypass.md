@@ -19,8 +19,9 @@
 | SSH → `10.200.x.x` | 连接超时或中断 | 内网地址被错误代理 |
 | SSH → 公网 `:22` | 会话不稳定 | 代理链路不适合长连接 |
 | `*.internal` 解析 | `jms.internal` 无法访问 | DNS 覆写与 Hub dnsmasq 冲突 |
+| `https://jms.internal/` | 浏览器超时或证书/代理错误 | fake-ip 将域名映到 `198.18.x.x`，`IP-CIDR` 规则无法命中 |
 
-**目标**：在 Clash 中增加 **前置 DIRECT 规则**，并在 TUN 中 **排除内网路由**，使跨境代理不影响公司内网通道。
+**目标**：在 Clash 中增加 **前置 DIRECT 规则**，配置 **hosts 静态解析** 与 **fake-ip 例外**，并在 TUN 中 **排除内网路由**，使跨境代理不影响公司内网通道。
 
 ```text
 本机流量
@@ -44,7 +45,18 @@
 | Hub 内网 DNS | `10.200.0.1` | 解析 `*.internal` |
 | 内网域名后缀 | `internal` | `jms.internal`、`ci.internal` 等 |
 
+**`jms.internal` 特别注意**：多数订阅默认 `dns.enhanced-mode: fake-ip`。此时浏览器访问 `https://jms.internal/` 时，系统看到的可能是 **`198.18.0.0/16` 假地址**，而非 `10.200.0.1`。仅配置 `IP-CIDR,10.200.0.0/16,DIRECT` **无法**拦截该 HTTPS 流量。必须同时使用下文 **第四节** 中的 `hosts`、显式 `DOMAIN` 规则与 `fake-ip-filter`。
+
 开发角色 `AllowedIPs` 仅为 `10.200.0.0/24`、`10.200.1.0/24`、`10.200.2.0/24`，但 Clash 规则建议使用 **`10.200.0.0/16`** 统一排除，避免漏网。
+
+### 内网域名静态映射（hosts）
+
+| 域名 | 地址 | 服务 |
+|------|------|------|
+| `jms.internal` | `10.200.0.1` | JumpServer（HTTPS） |
+| `hub.internal` | `10.200.0.1` | Hub / Nginx |
+| `ci.internal` | `10.200.0.2` | CI / Dev 同机 |
+| `dev-app.internal` | `10.200.0.2` | Dev 应用（预留） |
 
 ---
 
@@ -53,8 +65,8 @@
 | 步骤 | 位置 | 作用 |
 |------|------|------|
 | 1 | **编辑规则** → 添加 **前置规则** | 让 WG / SSH / 内网流量走 DIRECT |
-| 2 | **Merge 覆写** | TUN 路由排除内网；可选 DNS 策略 |
-| 3 | **日志 / 命令行** 验收 | 确认规则生效 |
+| 2 | **Merge 覆写** | TUN 路由排除；**hosts 静态解析**；fake-ip / DNS 策略 |
+| 3 | **日志 / 命令行** 验收 | 确认 `jms.internal` 为 DIRECT 且 HTTPS 200 |
 
 **关键原则**：
 
@@ -71,7 +83,7 @@
 将下列内容粘贴到 Merge 文件（若已有内容，合并 `tun`、`prepend-rules`、`dns` 段，勿重复定义冲突字段）：
 
 ```yaml
-# merge.yaml — Clash Verge + 公司 WireGuard / SSH  bypass
+# merge.yaml — Clash Verge + 公司 WireGuard / SSH / jms.internal bypass
 # 适用：Mihomo 内核（Clash Verge 2.x）
 
 tun:
@@ -86,7 +98,20 @@ tun:
     - 172.16.0.0/12
     - 192.168.0.0/16
 
+# 关键：绕过 fake-ip，让 jms.internal 直接解析到真实内网 IP
+hosts:
+  jms.internal: 10.200.0.1
+  hub.internal: 10.200.0.1
+  ci.internal: 10.200.0.2
+  dev-app.internal: 10.200.0.2
+
 prepend-rules:
+  # 内网 HTTPS 域名（须排在订阅规则之前；比 IP-CIDR 更优先处理 jms.internal）
+  - DOMAIN,jms.internal,DIRECT
+  - DOMAIN,hub.internal,DIRECT
+  - DOMAIN,ci.internal,DIRECT
+  - DOMAIN-SUFFIX,internal,DIRECT
+
   # WireGuard Hub
   - IP-CIDR,121.43.49.58/32,DIRECT,no-resolve
   - DST-PORT,51820,DIRECT
@@ -94,10 +119,9 @@ prepend-rules:
   # SSH（全平台通用）
   - DST-PORT,22,DIRECT
 
-  # 公司内网（经 WG）
+  # 公司内网（经 WG；hosts 生效后 HTTPS 会命中此处）
   - IP-CIDR,10.200.0.0/16,DIRECT,no-resolve
   - IP-CIDR,10.200.0.1/32,DIRECT,no-resolve
-  - DOMAIN-SUFFIX,internal,DIRECT
 
   # 进程名规则：按操作系统取消注释对应行（见第五节）
   # Windows
@@ -113,19 +137,79 @@ prepend-rules:
 
 dns:
   nameserver-policy:
-    '+.internal': 10.200.0.1
+    '+.internal':
+      - 10.200.0.1
+    'jms.internal':
+      - 10.200.0.1
+    'hub.internal':
+      - 10.200.0.1
+    'ci.internal':
+      - 10.200.0.2
   fake-ip-filter:
+    - '*.internal'
     - '+.internal'
-    - '+.lan'
+    - 'jms.internal'
+    - 'hub.internal'
+    - 'ci.internal'
+
+# 辅助：HTTPS 嗅探失败时仍按域名匹配 DIRECT（可选但建议）
+sniffer:
+  enable: true
+  parse.pure-ip: true
+  override-destination: true
+  sniff:
+    HTTP:
+      ports:
+        - 80
+        - 8080-8880
+    TLS:
+      ports:
+        - 443
+        - 8443
 ```
 
 保存后 **重新加载** 当前配置。
 
 > **语法说明**：部分 Clash Verge 版本 Merge 使用 `+rules:` 代替 `prepend-rules:`。若保存报错，将 `prepend-rules:` 改为 `+rules:` 后重试；并在 **规则** 页确认 DIRECT 规则位于列表顶部。
 
-### 4.1 最小可用规则（快速试通）
+### 4.1 仅修复 `jms.internal`（最小补丁）
 
-若暂不想改 Merge，仅在 **编辑规则 → 高级** 中粘贴：
+若 WG / SSH 已正常，仅浏览器无法打开 JumpServer，在 Merge 中 **至少** 增加：
+
+```yaml
+hosts:
+  jms.internal: 10.200.0.1
+  hub.internal: 10.200.0.1
+  ci.internal: 10.200.0.2
+
+prepend-rules:
+  - DOMAIN,jms.internal,DIRECT
+  - DOMAIN,hub.internal,DIRECT
+  - DOMAIN,ci.internal,DIRECT
+  - DOMAIN-SUFFIX,internal,DIRECT
+  - IP-CIDR,10.200.0.0/16,DIRECT,no-resolve
+
+dns:
+  fake-ip-filter:
+    - 'jms.internal'
+    - '+.internal'
+  nameserver-policy:
+    'jms.internal':
+      - 10.200.0.1
+```
+
+或在 **编辑规则** 中前置添加（每条选 DIRECT）：
+
+| 规则类型 | 规则内容 |
+|----------|----------|
+| `DOMAIN` | `jms.internal` |
+| `DOMAIN` | `hub.internal` |
+| `DOMAIN` | `ci.internal` |
+| `DOMAIN-SUFFIX` | `internal` |
+
+### 4.2 最小可用规则（WG + SSH 快速试通）
+
+若暂不想改完整 Merge，仅在 **编辑规则 → 高级** 中粘贴：
 
 ```yaml
 prepend-rules:
@@ -151,16 +235,21 @@ prepend-rules:
 
 | 顺序 | 规则类型 | 规则内容 |
 |------|----------|----------|
-| 1 | `IP-CIDR` | `121.43.49.58/32` |
-| 2 | `DST-PORT` 或 `PORT` | `51820` |
-| 3 | `PROCESS-NAME` | `WireGuard.exe` |
-| 4 | `PROCESS-NAME` | `ssh.exe` |
-| 5 | `IP-CIDR` | `10.200.0.0/16` |
-| 6 | `IP-CIDR` | `10.200.0.1/32` |
-| 7 | `DOMAIN-SUFFIX` | `internal` |
-| 8 | `DST-PORT` 或 `PORT` | `22` |
+| 1 | `DOMAIN` | `jms.internal` |
+| 2 | `DOMAIN` | `hub.internal` |
+| 3 | `DOMAIN` | `ci.internal` |
+| 4 | `DOMAIN-SUFFIX` | `internal` |
+| 5 | `IP-CIDR` | `121.43.49.58/32` |
+| 6 | `DST-PORT` 或 `PORT` | `51820` |
+| 7 | `PROCESS-NAME` | `WireGuard.exe` |
+| 8 | `PROCESS-NAME` | `ssh.exe` |
+| 9 | `IP-CIDR` | `10.200.0.0/16` |
+| 10 | `IP-CIDR` | `10.200.0.1/32` |
+| 11 | `DST-PORT` 或 `PORT` | `22` |
 
-也可点 **高级**，直接粘贴第四节 `prepend-rules` 中 Windows 相关段落。
+> **注意**：仅靠上表规则而不配置 Merge 中的 **`hosts`**，在 fake-ip 模式下 `jms.internal` 仍可能失败。域名规则与 `hosts` 须同时使用。
+
+也可点 **高级**，直接粘贴第四节完整 `prepend-rules` 与 `hosts` 段落。
 
 #### 验收（PowerShell）
 
@@ -168,11 +257,12 @@ prepend-rules:
 # 先：Clash 已开 → WireGuard 已激活
 
 ping 10.200.0.1
-nslookup jms.internal 10.200.0.1
+nslookup jms.internal          # 期望 10.200.0.1（非 198.18.x.x）
+curl -sk -o NUL -w "%{http_code}`n" https://jms.internal/   # 期望 200
 ssh -o ConnectTimeout=5 deploy@10.200.0.2 echo ok
 ```
 
-在 Clash **日志** 中确认 `121.43.49.58`、`10.200.0.x` 显示为 `DIRECT`。
+在 Clash **日志** 中过滤 `jms.internal` 或 `10.200.0.1:443`，应显示 **`DIRECT`**，而非代理组名称。
 
 ---
 
@@ -234,7 +324,18 @@ ssh -o ConnectTimeout=5 -i ~/.ssh/infra-ci-deploy deploy@10.200.0.2 hostname
 |------|------|------|
 | 虚拟网卡模式 (TUN) | 开启 | 配合 Merge 中 `route-exclude-address` |
 | 系统代理 | 可开启 | 主要影响浏览器等；内网已由规则 DIRECT |
-| DNS 覆写 | 可开启 | 配合 Merge 中 `nameserver-policy` 保留 `*.internal` |
+| DNS 覆写 | 可开启 | 须配合 Merge 中 `hosts` + `fake-ip-filter` + `nameserver-policy` |
+
+### 6.1 浏览器「安全 DNS / DoH」须关闭
+
+Chrome / Edge 开启 **「使用安全 DNS」** 后，会绕过 Clash 与 WG 的 DNS 策略，导致 `jms.internal` 仍无法解析。
+
+| 浏览器 | 操作 |
+|--------|------|
+| Chrome | 设置 → 隐私和安全 → 安全 → **使用安全 DNS** → 关闭 |
+| Edge | 设置 → 隐私、搜索和服务 → 安全 → **使用安全的 DNS** → 关闭 |
+
+改完后重启浏览器，再测 `https://jms.internal/`。
 
 ---
 
@@ -246,7 +347,8 @@ ssh -o ConnectTimeout=5 -i ~/.ssh/infra-ci-deploy deploy@10.200.0.2 hostname
 - [ ] `ping 10.200.0.1`、`ping 10.200.0.2` 无丢包
 - [ ] `jms.internal` 解析到 `10.200.0.1` 且 HTTPS 可访问（`curl -sk https://jms.internal/` 返回 200）
 - [ ] `ssh deploy@10.200.0.x` 可登录（须 infra 已发放密钥）
-- [ ] Clash **日志** 中内网 IP 与 Hub 公网 IP 为 **DIRECT**（非代理组名）
+- [ ] Clash **日志** 中 `jms.internal` 或 `10.200.0.1:443` 为 **DIRECT**（非代理组名）
+- [ ] `nslookup jms.internal` 返回 **`10.200.0.1`**（不是 `198.18.x.x`）
 
 ---
 
@@ -265,11 +367,42 @@ ssh -o ConnectTimeout=5 -i ~/.ssh/infra-ci-deploy deploy@10.200.0.2 hostname
 2. 确认 Clash 规则含 `IP-CIDR,10.200.0.0/16,DIRECT`
 3. 查看 Clash 日志该 IP 是否仍为代理
 
-### Q3：`jms.internal` 解析错误
+### Q3：`jms.internal` 解析错误或 HTTPS 仍走代理
 
-1. 确认 WG 配置含 `DNS = 10.200.0.1`
-2. 确认 Merge 中 `dns.nameserver-policy` 与 `fake-ip-filter` 已配置
-3. 手动测试：`nslookup jms.internal 10.200.0.1`（Windows）或 `dig @10.200.0.1 jms.internal`（Linux/macOS）
+**常见根因**：fake-ip 将域名映到 `198.18.x.x`，`IP-CIDR` 规则无法命中；或浏览器 DoH 绕过本地 DNS。
+
+**处理（按顺序）**：
+
+1. 确认 **WireGuard 已连接**，且 `wg0.conf` 含 `DNS = 10.200.0.1`
+2. 在 Merge 中添加 **`hosts`** 静态映射（第四节完整配置）
+3. 前置规则增加 **`DOMAIN,jms.internal,DIRECT`**（不要仅依赖 `DOMAIN-SUFFIX`）
+4. 确认 `dns.fake-ip-filter` 含 `jms.internal` 与 `+.internal`
+5. **关闭浏览器安全 DNS（DoH）**（见 [6.1 节](#61-浏览器安全-dns--doh须关闭)）
+6. 重新加载 Clash 配置，**重启浏览器**
+
+**诊断命令**：
+
+```bash
+# Windows PowerShell
+nslookup jms.internal
+# 正确：Address: 10.200.0.1
+# 错误：Address: 198.18.x.x  → hosts / fake-ip-filter 未生效
+
+curl -sk -o NUL -w "%{http_code}`n" https://jms.internal/
+# 期望：200
+```
+
+Clash **日志** 中若看到 `jms.internal` 匹配到代理组（如 `自动选择`），说明 DOMAIN 规则未前置或未生效，检查 Merge 是否已保存并重载。
+
+**仍失败时**：临时在系统 `hosts` 文件追加一行（需管理员权限）：
+
+```text
+10.200.0.1  jms.internal hub.internal
+10.200.0.2  ci.internal
+```
+
+- Windows：`C:\Windows\System32\drivers\etc\hosts`
+- macOS / Linux：`/etc/hosts`
 
 ### Q4：SSH 公网服务器也受影响
 

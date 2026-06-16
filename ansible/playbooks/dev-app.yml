@@ -1,0 +1,103 @@
+# =============================================================================
+# Ansible Playbook：Dev 应用部署（占位 API / 真实业务镜像）
+# =============================================================================
+#
+# 【用途】
+#   在 dev-01 部署 Docker Compose 应用栈：
+#     - deploy_status=placeholder → hashicorp/http-echo @ 127.0.0.1:8080
+#     - deploy_status=operational → 真实业务镜像（app.image.*）
+#
+# 【前提】
+#   - 阶段 1：bootstrap.yml 完成（Docker、/opt/app/compose、deploy 用户）
+#   - ssh_phase=steady，ansible_user=deploy
+#   - dev_app 组 deploy_sudo_app_host（bootstrap users 写入 deploy-app-host sudoers）
+#
+# 【执行顺序】
+#   1. 本 playbook（dev-app.yml）
+#   2. nginx-dev.yml（业务 Nginx 反代 80/443 → 8080）
+#
+# 【常用命令】
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#
+#   make stage-dev-app-preflight
+#
+#   ansible-playbook ansible/playbooks/dev-app.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01 \
+#     --check --diff
+#
+#   ansible-playbook ansible/playbooks/dev-app.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01
+#
+# 【成功后】
+#   更新 group_vars/all/app.yml：app.enabled: true
+#   更新 network.yml dev_hosts.dev-01.app_deploy_status: placeholder | operational
+#   验收：curl -s http://127.0.0.1:8080/
+#
+# =============================================================================
+
+---
+- name: Deploy Dev application stack on dev-01
+  hosts: dev_app
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "dev-app playbook requires Debian 12+"
+      tags: [app, app-deploy, preflight]
+
+    - name: Assert target is application deploy host
+      ansible.builtin.assert:
+        that:
+          - app_deploy_host | default(false) | bool
+        fail_msg: "app_deploy_host must be true on dev-01 (see host_vars/dev-01.yml)"
+      tags: [app, app-deploy, preflight]
+
+    - name: Assert Dev SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Dev must use deploy@ steady SSH before dev-app apply"
+      tags: [app, app-deploy, preflight]
+
+    - name: Assert Docker is enabled for application deployment
+      ansible.builtin.assert:
+        that:
+          - docker_install | default(false) | bool
+        fail_msg: "docker_install must be true in group_vars/all/bootstrap.yml"
+      tags: [app, app-deploy, preflight]
+
+  tasks:
+    - name: Deploy application via app_deploy role
+      ansible.builtin.import_role:
+        name: app_deploy
+      tags: [app, app-deploy]
+
+  post_tasks:
+    - name: Verify placeholder responds on loopback
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ app.listen.port | default(8080) }}/"
+        status_code: 200
+      register: dev_app_loopback_health
+      changed_when: false
+      when:
+        - not ansible_check_mode
+        - app.deploy_status | default('placeholder') == 'placeholder'
+      tags: [app, app-deploy, verify]
+
+    - name: Dev application deployment summary
+      ansible.builtin.debug:
+        msg:
+          - "Dev application applied on {{ inventory_hostname }}"
+          - "deploy_status: {{ app.deploy_status | default('placeholder') }}"
+          - "Loopback: http://127.0.0.1:{{ app.listen.port | default(8080) }}/"
+          - "Next: ansible/playbooks/nginx-dev.yml"
+          - "Update inventory: app.enabled=true"
+      tags: [app, app-deploy, verify]

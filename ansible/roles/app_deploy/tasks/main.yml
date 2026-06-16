@@ -1,0 +1,132 @@
+# =============================================================================
+# app_deploy role — 应用容器部署（占位 API / 真实业务镜像）
+# =============================================================================
+#
+# 消费者变量：inventories/dev/group_vars/all/app.yml
+# host_vars：app_deploy_host: true（dev-01）
+#
+# =============================================================================
+
+---
+
+- name: Assert app_deploy_host is enabled on target
+  ansible.builtin.assert:
+    that:
+      - app_deploy_host | default(false) | bool
+    fail_msg: "app_deploy_host must be true (see host_vars/dev-01.yml)"
+  tags: [app, app-deploy, preflight]
+
+- name: Assert placeholder or production image is configured
+  ansible.builtin.assert:
+    that:
+      - app_deploy_status == 'placeholder' and app_placeholder_enabled | bool
+        or app_deploy_status == 'operational'
+        and (app_image_repository | length > 0)
+        and (app_image_tag | length > 0)
+    fail_msg: >-
+      deploy_status=placeholder requires app.placeholder.enabled=true;
+      deploy_status=operational requires app.image.repository and app.image.tag.
+  tags: [app, app-deploy, preflight]
+
+- name: Ensure application Compose project directory exists
+  ansible.builtin.file:
+    path: "{{ app_compose_project_dir }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0750"
+  tags: [app, app-deploy, config]
+
+- name: Deploy application environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_compose_env_file }}"
+    owner: deploy
+    group: deploy
+    mode: "0600"
+  tags: [app, app-deploy, config]
+
+- name: Deploy application Docker Compose file
+  ansible.builtin.template:
+    src: docker-compose.yml.j2
+    dest: "{{ app_compose_project_dir }}/{{ app_compose_file }}"
+    owner: deploy
+    group: deploy
+    mode: "0644"
+  tags: [app, app-deploy, config]
+
+- name: Pull and start application stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_compose_project_dir }}"
+    project_name: "{{ app_compose_project_name }}"
+    state: present
+    pull: "{{ app_compose_pull }}"
+    recreate: auto
+  become: true
+  become_user: deploy
+  register: app_deploy_compose
+  when: not ansible_check_mode
+  tags: [app, app-deploy, compose]
+
+- name: Preview application Compose deployment (check mode)
+  ansible.builtin.debug:
+    msg: >-
+      check mode: would deploy {{ app_placeholder_image if app_deploy_status == 'placeholder'
+      else app_image_repository ~ ':' ~ app_image_tag }}
+      to {{ app_compose_project_dir }} on {{ app_publish_host }}:{{ app_listen_port }}
+  when: ansible_check_mode
+  tags: [app, app-deploy, compose]
+
+- name: Wait for placeholder HTTP root endpoint
+  ansible.builtin.uri:
+    url: "{{ app_health_url_root }}"
+    status_code: 200
+    timeout: "{{ app_health_timeout_seconds | int }}"
+  register: app_placeholder_health
+  until: app_placeholder_health is succeeded
+  retries: "{{ app_health_retries }}"
+  delay: "{{ app_health_delay }}"
+  when:
+    - not ansible_check_mode
+    - app_deploy_status == 'placeholder'
+  tags: [app, app-deploy, verify]
+
+- name: Wait for application health endpoint
+  ansible.builtin.uri:
+    url: "{{ app_health_url }}"
+    status_code: "{{ app_health_expect_status }}"
+    timeout: "{{ app_health_timeout_seconds | int }}"
+  register: app_operational_health
+  until: app_operational_health is succeeded
+  retries: "{{ app_health_retries }}"
+  delay: "{{ app_health_delay }}"
+  when:
+    - not ansible_check_mode
+    - app_deploy_status == 'operational'
+  tags: [app, app-deploy, verify]
+
+- name: Show application container status
+  ansible.builtin.command:
+    cmd: >-
+      docker ps --filter
+      name={{ app_placeholder_container_name if app_deploy_status == 'placeholder'
+      else app_compose_project_name }}
+  become: true
+  become_user: deploy
+  register: app_deploy_ps
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [app, app-deploy, verify]
+
+- name: Application deployment summary
+  ansible.builtin.debug:
+    msg:
+      - >-
+        Dev app {{ 'preview (check mode)' if ansible_check_mode else 'deployed on ' ~ inventory_hostname }}
+      - "deploy_status: {{ app_deploy_status }}"
+      - >-
+        Listen: {{ app_publish_host }}:{{ app_listen_port }}
+        (Nginx upstream {{ nginx.upstream.host | default('127.0.0.1') }}:{{ nginx.upstream.port | default(8080) }})
+      - "Container: {{ app_deploy_ps.stdout | default('skipped in check mode') }}"
+      - "Next: ansible/playbooks/nginx-dev.yml — then update nginx.enabled / app.enabled in inventory"
+  tags: [app, app-deploy, verify]

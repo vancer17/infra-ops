@@ -13,3 +13,8 @@
   ansible.builtin.import_tasks: hub.yml
   when: nginx_gateway | default(false) | bool
   tags: [nginx, nginx-hub]
+
+- name: Apply Dev application gateway Nginx tasks
+  ansible.builtin.import_tasks: dev-app.yml
+  when: nginx_app_gateway | default(false) | bool
+  tags: [nginx, nginx-dev]

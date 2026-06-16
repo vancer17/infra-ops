@@ -31,3 +31,78 @@ nginx_infra_ops_www_root: /var/www/infra-ops
 
 # 健康检查路径
 nginx_health_uri: "{{ nginx.health_uri | default('/health') }}"
+
+# -----------------------------------------------------------------------------
+# Dev 业务网关（gateway_mode: app）
+# -----------------------------------------------------------------------------
+nginx_app_upstream_name: "{{ nginx.upstream.name | default('app_backend') }}"
+nginx_app_upstream_host: "{{ nginx.upstream.host | default('127.0.0.1') }}"
+nginx_app_upstream_port: "{{ nginx.upstream.port | default(8080) }}"
+nginx_app_proxy_read_timeout: "{{ nginx.upstream.proxy_read_timeout | default('60s') }}"
+nginx_app_proxy_connect_timeout: "{{ nginx.upstream.proxy_connect_timeout | default('10s') }}"
+nginx_app_client_max_body_size: "{{ nginx.upstream.client_max_body_size | default('32m') }}"
+
+nginx_listen_http: "{{ nginx.listen.http | default(80) }}"
+nginx_listen_https: "{{ nginx.listen.https | default(443) }}"
+
+nginx_app_server_names_internal: "{{ nginx.server_names.internal | default([]) }}"
+nginx_app_server_names_public: "{{ nginx.server_names.public | default([]) }}"
+nginx_app_server_names_wg: "{{ nginx.server_names.wg | default([]) }}"
+nginx_app_all_server_names: >-
+  {{
+    (
+      nginx_app_server_names_internal
+      + nginx_app_server_names_public
+      + nginx_app_server_names_wg
+    ) | unique | list
+  }}
+
+nginx_http_to_https_enabled: "{{ nginx.http_to_https.enabled | default(true) }}"
+nginx_http_to_https_scope: "{{ nginx.http_to_https.scope | default('all') }}"
+
+nginx_app_server_names_http_redirect: >-
+  {{
+    nginx_app_all_server_names
+    if nginx_http_to_https_scope == 'all'
+    else nginx_app_server_names_public
+  }}
+nginx_app_server_names_http_internal: >-
+  {{
+    (nginx_app_server_names_internal + nginx_app_server_names_wg) | unique | list
+  }}
+
+nginx_app_access_log: "{{ nginx.logging.access_log | default('/var/log/nginx/dev-app.access.log') }}"
+nginx_app_error_log: "{{ nginx.logging.error_log | default('/var/log/nginx/dev-app.error.log') }}"
+
+nginx_app_ssl_common_name: >-
+  {{
+    nginx.ssl.internal.common_name | default('dev-app.internal')
+    if nginx.ssl.internal.enabled | default(true) | bool
+    else nginx.ssl.public.common_name | default('dev-app.internal')
+  }}
+nginx_app_ssl_days: >-
+  {{
+    nginx.ssl.internal.days | default(825)
+    if nginx.ssl.internal.enabled | default(true) | bool
+    else nginx.ssl.public.days | default(825)
+  }}
+nginx_app_ssl_self_signed: >-
+  {{
+    (nginx.ssl.internal.self_signed | default(true) | bool and nginx.ssl.internal.enabled | default(true) | bool)
+    or (nginx.ssl.public.self_signed | default(true) | bool and nginx.ssl.public.enabled | default(true) | bool)
+  }}
+nginx_app_ssl_subject_alt_names: >-
+  {{
+    (
+      (nginx.ssl.internal.subject_alt_names | default([]))
+      if nginx.ssl.internal.enabled | default(true) | bool
+      else []
+    )
+    + (
+      (nginx.ssl.public.subject_alt_names | default([]))
+      if nginx.ssl.public.enabled | default(true) | bool
+      else []
+    )
+    | unique
+    | list
+  }}

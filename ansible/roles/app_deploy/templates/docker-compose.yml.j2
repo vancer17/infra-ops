@@ -1,0 +1,28 @@
+# =============================================================================
+# Dev application — Docker Compose
+# =============================================================================
+# Managed by Ansible infra-ops (app_deploy role)
+# deploy_status: {{ app_deploy_status }}
+# =============================================================================
+
+services:
+{% if app_deploy_status == 'placeholder' %}
+  placeholder:
+    image: {{ app_placeholder_image }}
+    container_name: {{ app_placeholder_container_name }}
+    restart: {{ app_placeholder_restart_policy }}
+    command:
+      - -listen=:{{ app_listen_port }}
+      - "-text={{ app_placeholder_echo_text }}"
+    ports:
+      - "{{ app_publish_host }}:{{ app_listen_port }}:{{ app_listen_port }}"
+{% else %}
+  app:
+    image: "{{ app_image_repository }}:{{ app_image_tag }}"
+    container_name: {{ app_compose_project_name }}-app
+    restart: unless-stopped
+    env_file:
+      - .env
+    ports:
+      - "{{ app_publish_host }}:{{ app_listen_port }}:{{ app_image_container_port }}"
+{% endif %}

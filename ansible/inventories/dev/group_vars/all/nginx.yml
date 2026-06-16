@@ -1,0 +1,130 @@
+# =============================================================================
+# Ansible Inventory 变量：Dev 业务层 Nginx 网关（应用统一出口）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   dev-01 宿主机 Nginx 的 SSOT，供后续 nginx-dev.yml / dev-app.yml 与
+#   roles/nginx（dev-app 任务）消费。与 Hub 管理面 nginx 严格分离。
+#
+# 【与 inventories/mgmt/group_vars/all/nginx.yml 的分工】
+#   mgmt/nginx.yml  → hub-01：jms.internal、JumpServer、WG 内管理入口
+#   dev/nginx.yml   → dev-01：dev-app.internal、公网 API、反代应用容器
+#
+# 【访问路径（与安全组 remark.log 对齐）】
+#   WG 开发机：  http(s)://dev-app.internal → 10.200.0.2 → Nginx → 127.0.0.1:8080
+#   小程序/外网： https://121.41.58.20 → Nginx → 127.0.0.1:8080
+#   应用 8080 不对公网开放（安全组无 8080 入站）
+#
+# 【状态】
+#   enabled: false  → 仅完成 Inventory（阶段 2）；待 nginx-dev.yml apply 后改 true
+#   status: not_started | configured | operational
+#
+# 【维护】
+#   变更 server_name / SSL 后同步 docs/assets/dev-01.yaml、make inventory
+#
+# =============================================================================
+
+---
+
+nginx:
+  # app = 业务网关；勿与 Hub 的 gateway_mode: mgmt 混用
+  gateway_mode: app
+
+  # 阶段 2：变量就绪；阶段 3 nginx-dev.yml 成功后改为 true
+  enabled: false
+
+  # not_started → inventory 已定义；configured → playbook 已跑；operational → 验收通过
+  status: not_started
+
+  package_name: nginx
+  remove_default_site: true
+
+  health_uri: /health
+
+  # 监听端口（与 network.yml app_ports 及安全组 IN-HTTP/HTTPS-* 一致）
+  listen:
+    http: 80
+    https: 443
+
+  # ---------------------------------------------------------------------------
+  # server_name — 虚拟主机名（Nginx server_name 指令）
+  # ---------------------------------------------------------------------------
+  server_names:
+    # WG + Hub dnsmasq：dev-app.internal → 10.200.0.2（见 mgmt internal_dns.yml）
+    internal:
+      - dev-app.internal
+    # 公网 EIP；小程序/Dev 外网联调；正式域名确定后追加并保留 IP 过渡期
+    public:
+      - "121.41.58.20"
+    # ci-01 同机 WG 地址；可选直连 IP 调试（非 DNS 名）
+    wg:
+      - "10.200.0.2"
+
+  # ---------------------------------------------------------------------------
+  # upstream — 反代目标（占位 API / 真实应用容器）
+  # ---------------------------------------------------------------------------
+  upstream:
+    name: app_backend
+    host: "127.0.0.1"
+    port: 8080
+    # 与 group_vars/all/app.yml placeholder.listen_* 及真实 app 容器端口一致
+    proxy_read_timeout: 60s
+    proxy_connect_timeout: 10s
+    client_max_body_size: 32m
+
+  # ---------------------------------------------------------------------------
+  # access — 与安全组来源策略文档化（Ansible 不直接改云安全组）
+  # ---------------------------------------------------------------------------
+  access:
+    wireguard_cidr: "10.200.0.0/16"
+    public_http_enabled: true
+    public_https_enabled: true
+    # 对应 remark.log：IN-HTTP-PUBLIC-DEV / IN-HTTPS-PUBLIC-DEV（0.0.0.0/0）
+    public_ingress_note: "小程序、硬件 HTTP API；MQTT 不走本 Nginx"
+    wg_ingress_note: "IN-HTTP-WG / IN-HTTPS-WG"
+
+  # ---------------------------------------------------------------------------
+  # http_to_https — 公网与内网是否强制跳转到 443
+  # ---------------------------------------------------------------------------
+  http_to_https:
+    enabled: true
+    # all = 80 上所有 server 均 301；public_only = 仅公网 server_name 301，内网/WG 保留 HTTP 反代
+    scope: all
+
+  # ---------------------------------------------------------------------------
+  # ssl — Dev 业务证书（与 Hub 自签证书独立目录）
+  # ---------------------------------------------------------------------------
+  ssl:
+    directory: /etc/nginx/ssl
+    certificate_file: dev-app.crt
+    private_key_file: dev-app.key
+
+    internal:
+      # WG 访问 dev-app.internal 时使用
+      enabled: true
+      self_signed: true
+      days: 825
+      common_name: dev-app.internal
+      subject_alt_names:
+        - DNS:dev-app.internal
+        - DNS:localhost
+        - IP:10.200.0.2
+
+    public:
+      # 小程序正式环境需受信 CA + 备案域名；Dev 期可自签仅作联调
+      enabled: true
+      provider: self_signed
+      self_signed: true
+      days: 825
+      common_name: "121.41.58.20"
+      subject_alt_names:
+        - IP:121.41.58.20
+      # 替换为 acm / letsencrypt 时：provider: acm，并改 certificate_file 路径
+      mini_program_note: "微信要求配置合法 HTTPS 域名；纯 IP 能力有限"
+
+  # ---------------------------------------------------------------------------
+  # logging — 业务访问日志（与 Hub /var/log/nginx/hub-*.log 分离）
+  # ---------------------------------------------------------------------------
+  logging:
+    access_log: /var/log/nginx/dev-app.access.log
+    error_log: /var/log/nginx/dev-app.error.log

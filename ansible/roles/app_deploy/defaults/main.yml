@@ -1,0 +1,75 @@
+# =============================================================================
+# app_deploy role — 默认变量（由 inventories/dev/group_vars/all/app.yml 覆盖）
+# =============================================================================
+
+---
+
+app_enabled: "{{ app.enabled | default(false) }}"
+app_deploy_status: "{{ app.deploy_status | default('placeholder') }}"
+
+app_compose_project_dir: "{{ app.compose.project_dir | default('/opt/app/compose') }}"
+app_compose_env_file: "{{ app.compose.env_file | default('/opt/app/compose/.env') }}"
+app_compose_file: "{{ app.compose.compose_file | default('docker-compose.yml') }}"
+app_compose_project_name: "{{ app.compose.project_name | default('dev-app') }}"
+
+app_placeholder_enabled: "{{ app.placeholder.enabled | default(true) }}"
+app_placeholder_image: >-
+  {{
+    (
+      app.placeholder.registry_prefix | default('')
+      ~ '/'
+      ~ app.placeholder.image_name | default('http-echo')
+      ~ ':'
+      ~ app.placeholder.image_tag | default('0.2.3')
+    )
+    if (app.placeholder.registry_prefix | default('') | length > 0)
+    else (app.placeholder.image | default('hashicorp/http-echo:0.2.3'))
+  }}
+app_placeholder_image_pull_policy: "{{ app.placeholder.image_pull_policy | default('missing') }}"
+app_placeholder_container_name: "{{ app.placeholder.container_name | default('dev-app-placeholder') }}"
+app_placeholder_echo_text: "{{ app.placeholder.echo_text | default('infra-ops dev placeholder api') }}"
+app_placeholder_restart_policy: "{{ app.placeholder.restart_policy | default('unless-stopped') }}"
+
+app_image_repository: "{{ app.image.repository | default('') }}"
+app_image_tag: "{{ app.image.tag | default('') }}"
+app_image_pull_policy: "{{ app.image.pull_policy | default('missing') }}"
+app_image_container_port: "{{ app.image.container_port | default(app.listen.port | default(8080)) }}"
+
+app_listen_host: "{{ app.listen.host | default('127.0.0.1') }}"
+app_listen_port: "{{ app.listen.port | default(8080) }}"
+app_publish_host: "{{ app.placeholder.publish_host | default(app.listen.host) }}"
+
+app_health_path: "{{ app.health.path | default('/health') }}"
+app_health_interval_seconds: "{{ app.health.interval_seconds | default(30) }}"
+app_health_timeout_seconds: "{{ app.health.timeout_seconds | default(5) }}"
+app_health_expect_status: >-
+  {{
+    app.health.expect_status
+    | default(app.placeholder.health_expect_status | default(200))
+  }}
+app_health_retries: "{{ app.health.retries | default(12) }}"
+app_health_delay: >-
+  {{
+    app.health.delay
+    | default(((app.health.interval_seconds | default(30) | int) // 6) | int)
+    | default(5)
+  }}
+
+app_health_url_root: "http://{{ app_listen_host }}:{{ app_listen_port }}/"
+app_health_url: "http://{{ app_listen_host }}:{{ app_listen_port }}{{ app_health_path }}"
+
+app_env_vars: "{{ app.env | default({}) }}"
+app_use_rds_from_inventory: "{{ app.use_rds_from_inventory | default(true) }}"
+app_use_oss_from_inventory: "{{ app.use_oss_from_inventory | default(true) }}"
+
+app_secrets_db_password: "{{ (app_secrets | default({}, true)).db_password | default('') }}"
+
+app_compose_pull: >-
+  {{
+    'always'
+    if (
+      (app_deploy_status == 'placeholder' and app_placeholder_image_pull_policy == 'always')
+      or (app_deploy_status == 'operational' and app_image_pull_policy == 'always')
+    )
+    else 'missing'
+  }}

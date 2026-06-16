@@ -1,0 +1,183 @@
+# =============================================================================
+# nginx role — Dev 业务层网关（阶段 3）
+# =============================================================================
+#
+# 消费者变量：inventories/dev/group_vars/all/nginx.yml
+# host_vars：nginx_app_gateway: true（dev-01）
+#
+# =============================================================================
+
+---
+
+- name: Assert Dev Nginx gateway mode is app
+  ansible.builtin.assert:
+    that:
+      - nginx.gateway_mode | default('') == 'app'
+    fail_msg: "nginx.gateway_mode must be app on dev-01 (see group_vars/all/nginx.yml)"
+  tags: [nginx, nginx-dev, preflight]
+
+- name: Install Nginx and OpenSSL packages
+  ansible.builtin.apt:
+    name:
+      - "{{ nginx.package_name | default('nginx') }}"
+      - openssl
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+  tags: [nginx, nginx-dev, install]
+
+- name: Ensure Nginx SSL directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Ensure Nginx snippets directory exists
+  ansible.builtin.file:
+    path: "{{ nginx_snippets_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [nginx, nginx-dev, config]
+
+- name: Build subjectAltName string for Dev application certificate
+  ansible.builtin.set_fact:
+    nginx_app_ssl_san_csv: "{{ nginx_app_ssl_subject_alt_names | join(',') }}"
+  when: nginx_app_ssl_self_signed | bool
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Generate Dev application self-signed TLS certificate
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -nodes
+      - -days
+      - "{{ nginx_app_ssl_days | string }}"
+      - -newkey
+      - rsa:2048
+      - -keyout
+      - "{{ nginx_ssl_private_key_path }}"
+      - -out
+      - "{{ nginx_ssl_certificate_path }}"
+      - -subj
+      - "/CN={{ nginx_app_ssl_common_name }}"
+      - -addext
+      - "subjectAltName={{ nginx_app_ssl_san_csv }}"
+  args:
+    creates: "{{ nginx_ssl_certificate_path }}"
+  when:
+    - nginx_app_ssl_self_signed | bool
+    - nginx_app_ssl_san_csv | length > 0
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Stat Dev TLS private key for permission fix
+  ansible.builtin.stat:
+    path: "{{ nginx_ssl_private_key_path }}"
+  register: nginx_app_ssl_key_stat
+  when: nginx_app_ssl_self_signed | bool
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Set restrictive permissions on Dev TLS private key
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_private_key_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  when:
+    - nginx_app_ssl_self_signed | bool
+    - nginx_app_ssl_key_stat.stat.exists | default(false)
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Stat Dev TLS certificate for permission fix
+  ansible.builtin.stat:
+    path: "{{ nginx_ssl_certificate_path }}"
+  register: nginx_app_ssl_cert_stat
+  when: nginx_app_ssl_self_signed | bool
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Set permissions on Dev TLS certificate
+  ansible.builtin.file:
+    path: "{{ nginx_ssl_certificate_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - nginx_app_ssl_self_signed | bool
+    - nginx_app_ssl_cert_stat.stat.exists | default(false)
+  tags: [nginx, nginx-dev, ssl]
+
+- name: Deploy Dev application TLS snippet
+  ansible.builtin.template:
+    src: ssl-dev-app.conf.j2
+    dest: "{{ nginx_snippets_dir }}/ssl-dev-app.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  tags: [nginx, nginx-dev, config]
+
+- name: Remove default Nginx site when configured
+  ansible.builtin.file:
+    path: "{{ nginx_sites_enabled_dir }}/default"
+    state: absent
+  when: nginx.remove_default_site | default(true) | bool
+  notify: Reload nginx
+  tags: [nginx, nginx-dev, config]
+
+- name: Deploy Dev application upstream block
+  ansible.builtin.template:
+    src: dev-app-upstream.conf.j2
+    dest: /etc/nginx/conf.d/dev-app-upstream.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  tags: [nginx, nginx-dev, config]
+
+- name: Deploy Dev application site configuration
+  ansible.builtin.template:
+    src: dev-app.conf.j2
+    dest: "{{ nginx_sites_available_dir }}/dev-app.conf"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+  tags: [nginx, nginx-dev, config]
+
+- name: Stat Dev application site configuration for enablement
+  ansible.builtin.stat:
+    path: "{{ nginx_sites_available_dir }}/dev-app.conf"
+  register: dev_app_site_stat
+  tags: [nginx, nginx-dev, config]
+
+- name: Enable Dev application site
+  ansible.builtin.file:
+    src: "{{ nginx_sites_available_dir }}/dev-app.conf"
+    dest: "{{ nginx_sites_enabled_dir }}/dev-app.conf"
+    state: link
+  when: dev_app_site_stat.stat.exists | default(false)
+  notify: Reload nginx
+  tags: [nginx, nginx-dev, config]
+
+- name: Enable and start Nginx service
+  ansible.builtin.systemd:
+    name: nginx
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: not ansible_check_mode
+  tags: [nginx, nginx-dev, service]
+
+- name: Verify Nginx configuration syntax
+  ansible.builtin.command: nginx -t
+  register: nginx_dev_syntax_check
+  changed_when: false
+  failed_when: nginx_dev_syntax_check.rc != 0
+  when: not ansible_check_mode
+  tags: [nginx, nginx-dev, verify]
