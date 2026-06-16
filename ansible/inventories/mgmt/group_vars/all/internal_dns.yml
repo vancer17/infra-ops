@@ -57,7 +57,7 @@ internal_dns:
     - name: dev-app
       fqdn: dev-app.internal
       address: "10.200.0.2"
-      note: "Dev 应用入口（业务 Nginx 待部署）"
+      note: "Dev 应用入口（业务 Nginx operational @ dev-01，2026-06-16）"
 
     - name: dev-02
       fqdn: dev-02.internal

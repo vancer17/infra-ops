@@ -56,7 +56,7 @@
 | `jms.internal` | `10.200.0.1` | JumpServer（HTTPS） |
 | `hub.internal` | `10.200.0.1` | Hub / Nginx |
 | `ci.internal` | `10.200.0.2` | CI / Dev 同机 |
-| `dev-app.internal` | `10.200.0.2` | Dev 应用（预留） |
+| `dev-app.internal` | `10.200.0.2` | Dev 业务 API（Nginx 443 → 8080） |
 
 ---
 

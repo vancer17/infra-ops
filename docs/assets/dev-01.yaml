@@ -3,7 +3,8 @@
 # =============================================================================
 #
 # 【角色说明】
-#   Dev 环境主应用机：Web/API、Nginx 反代（应用层待业务栈确定后部署）。
+#   Dev 环境主应用机：Web/API、业务 Nginx 统一出口（80/443 → 127.0.0.1:8080）。
+#   2026-06-16：阶段 3 占位 API + 业务 Nginx operational（见 acceptance_ref）。
 #
 # 【与 CI-01 同机】
 #   本台 ECS（控制台 yax）同时承担 ci-01 角色，见 ci-01.yaml 与 registry.yaml。
@@ -20,7 +21,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-15"
+updated_at: "2026-06-16"
 updated_by: "infra-ops"
 
 host:
@@ -58,7 +59,7 @@ host:
         name: sg-dev-ecs-bootstrap
         attached_at: "2026-06-08"
         phase: bootstrap
-        note: "Bootstrap 临时策略；steady 阶段迁移至 sg-dev-ecs-wg"
+        note: "含 IN-HTTP/HTTPS-WG、IN-HTTP/HTTPS-PUBLIC-DEV；8080 不对公网开放"
     target:
       - id: null
         name: sg-dev-ecs-wg
@@ -119,6 +120,35 @@ host:
     status: operational
     database: app_dev
     acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
+
+  app:
+    enabled: true
+    deploy_status: placeholder
+    container_name: dev-app-placeholder
+    image: "5yrqsf19ms2mh4.xuanyuan.run/hashicorp/http-echo:0.2.3"
+    listen: "127.0.0.1:8080"
+    compose_dir: /opt/app/compose
+    operational_at: "2026-06-16"
+    acceptance_ref: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
+
+  nginx_app:
+    status: operational
+    gateway_mode: app
+    domains:
+      internal: dev-app.internal
+      public_ip: "121.41.58.20"
+      wg_access_ip: "10.200.0.2"
+    listen:
+      http: 80
+      https: 443
+    upstream: "127.0.0.1:8080"
+    health_uri: /health
+    ssl: self_signed_dev
+    operational_at: "2026-06-16"
+    playbooks:
+      - ansible/playbooks/dev-app.yml
+      - ansible/playbooks/nginx-dev.yml
+    acceptance_ref: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
 
   ansible:
     inventory: ansible/inventories/dev/

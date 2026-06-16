@@ -45,13 +45,18 @@ ansible dev-01 -i ansible/inventories/dev/ -m debug -a var=nginx -c local
 2. `group_vars/all/network.yml`、`nginx.yml`、`app.yml`
 3. `make inventory`
 
-## 阶段 2 → 阶段 3
+## 阶段 2 → 阶段 3（2026-06-16 已验收）
 
-| 变量 | 阶段 2（inventory） | 阶段 3 apply 后 |
-|------|---------------------|-----------------|
-| `nginx.enabled` | `false` | `true` |
-| `nginx.status` | `not_started` | `operational` |
-| `app.enabled` | `false` | `true` |
+| 变量 | apply 后状态 |
+|------|--------------|
+| `app.enabled` | `true` |
+| `app.deploy_status` | `placeholder`（真实业务待 CI） |
+| `nginx.enabled` | `true` |
+| `nginx.status` | `operational` |
+| `dev_hosts.dev-01.nginx_app_status` | `operational` |
+| `dev_hosts.dev-01.app_deploy_status` | `placeholder` |
+
+验收：[docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md](../../docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
 
 ## 阶段 3 Playbook
 

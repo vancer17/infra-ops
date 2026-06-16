@@ -11,7 +11,7 @@
 | `hub.internal` | 10.200.0.1 | Hub / Nginx |
 | `jms.internal` | 10.200.0.1 | JumpServer（Nginx 反代） |
 | `ci.internal` | 10.200.0.2 | CI / dev-01 同机 |
-| `dev-app.internal` | 10.200.0.2 | Dev 应用（待部署） |
+| `dev-app.internal` | 10.200.0.2 | Dev 业务 Nginx（✅ 2026-06-16） |
 | `dev-02.internal` | 10.200.1.2 | Dev-02 预留 |
 | `test-app.internal` | 10.200.2.1 | Test 预留 |
 
