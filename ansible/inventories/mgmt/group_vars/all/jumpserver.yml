@@ -18,7 +18,7 @@
 #   （hub-g4-jumpserver.yml 自动执行 vhost 刷新；inventory 须同步提交）
 #
 # 【状态】
-#   not_started → operational（hub-g4-jumpserver.yml apply 成功后更新）
+#   operational（2026-06-17 hub-g4-jumpserver.yml apply + 验收通过）
 #
 # =============================================================================
 
@@ -28,7 +28,7 @@ jumpserver:
   enabled: true
 
   # not_started | operational
-  status: not_started
+  status: operational
 
   # 轩辕专属域名前缀（与 bootstrap_docker_smoke_image 同一账号体系）
   registry_prefix: "5yrqsf19ms2mh4.xuanyuan.run/jumpserver"

@@ -79,4 +79,6 @@ ansible-playbook ansible/playbooks/hub-g3-docker.yml \
 
 ## 六、下一步
 
-JumpServer Compose 部署（G4：`hub-g4-jumpserver.yml`）→ `nginx.jumpserver.deploy_status: ready`
+阶段 G4 JumpServer Compose 已于 2026-06-17 验收通过，见 `docs/acceptance/20260617-阶段G4-JumpServer验收.md`。
+
+后续：JumpServer 资产纳管、修改默认管理员密码、评估关公网 SSH。

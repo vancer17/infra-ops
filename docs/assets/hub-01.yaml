@@ -9,7 +9,7 @@
 # 【本期职责】
 #   - 最小 WireGuard 组网的唯一 Server（UDP 51820，地址 10.200.0.1）
 #   - Hub 内网 DNS（dnsmasq @ 10.200.0.1:53，*.internal）— G2 operational
-#   - JumpServer 堡垒机（反代经 jms.internal）— G4 Compose 待部署
+#   - JumpServer 堡垒机（反代经 jms.internal）— G4 operational（2026-06-17）
 #
 # 【Ansible Inventory】
 #   inventories/dev/ 仅含 dev-01、dev-02
@@ -24,6 +24,7 @@
 #   阶段 G1（2026-06-15）：Hub 宿主机 Nginx 网关 — 见 stage_g1_nginx_hub
 #   阶段 G2（2026-06-16）：Hub 内网 DNS + JumpServer upstream 细化 — 见 stage_g2_internal_dns（验收通过）
 #   阶段 G3（2026-06-17）：Hub 启用 Docker CE — 见 stage_g3_hub_docker（验收通过）
+#   阶段 G4（2026-06-17）：Hub JumpServer Compose — 见 stage_g4_hub_jumpserver（验收通过）
 #
 # =============================================================================
 
@@ -35,7 +36,7 @@ host:
   name: hub-01
   role: hub
   env: mgmt
-  description: "临时 Hub — WireGuard Server + Nginx 网关 + dnsmasq 内网 DNS + Docker（JumpServer Compose 待部署）"
+  description: "临时 Hub — WireGuard Server + Nginx 网关 + dnsmasq + JumpServer（G4 operational）"
 
   # --- 替代关系 ---
   replacement:
@@ -134,7 +135,8 @@ host:
     internal_dns_operational_at: "2026-06-16"
     docker_status: operational
     docker_operational_at: "2026-06-17"
-    jumpserver_status: not_started
+    jumpserver_status: operational
+    jumpserver_operational_at: "2026-06-17"
     baota_installed: false
 
   # 阶段 E 密钥验收（2026-06-14，ci-01 上 wg-keys all-hub + vault-encrypt-hub）
@@ -275,9 +277,8 @@ host:
       laptop_nc_443: ok
       laptop_curl_health_https: ok
     pending:
-      - jumpserver_deploy_upstream_8080
       - steady_in_ssh_wg_and_retire_public_ssh
-    note: "jms.internal 502 直至 JumpServer 监听 127.0.0.1:8080；G2 后改为 503 维护页 + /jms/status"
+    note: "jms.internal 已反代 JumpServer（G4）；G2 维护页 503 已退役"
 
   # 阶段 G2 Hub 内网 DNS + JumpServer upstream 细化（2026-06-16，logs/console-acceptance.log）
   stage_g2_internal_dns:
@@ -307,9 +308,8 @@ host:
       laptop_curl_jms_root_503: ok
       inventory_internal_dns_operational: ok
     pending:
-      - jumpserver_compose_deploy_g3_plus_1
       - steady_in_ssh_wg_and_retire_public_ssh
-    conclusion: "阶段 G2 验收通过；jms.internal 503 + /jms/status JSON；G3 Docker 已完成，下一步 JumpServer Compose"
+    conclusion: "阶段 G2 验收通过；jms.internal DNS + /jms/status；JumpServer 见 stage_g4_hub_jumpserver"
 
   # 阶段 G3 Hub Docker（2026-06-17，logs/console-acceptance.log）
   stage_g3_hub_docker:
@@ -338,26 +338,41 @@ host:
       inventory_mgmt: ok
       hub_docker_status_operational: ok
     pending:
-      - jumpserver_compose_deploy
-      - nginx_jumpserver_deploy_status_ready
-    conclusion: "阶段 G3 验收通过；Docker CE + compose；JumpServer 目录就绪；jms.internal 仍为 pending/503"
+      - steady_in_ssh_wg_and_retire_public_ssh
+    conclusion: "阶段 G3 验收通过；Docker CE + compose；JumpServer 目录就绪；G4 见 stage_g4_hub_jumpserver"
 
-  # 阶段 G4 Hub JumpServer Compose（待 apply；见 hub-jumpserver.runbook.md）
+  # 阶段 G4 Hub JumpServer Compose（2026-06-17，logs/console-acceptance.log）
   stage_g4_hub_jumpserver:
-    status: not_started
+    status: operational
+    completed_at: "2026-06-17"
+    control_host: ci-01
+    acceptance_log: logs/console-acceptance.log
+    acceptance_doc: docs/acceptance/20260617-阶段G4-JumpServer验收.md
     playbook: ansible/playbooks/hub-g4-jumpserver.yml
     preflight_script: scripts/mgmt/stage-g4-jumpserver-preflight.sh
     verify_script: scripts/mgmt/verify-hub-jumpserver-remote.sh
     runbook: docs/jumpserver/hub-jumpserver.runbook.md
-    vault_init_script: scripts/mgmt/jumpserver-vault-init.sh
     image: "5yrqsf19ms2mh4.xuanyuan.run/jumpserver/jms_all:v4.10.16"
     upstream: "127.0.0.1:8080"
+    nginx_deploy_status: ready
+    checks:
+      verify_hub_jumpserver_remote: ok
+      hub_docker_compose_ps: ok
+      hub_loopback_8080_http_200: ok
+      hub_nginx_jms_https_200: ok
+      hub_jms_status_deploy_ready: ok
+      ci_curl_jms_status_json: ok
+      ci_curl_jms_root_200: ok
+      ci_dig_jms_internal: ok
+      laptop_curl_jms_status_json: ok
+      laptop_curl_jms_root_200: ok
+      inventory_jumpserver_operational: ok
+      inventory_nginx_deploy_ready: ok
     pending:
-      - jumpserver_vault_init
-      - hub_g4_jumpserver_apply
-      - nginx_jumpserver_deploy_status_ready
-      - jumpserver_status_operational
-    conclusion: "G4 代码与 playbook 已就绪；待 ci-01 执行 vault-init + hub-g4-jumpserver.yml"
+      - jumpserver_admin_password_rotation
+      - jumpserver_asset_onboarding
+      - steady_in_ssh_wg_and_retire_public_ssh
+    conclusion: "阶段 G4 验收通过；jms.internal 反代 JumpServer jms_all；deploy_status=ready"
 
   # 阶段 C 远程验收记录（2026-06-14，控制机 ci-01 deploy@172.21.226.38）
   # 注：F2-5 后 Ansible 连 Hub 改经 10.200.0.1；本段保留 C 阶段 VPC 私网验收历史
@@ -373,4 +388,4 @@ host:
       opt_wireguard: "exists (mode 0750 root; deploy 无 list 权限为预期)"
       var_log_mgmt: ok
       docker_installed: false
-    note: "ping 私网/公网可能丢包（ICMP 禁）；以 SSH/nc 为准；Docker 见 stage_g3_hub_docker（2026-06-17 operational）"
+    note: "ping 私网/公网可能丢包（ICMP 禁）；以 SSH/nc 为准；JumpServer 见 stage_g4_hub_jumpserver（2026-06-17 operational）"
