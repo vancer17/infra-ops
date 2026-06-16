@@ -1,0 +1,69 @@
+# =============================================================================
+# Ansible Inventory 变量：JumpServer 资产纳管（Linux 系统用户侧）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   定义堡垒机纳管目标机在操作系统层的标准：
+#     - jump_ops / jump_readonly 用户如何由 Ansible 准备
+#     - SSH AllowUsers 是否包含 jump_ops
+#     - 与 JumpServer 控制台「资产账户 / 模板 / 推送」的分工
+#
+# 【与 jumpserver.yml 的分工】
+#   jumpserver.yml       → Hub 上 jms_all Compose（G4）
+#   jumpserver_asset.yml → 各 ECS 上的 jump_ops 等 Linux 用户（本文件）
+#
+# 【密钥原则（重要）】
+#   jump_ops 的 SSH 公钥由 JumpServer「账号推送」写入 authorized_keys；
+#   Ansible **不**向 jump_ops 写入公钥，避免与堡垒机漂移。
+#   deploy 用户仅 CI/Ansible 使用，**永不**录入 JumpServer。
+#
+# 【消费者】
+#   ansible/playbooks/jumpserver-asset-prep.yml
+#   ansible/roles/jump_ops
+#   roles/common/templates/sshd-dev-bootstrap.conf.j2（AllowUsers）
+#
+# =============================================================================
+
+---
+
+jumpserver_asset:
+  # 主机级可在 host_vars 覆盖为 true；仅 jumpserver_assets 组成员执行 prep playbook
+  enabled: false
+
+  # JumpServer 控制台录入资产时的参考（文档化；不自动调 JMS API）
+  console:
+    protocol_ssh_port: 22
+    protocol_sftp_port: 22
+    account_template_suggested: linux-jump-ops
+
+  jump_ops:
+    enabled: true
+    user: jump_ops
+    shell: /bin/bash
+    create_home: true
+    # ops = 日常运维有限 sudo；none = 仅登录无 sudo
+    sudo_profile: ops
+
+  jump_readonly:
+    enabled: false
+    user: jump_readonly
+    shell: /bin/bash
+    create_home: true
+    sudo_profile: none
+
+  # Ansible 不管理 jump_* 的 authorized_keys
+  manage_authorized_keys: false
+
+# -----------------------------------------------------------------------------
+# ssh_allow_users — 供 sshd drop-in 模板消费（steady 后是否含 jump_ops）
+# -----------------------------------------------------------------------------
+ssh_allow_users_bootstrap_default:
+  - root
+  - deploy
+
+ssh_allow_users_steady_default:
+  - deploy
+
+ssh_allow_users_steady_with_jump_ops:
+  - deploy
+  - jump_ops

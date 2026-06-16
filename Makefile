@@ -52,6 +52,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
         wg-keys-check wg-keys-list stage-f-preflight stage-f2-5-followup \
         stage-g1-nginx-preflight stage-g2-preflight stage-g3-docker-preflight \
         stage-g4-jumpserver-preflight jumpserver-vault-init \
+        stage-jumpserver-asset-preflight jumpserver-asset-prep-preflight jumpserver-asset-prep \
         stage-e-preflight control-plane-setup \
         apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
@@ -84,6 +85,9 @@ help:
 	@echo "  Stage G3:   make stage-g3-docker-preflight  (before hub-g3-docker.yml; Hub Docker)"
 	@echo "  Stage G4:   make jumpserver-vault-init       (first-time vault secrets)"
 	@echo "              make stage-g4-jumpserver-preflight (before hub-g4-jumpserver.yml)"
+	@echo "  Asset prep: make stage-jumpserver-asset-preflight LIMIT=hub-01"
+	@echo "              make jumpserver-asset-prep LIMIT=hub-01"
+	@echo "              See: docs/jumpserver/asset-prep.runbook.md"
 	@echo "  Hub sudo: make apply-hub-deploy-sudo  (fix Missing sudo password)"
 	@echo "  CI WG sudo: make apply-ci-wireguard-sudo  (F2 deploy-wireguard on ci-01)"
 	@echo ""
@@ -209,6 +213,19 @@ stage-g4-jumpserver-preflight:
 
 jumpserver-vault-init:
 	bash "$(SCRIPTS_MGMT)/jumpserver-vault-init.sh"
+
+JUMPSERVER_ASSET_LIMIT ?= hub-01
+
+stage-jumpserver-asset-preflight:
+	ANSIBLE_LIMIT="$(JUMPSERVER_ASSET_LIMIT)" bash "$(SCRIPTS_MGMT)/stage-jumpserver-asset-preflight.sh"
+	@echo "[make] stage-jumpserver-asset-preflight OK (limit=$(JUMPSERVER_ASSET_LIMIT))"
+
+jumpserver-asset-prep-preflight: stage-jumpserver-asset-preflight
+	@echo "[make] jumpserver-asset-prep-preflight OK (alias of stage-jumpserver-asset-preflight)"
+
+jumpserver-asset-prep:
+	bash "$(SCRIPTS_MGMT)/jumpserver-asset-prep.sh" all "$(JUMPSERVER_ASSET_LIMIT)"
+	@echo "[make] jumpserver-asset-prep OK (limit=$(JUMPSERVER_ASSET_LIMIT))"
 
 apply-hub-deploy-sudo:
 	bash "$(SCRIPTS_MGMT)/apply-hub-deploy-sudo.sh"

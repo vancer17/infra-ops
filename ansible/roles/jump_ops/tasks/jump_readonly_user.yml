@@ -1,0 +1,29 @@
+# =============================================================================
+# jump_ops role — jump_readonly 系统用户（Prod 预留，默认关闭）
+# =============================================================================
+
+---
+- name: Create or update jump_readonly user
+  ansible.builtin.user:
+    name: "{{ jump_readonly_user }}"
+    shell: "{{ jump_readonly_shell }}"
+    create_home: true
+    home: "/home/{{ jump_readonly_user }}"
+    system: true
+  tags: [jump_ops, user, jump_readonly]
+
+- name: Ensure jump_readonly .ssh directory
+  ansible.builtin.file:
+    path: "/home/{{ jump_readonly_user }}/.ssh"
+    state: directory
+    owner: "{{ jump_readonly_user }}"
+    group: "{{ jump_readonly_user }}"
+    mode: "0700"
+  tags: [jump_ops, user, jump_readonly]
+
+- name: Ensure jump_readonly has no sudoers file
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ jump_readonly_user }}"
+    state: absent
+  when: jump_readonly_sudo_profile | default('none') == 'none'
+  tags: [jump_ops, sudo, jump_readonly]

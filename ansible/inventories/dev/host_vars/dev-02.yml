@@ -24,3 +24,11 @@ ansible_host: >-
   }}
 ansible_user: "{{ ssh_inventory_user | default('root') }}"
 bootstrap_status: "{{ dev_hosts['dev-02'].bootstrap_status | default('pending') }}"
+
+# JumpServer 资产纳管控制台参考（Bootstrap 完成后执行 asset-prep）
+jumpserver_asset_console:
+  name: Dev-02
+  node: Dev/ECS
+  address_primary: "10.200.1.2"
+  address_fallback: "172.21.127.124"
+  platform: Linux

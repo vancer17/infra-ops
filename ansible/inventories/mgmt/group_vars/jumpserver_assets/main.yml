@@ -1,0 +1,18 @@
+# =============================================================================
+# group_vars/jumpserver_assets — 纳入 JumpServer 资产准备的 mgmt 主机
+# =============================================================================
+#
+# 成员见 inventories/mgmt/hosts.yml → jumpserver_assets 组。
+# 本组变量使 jumpserver_asset.enabled 对组内主机默认为 true。
+#
+# 注意：ansible.cfg 未启用 hash_behaviour=merge，子组整键覆盖 all/ 下同名字典。
+# 除 enabled 外须保留 jump_ops.enabled，否则 sshd 模板不会把 jump_ops 写入 AllowUsers。
+#
+# =============================================================================
+
+---
+
+jumpserver_asset:
+  enabled: true
+  jump_ops:
+    enabled: true

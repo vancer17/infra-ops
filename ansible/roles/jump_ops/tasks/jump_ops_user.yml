@@ -1,0 +1,57 @@
+# =============================================================================
+# jump_ops role — jump_ops 系统用户
+# =============================================================================
+
+---
+- name: Assert jump_ops bootstrap placeholder exists
+  ansible.builtin.getent:
+    database: passwd
+    key: "{{ jump_ops_user }}"
+  tags: [jump_ops, user]
+
+- name: Enable jump_ops interactive login (shell, home)
+  ansible.builtin.user:
+    name: "{{ jump_ops_user }}"
+    shell: "{{ jump_ops_shell }}"
+    create_home: "{{ jump_ops_create_home | bool }}"
+    home: "/home/{{ jump_ops_user }}"
+  tags: [jump_ops, user]
+
+- name: Ensure jump_ops home directory permissions
+  ansible.builtin.file:
+    path: "/home/{{ jump_ops_user }}"
+    state: directory
+    owner: "{{ jump_ops_user }}"
+    group: "{{ jump_ops_user }}"
+    mode: "0750"
+  when: jump_ops_create_home | bool
+  tags: [jump_ops, user]
+
+- name: Ensure jump_ops .ssh directory exists (keys from JumpServer push)
+  ansible.builtin.file:
+    path: "/home/{{ jump_ops_user }}/.ssh"
+    state: directory
+    owner: "{{ jump_ops_user }}"
+    group: "{{ jump_ops_user }}"
+    mode: "0700"
+  tags: [jump_ops, user]
+
+- name: Install jump_ops sudoers (ops profile)
+  ansible.builtin.template:
+    src: sudoers-jump-ops.j2
+    dest: "/etc/sudoers.d/{{ jump_ops_user }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  when:
+    - jump_ops_sudo_profile | default('ops') != 'none'
+    - jump_ops_sudo_profile | default('ops') in ['ops', 'full']
+  tags: [jump_ops, sudo]
+
+- name: Remove jump_ops sudoers when profile is none
+  ansible.builtin.file:
+    path: "/etc/sudoers.d/{{ jump_ops_user }}"
+    state: absent
+  when: jump_ops_sudo_profile | default('ops') == 'none'
+  tags: [jump_ops, sudo]

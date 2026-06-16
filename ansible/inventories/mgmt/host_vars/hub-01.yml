@@ -69,3 +69,12 @@ docker_gateway: true
 
 # Hub 是否部署 JumpServer Compose（供 hub-g4-jumpserver.yml 与 inventory 门禁）
 jumpserver_gateway: true
+
+# JumpServer 资产纳管：控制台录入参考（见 docs/jumpserver/asset-prep.runbook.md）
+jumpserver_asset_console:
+  name: Hub-01
+  node: Mgmt/Hub
+  # Hub 自连：容器内优先私网；WG 客户端录入资产可用 10.200.0.1
+  address_primary: "10.200.0.1"
+  address_fallback: "172.21.127.123"
+  platform: Linux

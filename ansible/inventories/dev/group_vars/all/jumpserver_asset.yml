@@ -1,0 +1,47 @@
+# =============================================================================
+# Ansible Inventory 变量：JumpServer 资产纳管（Dev ECS）
+# =============================================================================
+#
+# 与 mgmt/group_vars/all/jumpserver_asset.yml 键名一致，仅值按 Dev 环境调整。
+# 执行：ansible-playbook jumpserver-asset-prep.yml -i inventories/dev/ --limit dev-01
+#
+# =============================================================================
+
+---
+
+jumpserver_asset:
+  enabled: false
+
+  console:
+    protocol_ssh_port: 22
+    protocol_sftp_port: 22
+    account_template_suggested: linux-jump-ops
+    suggested_node: Dev/ECS
+
+  jump_ops:
+    enabled: true
+    user: jump_ops
+    shell: /bin/bash
+    create_home: true
+    # Dev 允许有限 docker 只读与日志排查（非 deploy 级 sudo）
+    sudo_profile: ops
+
+  jump_readonly:
+    enabled: false
+    user: jump_readonly
+    shell: /bin/bash
+    create_home: true
+    sudo_profile: none
+
+  manage_authorized_keys: false
+
+ssh_allow_users_bootstrap_default:
+  - root
+  - deploy
+
+ssh_allow_users_steady_default:
+  - deploy
+
+ssh_allow_users_steady_with_jump_ops:
+  - deploy
+  - jump_ops

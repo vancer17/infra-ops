@@ -20,3 +20,12 @@ ansible_host: >-
     else dev_hosts['dev-01'].ansible_host_internal
   }}
 ansible_user: "{{ ssh_inventory_user | default('root') }}"
+
+# JumpServer 资产纳管控制台参考
+jumpserver_asset_console:
+  name: Dev-01
+  node: Dev/ECS
+  address_primary: "10.200.0.2"
+  address_fallback: "172.21.226.38"
+  platform: Linux
+  note: "与 ci-01 同 ECS；JumpServer 只录入本资产（Dev-01），勿再建 ci-01 重复条目"

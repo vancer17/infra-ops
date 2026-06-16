@@ -1,0 +1,7 @@
+---
+# 与 roles/common/handlers/main.yml 保持一致（Debian 12 单元名 ssh）
+- name: Reload sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: reloaded
+  listen: Reload sshd

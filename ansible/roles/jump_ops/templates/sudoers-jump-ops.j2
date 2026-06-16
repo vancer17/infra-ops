@@ -1,0 +1,20 @@
+# Managed by Ansible infra-ops — jump_ops bastion account ({{ env_name | default('unknown') }})
+# Consumer: roles/jump_ops
+# Profile: {{ jump_ops_sudo_profile | default('ops') }}
+# Keys: JumpServer account push only — not managed here
+{% if jump_ops_sudo_profile | default('ops') == 'ops' %}
+# 日常运维：状态查看、日志、有限 systemctl（禁止任意 shell 提权）
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl status *
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/systemctl is-active *
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/journalctl
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/journalctl *
+{% if env_name | default('') == 'dev' %}
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/docker ps
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/docker ps *
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/docker logs
+jump_ops ALL=(ALL) NOPASSWD: /usr/bin/docker logs *
+{% endif %}
+{% elif jump_ops_sudo_profile | default('ops') == 'full' %}
+# 紧急排障模板（默认不启用）；Prod 禁止
+jump_ops ALL=(ALL) NOPASSWD: ALL
+{% endif %}

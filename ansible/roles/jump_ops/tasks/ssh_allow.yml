@@ -1,0 +1,14 @@
+# =============================================================================
+# jump_ops role — 刷新 sshd AllowUsers（steady + jump_ops）
+# =============================================================================
+#
+# 复用 common/ssh-steady，避免跨 role 硬编码模板路径；handler 由 common 提供。
+#
+# =============================================================================
+
+---
+- name: Refresh SSH drop-in via common ssh-steady (steady + jump_ops AllowUsers)
+  ansible.builtin.import_role:
+    name: common
+    tasks_from: ssh-steady
+  tags: [jump_ops, ssh]
