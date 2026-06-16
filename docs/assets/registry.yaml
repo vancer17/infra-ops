@@ -183,7 +183,7 @@ hosts:
     asset_file: hub-01.yaml
     console_name: "launch-advisor-20241121"
     instance_id: "i-bp13u0d90uicmwrh4kb"
-    logical_roles: [hub, wg_server]
+    logical_roles: [hub, wg_server, bastion]
     env: mgmt
     public_ip: "121.43.49.58"
     private_ip: "172.21.127.123"
@@ -204,8 +204,10 @@ hosts:
     hub_internal_dns_operational_at: "2026-06-16"
     hub_docker_status: operational
     hub_docker_operational_at: "2026-06-17"
+    hub_jumpserver_status: operational
+    hub_jumpserver_operational_at: "2026-06-17"
     hub_security_group_rules: docs/security-groups/hub-wg.rules.yaml
-    note: "F2-5 + F3-1 已验收；G0/G1/G2/G3 operational；下一步 JumpServer Compose（G4）"
+    note: "F2-5 + F3-1 已验收；G0–G4 operational；下一步 JumpServer 资产纳管 / 改默认密码 / 关公网 SSH"
 
   ci-01:
     asset_file: ci-01.yaml

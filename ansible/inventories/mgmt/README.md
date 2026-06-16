@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-17）**：… **阶段 G3 Hub Docker `operational`**。**下一步**：`hub-g4-jumpserver.yml`（JumpServer Compose）→ `jumpserver.status=operational`。
+**hub-01 状态（2026-06-17）**：阶段 F WireGuard、G1 Nginx、G2 内网 DNS、G3 Hub Docker、**G4 JumpServer `operational`**。**下一步**：JumpServer 资产纳管、修改默认管理员密码、评估关公网 SSH。
 
 ## 用途
 
@@ -80,7 +80,7 @@ WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
 阶段 G1 Nginx：`docs/nginx/hub-nginx.runbook.md`（`make stage-g1-nginx-preflight`）；验收：`docs/acceptance/20260615-阶段G1-Hub-Nginx验收.md`  
 阶段 G2 内网 DNS：`docs/dns/hub-internal-dns.runbook.md`（`make stage-g2-preflight`）；验收：`docs/acceptance/20260616-阶段G2-Hub-DNS与JumpServer预留.md`  
 阶段 G3 Hub Docker：`docs/docker/hub-docker.runbook.md`（`make stage-g3-docker-preflight`）；验收：`docs/acceptance/20260617-阶段G3-Hub-Docker验收.md`  
-阶段 G4 JumpServer：`docs/jumpserver/hub-jumpserver.runbook.md`（`make stage-g4-jumpserver-preflight`）
+阶段 G4 JumpServer：`docs/jumpserver/hub-jumpserver.runbook.md`（`make stage-g4-jumpserver-preflight`）；验收：`docs/acceptance/20260617-阶段G4-JumpServer验收.md`
 
 ## 资产同步
 
@@ -94,6 +94,6 @@ WireGuard 密钥：`docs/wireguard/wg-keys.runbook.md`
 ## 与 dev inventory 的关系
 
 - **dev**：`dev-01`、`dev-02` — 应用环境（`inventories/dev/`）
-- **mgmt / mgmt_hub**：`hub-01` — WireGuard Server、未来 JumpServer
+- **mgmt / mgmt_hub**：`hub-01` — WireGuard Server、JumpServer（G4 operational）
 - **wireguard_peers**：`ci-01` — 本机 WG Client（`ansible_connection: local`）；与 `dev-01` 同 ECS，逻辑名分离
 - **control_plane_hosts**（`network.yml`）：ci-01 控制面台账，与 `wireguard_peers/ci-01` 互补而非互斥
