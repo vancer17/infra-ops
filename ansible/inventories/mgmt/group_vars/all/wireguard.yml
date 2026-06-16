@@ -1,32 +1,3 @@
-# =============================================================================
-# Ansible Inventory 变量：WireGuard 隧道规划（阶段 F1 Hub Server 已部署）
-# =============================================================================
-#
-# 【状态】
-#   wireguard.status: operational — F1 Hub Server + F2 ci-01 Client 握手已完成（2026-06-14）
-#   wireguard.enabled: true       — wireguard-hub.yml 已于 2026-06-14 apply 成功
-#
-# 【F2-5 收口（2026-06-14）】
-#   ci_connectivity.access_mode: wireguard（network.yml）
-#   network_phase: wireguard（main.yml / registry.yaml）
-#   Ansible 连 Hub 使用 10.200.0.1；F2-5 已验收：logs/console-check.log
-#
-# 【与 wireguard_keys.yml / wireguard_vault.yml 分工】
-#   本文件     → 地址、端口、Peer 公钥、Hub 公钥（可提交 Git）
-#   vault 文件 → Hub 私钥密文
-#   keys/      → *.pub 与 gitignore 的 *.private
-#
-# 【同机 ci-01 + dev-01（yax）Peer 模型 — 阶段 F 采用方案 A】
-#   Hub wg0.conf 仅登记 ci-01 为 ECS Peer（10.200.0.2/32）。
-#   dev-01 条目不生成 Hub [Peer]；dev-01.wg_ip 仅文档/未来拆分 ECS 时使用。
-#   见 wireguard_peer_model 块。
-#
-# 【维护】
-#   公钥变更：./scripts/wireguard/wg-keys.sh sync-inventory（保留本文件注释，勿手改公钥行）
-#
-# =============================================================================
-
----
 
 # -----------------------------------------------------------------------------
 # wireguard_peer_model — 同机多角色与 Hub [Peer] 登记策略（SSOT）
@@ -98,13 +69,13 @@ wireguard_peers_planned:
 
   - name: dev-01
     wg_ip: "10.200.1.1"
-    public_key: null
+    public_key:
     hub_peer: false
     note: "与 ci-01 同 ECS；不单独建 Hub [Peer]，见 wireguard_peer_model"
 
   - name: dev-02
     wg_ip: "10.200.1.2"
-    public_key: null
+    public_key:
     hub_peer: false
     note: "Dev-02 替代机 Bootstrap 后纳入；届时 hub_peer: true"
 
@@ -121,7 +92,7 @@ wireguard_peers_planned:
 
   - name: laptop-billmiao
     wg_ip: "10.200.10.2"
-    public_key: null
+    public_key: amJRuTOVH3AA1Mgf/+6JXn0Oo7sY+Zo59jE9wnLDgy0=
     hub_peer: true
     member: billmiao
     role: dev
@@ -131,7 +102,7 @@ wireguard_peers_planned:
 
   - name: laptop-sammao
     wg_ip: "10.200.10.3"
-    public_key: null
+    public_key: 4+w1dnRAsV0ifYNiJXpb9mGjOzyQddoN4s/dDGMQLjY=
     hub_peer: true
     member: sammao
     role: dev
@@ -141,7 +112,7 @@ wireguard_peers_planned:
 
   - name: laptop-zhu
     wg_ip: "10.200.10.4"
-    public_key: null
+    public_key: 3B28NbvljAXyJdgLb4ECv7LeTarrjgZNYf4DMwvKKF0=
     hub_peer: true
     member: zhu
     role: dev
@@ -151,7 +122,7 @@ wireguard_peers_planned:
 
   - name: laptop-xinxin
     wg_ip: "10.200.10.5"
-    public_key: null
+    public_key: MWa0HomywNIH07j9HQ/MIaZ5urmXOdwuquaPygQ9lTg=
     hub_peer: true
     member: xinxin
     role: dev
