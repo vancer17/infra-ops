@@ -110,6 +110,18 @@ bootstrap_dirs:
 docker_install: true
 docker_compose_plugin: true
 
+# docker_default_address_pools — 见 roles/docker/defaults/main.yml
+# 避免 Docker 自动 bridge 子网与 VPC 内 RDS(172.20.x)/ECS(172.21.x) 重叠导致连库失败
+
+# Docker 默认地址池：避开本 VPC 已用段（172.20=RDS 私网、172.21=ECS）。
+# 未配置时 Docker 按 172.17/18/19/20… 顺位分配，可能与 RDS 172.20.211.x 重叠并遮挡路由。
+# 消费者：roles/docker/templates/daemon.json.j2 → default-address-pools
+docker_daemon_default_address_pools:
+  - base: "172.30.0.0/16"
+    size: 24
+  - base: "10.244.0.0/16"
+    size: 24
+
 # -----------------------------------------------------------------------------
 # bootstrap_docker_smoke_image — Bootstrap verify 用的 Docker smoke 镜像
 # -----------------------------------------------------------------------------

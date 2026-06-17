@@ -118,5 +118,10 @@ volumes:
     name: dev-gateway-nginx-logs
 
 networks:
+  # 必须显式指定子网，避免 Docker 默认池分配到 172.20.0.0/16 与 VPC 内 RDS（172.20.x）冲突
   certbot-internal:
     name: dev-gateway-certbot-internal
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.30.0.0/24
