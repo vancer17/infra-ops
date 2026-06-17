@@ -15,15 +15,20 @@ if [[ ! -f .env ]]; then
   exit 1
 fi
 
-# shellcheck disable=SC1091
-set -a
-source .env
-set +a
+# Compose .env 由 docker compose 读取；本脚本仅需少量变量。
+# 勿对含空格的整文件 source（NGINX_SERVER_NAMES 等会触发「command not found」）。
+read_env() {
+  local key="$1"
+  grep -E "^${key}=" .env | head -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//"
+}
 
-PRIMARY="${CERTBOT_PRIMARY_DOMAIN:-}"
-SERVER_NAMES="${NGINX_SERVER_NAMES:-}"
-UPSTREAM_HOST="${APP_UPSTREAM_HOST:-127.0.0.1}"
-UPSTREAM_PORT="${APP_UPSTREAM_PORT:-8080}"
+PRIMARY="$(read_env CERTBOT_PRIMARY_DOMAIN)"
+SERVER_NAMES="$(read_env NGINX_SERVER_NAMES)"
+UPSTREAM_HOST="$(read_env APP_UPSTREAM_HOST)"
+UPSTREAM_PORT="$(read_env APP_UPSTREAM_PORT)"
+CERTBOT_STAGING="$(read_env CERTBOT_STAGING)"
+UPSTREAM_HOST="${UPSTREAM_HOST:-127.0.0.1}"
+UPSTREAM_PORT="${UPSTREAM_PORT:-8080}"
 UPSTREAM="${UPSTREAM_HOST}:${UPSTREAM_PORT}"
 
 fail() { echo "FAIL: $*" >&2; exit 1; }
