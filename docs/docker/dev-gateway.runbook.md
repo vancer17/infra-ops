@@ -76,6 +76,7 @@ docker compose up -d
 | bundle 缺失 | `make save-gateway-images`，检查 `bundles/` 路径 |
 | 误用轩辕 push | 轩辕仅加速公网镜像 pull，不能 `docker push infra-ops/*` 到轩辕 |
 | init DNS 失败 | RAM 权限、TXT 传播时间 |
+| `/readyz` 超时、`/healthz` 200 | `ip route get <RDS_IP>` 是否走 `br-*`；检查 `certbot-internal` 子网是否为 172.20/172.21；`compose down` 后重建网络 |
 | 502 | `curl http://127.0.0.1:8080/healthz` |
 
 ## 相关路径

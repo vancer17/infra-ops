@@ -37,6 +37,9 @@ gateway:
     sync_mode: project_only
     sync_delete: true
     build: never
+    # certbot-internal 子网（与 docker/dev-gateway/docker-compose.yml ipam 一致）
+    # 不得落在 VPC 172.20（RDS）/ 172.21（ECS）段
+    certbot_internal_subnet: "172.30.0.0/24"
   # pull 由 images.delivery 决定：registry→always，local/bundle→missing
 
   # ---------------------------------------------------------------------------
@@ -84,6 +87,16 @@ gateway:
   upstream:
     host: "127.0.0.1"
     port: 8080
+
+  # ---------------------------------------------------------------------------
+  # network — Docker 网段须避开 VPC（RDS 172.20.x、ECS 172.21.x）
+  # compose 中 certbot-internal 已钉死 172.30.0.0/24；与 docker daemon 地址池一致
+  # ---------------------------------------------------------------------------
+  network:
+    certbot_internal_subnet: "172.30.0.0/24"
+    reserved_vpc_subnets:
+      - "172.20.0.0/16"
+      - "172.21.0.0/16"
 
   # ---------------------------------------------------------------------------
   # host_nginx — 割接时停用 systemd nginx，释放 80/443

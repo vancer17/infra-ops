@@ -20,6 +20,25 @@ nginx (host 网络)      →  :80 / :443  →  127.0.0.1:8080
 
 证书保存在 Docker 卷 `dev-gateway-letsencrypt`，由 init/renew/nginx 共享。
 
+## Docker 网段与 VPC（必读）
+
+阿里云 VPC 内 **RDS 使用 172.20.x**、**ECS 使用 172.21.x**。若 Docker 自动为 `certbot-internal` 分配到 `172.20.0.0/16`，宿主机访问 RDS 会被错误路由到 docker 网桥，导致 `/readyz` 连库失败而 `/healthz` 仍 200。
+
+- Compose 已将 `certbot-internal` **钉死为 `172.30.0.0/24`**
+- Dev `bootstrap.yml` 配置 `docker_daemon_default_address_pools`（172.30/10.244），避免其它新网络再撞 VPC
+- 修改 `daemon.json` 后需 `systemctl restart docker`（会短暂影响容器）
+
+若曾用旧配置创建过冲突网络，须重建：
+
+```bash
+docker compose down
+docker network rm dev-gateway-certbot-internal 2>/dev/null || true
+docker compose up -d
+
+ip route get 172.20.211.167   # 应 via eth0，而非 dev br-xxx
+make verify
+```
+
 ## 目录与同步
 
 建议部署路径：`/opt/gateway/docker/dev-gateway`（Ansible `gateway-compose.yml` 同步整个 `docker/` 到 `/opt/gateway/docker/`）。

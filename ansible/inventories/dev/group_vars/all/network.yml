@@ -203,6 +203,17 @@ host_firewall:
 host_firewall_ufw_enabled: "{{ host_firewall.enabled }}"
 
 # -----------------------------------------------------------------------------
+# docker_bridge — Docker 自定义 bridge 须避开的 VPC 网段（dev-01 连 RDS 路由冲突）
+# -----------------------------------------------------------------------------
+# 若 Docker 自动分到 172.20.0.0/16，宿主机访问 RDS(172.20.211.167) 会走 docker 网桥而失败。
+# 缓解：gateway compose certbot-internal 显式子网 + docker daemon default-address-pools
+docker_vpc_reserved_subnets:
+  - cidr: "172.20.0.0/16"
+    use: rds_private
+  - cidr: "172.21.0.0/16"
+    use: ecs_vpc
+
+# -----------------------------------------------------------------------------
 # rds — 应用连接 RDS 的业务参数（2026-06-15 方案 A 验收后）
 # -----------------------------------------------------------------------------
 # host：内网连接地址（无 no 后缀）；bootstrap verify 与应用 DSN 均使用此域名

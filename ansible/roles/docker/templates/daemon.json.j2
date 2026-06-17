@@ -1,0 +1,9 @@
+{
+  "log-driver": "{{ docker_log_driver }}",
+  "log-opts": {
+    "max-size": "{{ docker_log_max_size }}",
+    "max-file": "{{ docker_log_max_file }}"
+  },
+  "live-restore": {{ docker_live_restore | bool | lower }}{% if docker_default_address_pools | default([]) | length > 0 %},
+  "default-address-pools": {{ docker_default_address_pools | to_nice_json }}{% endif %}
+}

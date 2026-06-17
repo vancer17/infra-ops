@@ -195,31 +195,21 @@
 # -----------------------------------------------------------------------------
 # Task 6 — 写入 Docker 守护进程配置 daemon.json
 # -----------------------------------------------------------------------------
-# 模块：ansible.builtin.copy
-#   dest:    目标文件路径
-#   content: |  多行字符串（literal block），直接写入文件内容
-#   notify:  若本 task 导致 changed，在**当前 Play 所有 task 结束后**
-#            执行 handlers/main.yml 里名为 "Restart docker" 的 handler（仅一次）
+# 模块：ansible.builtin.template → roles/docker/templates/daemon.json.j2
+#   default-address-pools → 新 bridge 网络从 172.30/10.244 池分配，避开 VPC 172.20/172.21
 #
 # daemon.json 字段含义：
 #   log-driver json-file   → 容器日志写本地文件
 #   max-size / max-file    → 单日志最大 10MB，最多保留 3 个，防止占满磁盘
 #   live-restore: true      → dockerd 重启时尽量保持容器运行
+#   default-address-pools   → 可选；Dev VPC 在 bootstrap.yml 避开 172.20/172.21
 - name: Configure Docker daemon
-  ansible.builtin.copy:
+  ansible.builtin.template:
+    src: daemon.json.j2
     dest: /etc/docker/daemon.json
     owner: root
     group: root
     mode: "0644"
-    content: |
-      {
-        "log-driver": "json-file",
-        "log-opts": {
-          "max-size": "10m",
-          "max-file": "3"
-        },
-        "live-restore": true
-      }
   notify: Restart docker
   when:
     - docker_install | bool
