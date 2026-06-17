@@ -155,12 +155,14 @@ host:
       runtime: compose
       playbook: ansible/playbooks/gateway-compose.yml
       runbook: docs/docker/dev-gateway.runbook.md
-      gateway_compose_dir: /opt/gateway/docker/dev-gateway
+      gateway_compose_dir: /opt/gateway/compose
 
   gateway_compose:
     status: not_started
-    project_dir: /opt/gateway/docker/dev-gateway
-    docker_sync_root: /opt/gateway/docker
+    project_dir: /opt/gateway/compose
+    image_pull: true
+    images_registry: 5yrqsf19ms2mh4.xuanyuan.run/infra-ops
+    images_tag: "1.0.0"
     certbot_challenge: dns-01
     primary_domain: backend.jxqydw.com
     playbooks:

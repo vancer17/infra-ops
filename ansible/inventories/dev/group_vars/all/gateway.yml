@@ -3,8 +3,12 @@
 # =============================================================================
 #
 # 【这个文件是什么】
-#   dev-01 上 docker/dev-gateway 栈的 SSOT，供 gateway-compose.yml /
+#   dev-01 上 dev-gateway Compose 栈的 SSOT，供 gateway-compose.yml /
 #   roles/gateway_compose 消费。与宿主机 Ansible Nginx（nginx-dev.yml）互斥。
+#
+# 【部署模型】
+#   控制机/CI：make build-gateway-images && make push-gateway-images
+#   目标机：Ansible 仅 sync compose 项目 + pull 镜像 + compose up（不 build）
 #
 # 【与 nginx.yml 的分工】
 #   gateway.yml  → Compose 项目路径、Certbot DNS-01、.env 非敏感键
@@ -27,14 +31,29 @@ gateway:
   status: not_started
 
   # ---------------------------------------------------------------------------
-  # compose — 与仓库 docker/dev-gateway 目录布局一致（context: .. = docker/）
+  # compose — 仅同步项目目录；镜像在控制机/CI 手工 build+push，目标机 pull 启动
   # ---------------------------------------------------------------------------
   compose:
-    project_dir: /opt/gateway/docker/dev-gateway
-    docker_sync_root: /opt/gateway/docker
+    project_dir: /opt/gateway/compose
     project_name: dev-gateway
-    # Ansible 从控制机同步仓库 docker/ 树；CI 上为 checkout 根目录
+    # project_only = 只同步 docker/dev-gateway（compose + scripts）；不同步 Dockerfile 构建树
+    sync_mode: project_only
     sync_delete: true
+    # Ansible docker_compose_v2：不在目标机构建
+    build: never
+    pull: always
+
+  # ---------------------------------------------------------------------------
+  # images — 预构建镜像（scripts/docker/build-gateway-images.sh build|push）
+  # 完整引用：{{ registry }}/{{ name }}:{{ tag }}
+  # ---------------------------------------------------------------------------
+  images:
+  # 与 app.placeholder / hub jumpserver 一致，使用可达镜像站；留空 registry 则仅本地名
+    registry: "5yrqsf19ms2mh4.xuanyuan.run/infra-ops"
+    tag: "1.0.0"
+    certbot_init: certbot-init
+    certbot_renew: certbot-renew
+    nginx: dev-nginx
 
   # ---------------------------------------------------------------------------
   # certbot — DNS-01（阿里云 DNS API）
@@ -83,5 +102,5 @@ gateway:
     validate_certs: true
     expect_status: 200
     delay: 10
-    # 首次 DNS-01 + build 可能较久；retries 默认由 role 按 wait_for_cert_sec 推算
-    compose_up_buffer_sec: 300
+    # 首次 DNS-01 + pull 可能较久；retries 默认由 role 按 wait_for_cert_sec 推算
+    compose_up_buffer_sec: 180

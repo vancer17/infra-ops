@@ -2,6 +2,9 @@
 # Dev 业务网关 Compose — Nginx + Certbot (DNS-01)
 # =============================================================================
 #
+# 镜像在控制机/CI 预构建并 push；目标机由 Ansible 拉取后启动（不在此 compose build）。
+# 本地构建：仓库根 make build-gateway-images / scripts/docker/build-gateway-images.sh
+#
 # 启动顺序：
 #   1. certbot-init   — 一次性 DNS-01 签发（成功 exit 0）
 #   2. certbot-renew  — 确认证书有效后 healthcheck=healthy，进入续期循环
@@ -11,18 +14,12 @@
 #   sudo systemctl disable --now nginx
 #
 # 部署目录（与 Ansible gateway.compose.project_dir 一致）：
-#   /opt/gateway/docker/dev-gateway
-# 构建上下文为上级目录 /opt/gateway/docker（compose 内 context: ..）
+#   /opt/gateway/compose
 #
-# 快速开始：
-#   cp .env.example .env    # 填写邮箱与阿里云 DNS API 凭据
-#   make build
-#   make up                 # 或：docker compose up -d --build
-#   make verify
-#
-# 仅重新签发（已有卷、强制换证）：
-#   CERTBOT_FORCE_ISSUE=1 docker compose run --rm certbot-init
-#   docker compose up -d certbot-renew nginx
+# 快速开始（目标机，镜像已 push 后）：
+#   cp .env.example .env
+#   docker compose pull
+#   docker compose up -d
 #
 # =============================================================================
 
@@ -31,10 +28,7 @@ name: dev-gateway
 services:
   certbot-init:
     container_name: dev-gateway-certbot-init
-    build:
-      context: ..
-      dockerfile: certbot-init/Dockerfile
-    image: infra-ops/certbot-init:latest
+    image: ${GATEWAY_IMAGE_CERTBOT_INIT}
     restart: "no"
     env_file:
       - .env
@@ -52,10 +46,7 @@ services:
 
   certbot-renew:
     container_name: dev-gateway-certbot-renew
-    build:
-      context: ..
-      dockerfile: certbot-renew/Dockerfile
-    image: infra-ops/certbot-renew:latest
+    image: ${GATEWAY_IMAGE_CERTBOT_RENEW}
     restart: unless-stopped
     env_file:
       - .env
@@ -95,10 +86,7 @@ services:
 
   nginx:
     container_name: dev-gateway-nginx
-    build:
-      context: ..
-      dockerfile: nginx/Dockerfile
-    image: infra-ops/dev-nginx:latest
+    image: ${GATEWAY_IMAGE_NGINX}
     restart: unless-stopped
     network_mode: host
     env_file:

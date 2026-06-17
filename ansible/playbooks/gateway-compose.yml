@@ -3,9 +3,15 @@
 # =============================================================================
 #
 # 【用途】
-#   在 dev-01 部署 docker/dev-gateway 栈，替代宿主机 Ansible Nginx + 自签证书：
+#   在 dev-01 部署 dev-gateway Compose 栈，替代宿主机 Ansible Nginx + 自签证书：
+#     - 从 registry pull 预构建镜像（不在目标机构建）
 #     - certbot-init / certbot-renew（DNS-01）
 #     - nginx 容器（host 网络）反代 127.0.0.1:8080
+#
+# 【镜像发布（控制机/CI，apply 前）】
+#   make build-gateway-images
+#   make push-gateway-images
+#   确保 gateway.yml images.tag 与 push 的 tag 一致
 #
 # 【前提】
 #   - dev-app.yml 已部署应用/占位 API @ 127.0.0.1:8080

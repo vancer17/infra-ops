@@ -24,11 +24,11 @@ export ANSIBLE_LIMIT="${LIMIT}"
 echo "[stage-gateway-compose-preflight] repo: ${ROOT}"
 
 echo ""
-echo "=== 1/6 make inventory ==="
+echo "=== 1/7 make inventory ==="
 make -C "${ROOT}" inventory
 
 echo ""
-echo "=== 2/6 inventory gates (gateway / app / docker) ==="
+echo "=== 2/7 inventory gates (gateway / app / docker / images) ==="
 python3 - <<'PY' "${ROOT}"
 import sys
 from pathlib import Path
@@ -53,18 +53,31 @@ assert gateway.get("upstream", {}).get("port") == app.get("listen", {}).get("por
     app.get("listen", {}).get("port"),
 )
 assert bootstrap.get("docker_install") is True, "docker_install must be true on dev-01"
-print("OK: gateway.enabled, certbot domain, upstream port, docker_install")
+
+compose = gateway.get("compose", {})
+assert compose.get("build") == "never", "gateway.compose.build must be never (pre-built images)"
+images = gateway.get("images", {})
+assert images.get("tag"), "gateway.images.tag"
+for key in ("certbot_init", "certbot_renew", "nginx"):
+    assert images.get(key), f"gateway.images.{key}"
+print("OK: gateway.enabled, certbot domain, upstream port, docker_install, images.*, compose.build=never")
 PY
 
 echo ""
-echo "=== 3/6 docker/ tree present on controller ==="
+echo "=== 3/7 compose project + Dockerfiles present on controller ==="
 test -d "${ROOT}/docker/dev-gateway"
 test -f "${ROOT}/docker/dev-gateway/docker-compose.yml"
-test -d "${ROOT}/docker/certbot-init"
-echo "OK: docker/dev-gateway layout"
+test -f "${ROOT}/docker/certbot-init/Dockerfile"
+test -f "${ROOT}/docker/certbot-renew/Dockerfile"
+test -f "${ROOT}/docker/nginx/Dockerfile"
+echo "OK: dev-gateway compose + image build sources"
 
 echo ""
-echo "=== 4/6 ansible-playbook gateway-compose.yml --syntax-check ==="
+echo "=== 4/7 build-gateway-images.sh list ==="
+"${ROOT}/scripts/docker/build-gateway-images.sh" list
+
+echo ""
+echo "=== 5/7 ansible-playbook gateway-compose.yml --syntax-check ==="
 SYNTAX_ARGS=(-i "${DEV_INVENTORY}" --limit "${LIMIT}" --syntax-check)
 if [[ -f "${VAULT_PASS}" ]]; then
   SYNTAX_ARGS+=(--vault-password-file "${VAULT_PASS}")
@@ -74,7 +87,7 @@ fi
 ansible-playbook "${ROOT}/ansible/playbooks/gateway-compose.yml" "${SYNTAX_ARGS[@]}"
 
 echo ""
-echo "=== 5/6 optional upstream probe on dev-01 ==="
+echo "=== 6/7 optional upstream probe on dev-01 ==="
 if [[ -f "${PRIVATE_KEY}" ]]; then
   UP_PROBE=fail
   if ansible "${LIMIT}" -i "${DEV_INVENTORY}" -m uri \
@@ -94,7 +107,7 @@ else
 fi
 
 echo ""
-echo "=== 6/6 deploy sudo probe ==="
+echo "=== 7/7 deploy sudo probe ==="
 if [[ -f "${PRIVATE_KEY}" ]]; then
   ansible "${LIMIT}" -i "${DEV_INVENTORY}" -m command -a "sudo -n true" -b || {
     echo "ERROR: deploy passwordless sudo required for gateway-compose.yml"
@@ -105,4 +118,5 @@ fi
 
 echo ""
 echo "[stage-gateway-compose-preflight] OK — next:"
-echo "  ansible-playbook ansible/playbooks/gateway-compose.yml -i ansible/inventories/dev/ --limit ${LIMIT} --vault-password-file .vault_pass"
+echo "  1) make build-gateway-images && make push-gateway-images"
+echo "  2) ansible-playbook ansible/playbooks/gateway-compose.yml -i ansible/inventories/dev/ --limit ${LIMIT} --vault-password-file .vault_pass"

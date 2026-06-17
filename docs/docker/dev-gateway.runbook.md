@@ -2,7 +2,7 @@
 
 在 **dev-01** 上用 Compose 接管业务 API 公网出口，替代宿主机 Ansible Nginx + 自签证书。
 
-**状态**：仓库内实现就绪；生产割接前须完成 Staging 演练与宿主机 Nginx 停用。
+**状态**：镜像预构建 + Ansible pull 部署；生产割接前须完成 Staging 演练与宿主机 Nginx 停用。
 
 ## 架构
 
@@ -21,8 +21,20 @@ certbot-renew ◄──续期 + reload──►  dev-gateway-nginx
 | 验证方式 | — | 阿里云 DNS TXT，不占用 80 验证 |
 | 续期 | 无 | `certbot-renew` 轮询 + reload |
 | 80/443 | systemd nginx | 容器 nginx（host 网络） |
+| 镜像 | apt 安装 nginx | **控制机 build+push，目标机 pull** |
 
 Hub 管理面 Nginx（`jms.internal`）**不在本栈**，仍由 hub-01 Ansible 管理。
+
+## 职责分工
+
+| 环节 | 在哪里做 | 做什么 |
+|------|----------|--------|
+| **构建镜像** | 开发机 / CI | `make build-gateway-images` |
+| **推送镜像** | 开发机 / CI | `make push-gateway-images`（需 `docker login`） |
+| **部署栈** | dev-01 via Ansible | `gateway-compose.yml`：同步 compose 项目、渲染 `.env`、pull、up |
+| **不在目标机做** | dev-01 | `docker build`、同步 Dockerfile 构建树 |
+
+镜像版本由 `ansible/inventories/dev/group_vars/all/gateway.yml` → `gateway.images.tag` 锁定，须与 push 的 tag 一致。
 
 ## 前提
 
@@ -33,6 +45,7 @@ Hub 管理面 Nginx（`jms.internal`）**不在本栈**，仍由 hub-01 Ansible 
 - 宿主机应用监听 `127.0.0.1:8080`（PetIntelli）
 - **已停用**宿主机 `nginx.service`，释放 80/443
 - 目标机已安装 Docker CE 与 Compose 插件
+- 镜像已 push 至 `gateway.images.registry`（默认 `5yrqsf19ms2mh4.xuanyuan.run/infra-ops`）
 
 ## 部署目录
 
@@ -40,58 +53,64 @@ Ansible 与手工部署统一使用：
 
 | 路径 | 说明 |
 |------|------|
-| `/opt/gateway/docker/` | 从仓库同步的完整 `docker/` 构建树 |
-| `/opt/gateway/docker/dev-gateway/` | Compose 项目目录（`.env`、`docker-compose.yml`） |
+| `/opt/gateway/compose/` | Compose 项目（`docker-compose.yml`、`.env`、验收脚本） |
 
-从 `infra-ops` 同步：
+Ansible **仅同步** `docker/dev-gateway/` 目录，不同步 `docker/certbot-*` Dockerfile 到目标机。
 
-- `docker/dev-gateway/`
-- `docker/nginx/`、`docker/certbot-*`、`docker/certbot-common/`
-
-## 首次部署
-
-### 1. 配置环境
+## 发布新镜像（控制机 / CI）
 
 ```bash
-cd /opt/gateway/docker/dev-gateway
-cp .env.example .env
-chmod 600 .env
+# 1. 修改 docker/ 下 Dockerfile 或脚本后
+export GATEWAY_IMAGE_TAG=1.0.1   # 新版本
+make build-gateway-images
+make push-gateway-images
+
+# 2. 更新 gateway.yml
+#    gateway.images.tag: "1.0.1"
+
+# 3. 部署
+make stage-gateway-compose-preflight
+ansible-playbook ansible/playbooks/gateway-compose.yml \
+  -i ansible/inventories/dev/ --limit dev-01 --vault-password-file .vault_pass
 ```
 
-填写：
-
-- `CERTBOT_EMAIL`、`CERTBOT_DOMAINS`、`CERTBOT_PRIMARY_DOMAIN`
-- `ALIYUN_DNS_ACCESS_KEY`、`ALIYUN_DNS_ACCESS_KEY_SECRET`
-- `NGINX_SERVER_NAMES`（含备案域名与过渡期 IP）
-
-### 2. Staging 演练（推荐）
-
-`.env` 中设置 `CERTBOT_STAGING=1`，然后：
+查看当前 inventory 引用的镜像名：
 
 ```bash
-make issue-staging
-docker compose up -d certbot-renew
-# 确认 init / renew 日志无 DNS API 错误后，改回 CERTBOT_STAGING=0
+./scripts/docker/build-gateway-images.sh list
+# 将 GATEWAY_IMAGE_TAG 设为与 gateway.yml images.tag 相同
 ```
 
-Staging 证书**不受微信信任**，仅验证 DNS-01 流程。
+## 首次部署（Ansible 推荐）
 
-### 3. 停用宿主机 Nginx
+### 1. 构建并推送镜像
 
 ```bash
-sudo systemctl disable --now nginx
-ss -tlnp | grep -E ':80|:443'   # 确认无冲突
+make build-gateway-images
+make push-gateway-images
 ```
 
-### 4. 启动全栈
+### 2. 配置 Vault 与 inventory
+
+- `gateway.certbot.email` 改为真实邮箱
+- `secrets.yml`：`gateway_secrets.aliyun_dns_*`
+- `gateway.images.tag` 与已 push 的 tag 一致
+
+### 3. Staging 演练（可选，在 dev-01 手工）
+
+将 inventory 或 `.env` 中 `CERTBOT_STAGING=1`，`ansible-playbook gateway-compose.yml` 或目标机 `make issue-staging`。
+
+Staging 证书**不受微信信任**，仅验证 DNS-01。
+
+### 4. 执行 playbook
 
 ```bash
-make build
-make up
-make verify
+make stage-gateway-compose-preflight
+ansible-playbook ansible/playbooks/gateway-compose.yml \
+  -i ansible/inventories/dev/ --limit dev-01 --vault-password-file .vault_pass
 ```
 
-启动顺序由 Compose 保证：`certbot-init` 成功 → `certbot-renew` healthy → `nginx` 启动。
+Playbook 会：停用宿主机 nginx → 同步 `/opt/gateway/compose` → 渲染 `.env` → **pull 三镜像** → `compose up`（`build: never`）。
 
 ### 5. 公网与微信验收
 
@@ -102,20 +121,27 @@ curl -s "https://backend.jxqydw.com/readyz"
 
 - 勿使用 `curl -k` 作为最终验收
 - 微信公众平台配置 request 合法域名：`backend.jxqydw.com`
-- 小程序 `baseURL` 使用 `https://backend.jxqydw.com`
+
+## 手工在目标机运维（应急）
+
+```bash
+cd /opt/gateway/compose
+docker compose pull
+docker compose up -d
+make -C /opt/gateway/compose verify   # 若已同步 scripts
+```
 
 ## 运维
 
 ### 查看状态与日志
 
 ```bash
-make ps
-make logs
-make logs-init
+cd /opt/gateway/compose
+docker compose ps -a
+docker compose logs -f certbot-renew nginx
+docker compose logs certbot-init
 docker compose exec nginx nginx -t
 ```
-
-Nginx 访问日志：卷 `dev-gateway-nginx-logs` → 容器内 `/var/log/nginx/dev-app.access.log`
 
 ### 强制重新签发
 
@@ -128,50 +154,35 @@ docker compose up -d certbot-renew nginx
 
 `certbot-renew` 默认每 12 小时执行 `certbot renew`；成功时通过 docker.sock 向 `dev-gateway-nginx` 发送 SIGHUP。
 
-建议每月检查：
-
-```bash
-docker compose logs --tail=100 certbot-renew
-make verify
-```
-
 ### WireGuard 内网（可选）
 
-`.env` 中设置 `NGINX_INTERNAL_SERVER_NAMES=dev-app.internal 10.200.0.2` 时，额外提供 **HTTP** 反代（不跳转 HTTPS），便于 WG 内网联调。
-
-公网域名仍走 HTTPS + LE 证书。
+`.env` 中 `NGINX_INTERNAL_SERVER_NAMES=dev-app.internal 10.200.0.2` 时，额外提供 **HTTP** 反代。
 
 ## 故障排查
 
 | 现象 | 排查 |
 |------|------|
-| init 失败 | `make logs-init`；检查 RAM 权限、DNS 传播时间、`CERTBOT_DNS_PROPAGATION_SECONDS` |
-| renew 不健康 | `docker compose logs certbot-renew`；检查 ready 文件与证书路径 |
-| nginx 未启动 | renew 未 healthy；先修证书再 `docker compose up -d nginx` |
-| 502 Bad Gateway | 上游 `127.0.0.1:8080` 未监听；`curl http://127.0.0.1:8080/healthz` |
-| 微信 TLS 错误 | 确认非 Staging 证、`NGINX_SERVER_NAMES` 含域名、公众平台合法域名已配 |
-| 80/443 冲突 | 宿主机 nginx 未停或其他进程占用 |
+| pull 失败 | 镜像未 push、`gateway.images.tag` 不一致、registry 未 login |
+| init 失败 | `docker compose logs certbot-init`；RAM 权限、DNS 传播 |
+| renew 不健康 | ready 文件与证书路径 |
+| nginx 未启动 | renew 未 healthy |
+| 502 | 上游 `127.0.0.1:8080` |
+| 80/443 冲突 | 宿主机 nginx 未停 |
 
 ## 回滚（应急）
 
 ```bash
 docker compose down
-sudo systemctl enable --now nginx   # 恢复宿主机自签 Nginx（微信仍可能失败）
+sudo systemctl enable --now nginx
 ```
 
-保留 `dev-gateway-letsencrypt` 卷以便再次割接。
+保留 `dev-gateway-letsencrypt` 卷。
 
 ## 相关路径
 
 | 路径 | 说明 |
 |------|------|
-| `docker/dev-gateway/docker-compose.yml` | Compose 定义 |
-| `docker/dev-gateway/.env.example` | 环境变量模板 |
-| `docker/nginx/templates/dev-app.conf.template` | 公网 HTTPS 模板 |
-| `docker/certbot-common/certbot-dns-lib.sh` | DNS-01 共用逻辑 |
-
-## 下一步（非本 Runbook）
-
-- Ansible：同步 compose 到目标机、确保 `nginx.service` disabled（另文）
-- `app.yml` / 应用 Compose 与网关解耦发布
-- 证书到期告警接入监控
+| `scripts/docker/build-gateway-images.sh` | 手工 build / push |
+| `docker/dev-gateway/docker-compose.yml` | Compose（image 来自 .env） |
+| `ansible/inventories/dev/group_vars/all/gateway.yml` | 镜像 tag、compose 路径 SSOT |
+| `ansible/playbooks/gateway-compose.yml` | 部署 playbook |
