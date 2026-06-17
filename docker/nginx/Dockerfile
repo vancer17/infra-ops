@@ -9,9 +9,10 @@ FROM nginx:1.26-alpine
 
 RUN rm -f /etc/nginx/conf.d/default.conf
 
-COPY templates/dev-app.conf.template /etc/nginx/templates/dev-app.conf.template
-COPY templates/internal-http.conf.template /etc/nginx/templates/internal-http.conf.template
-COPY docker-entrypoint.d/50-internal-http.sh /docker-entrypoint.d/50-internal-http.sh
+# build context 为 docker/（与 dev-gateway compose context: .. 一致），路径须带 nginx/ 前缀
+COPY nginx/templates/dev-app.conf.template /etc/nginx/templates/dev-app.conf.template
+COPY nginx/templates/internal-http.conf.template /etc/nginx/templates/internal-http.conf.template
+COPY nginx/docker-entrypoint.d/50-internal-http.sh /docker-entrypoint.d/50-internal-http.sh
 
 RUN chmod +x /docker-entrypoint.d/50-internal-http.sh \
     && mkdir -p /var/log/nginx
