@@ -10,8 +10,8 @@
 #
 # 【镜像发布（控制机/CI，apply 前）】
 #   make build-gateway-images
-#   make push-gateway-images
-#   确保 gateway.yml images.tag 与 push 的 tag 一致
+#   跨机：make save-gateway-images，gateway.images.delivery=bundle
+#   真实 ACR：delivery=registry + registry_url，docker push 至 ACR（非轩辕加速站）
 #
 # 【前提】
 #   - dev-app.yml 已部署应用/占位 API @ 127.0.0.1:8080

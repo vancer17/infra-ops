@@ -67,7 +67,7 @@ ansible dev-01 -i ansible/inventories/dev/ -m debug -a var=nginx -c local
 | `ansible/playbooks/nginx-dev.yml` | `nginx`（`tasks_from: dev-app`） | **仅 `nginx.runtime: host`**：宿主机 80/443 |
 | `ansible/playbooks/gateway-compose.yml` | `gateway_compose` | **`nginx.runtime: compose`**：LE + 容器 Nginx |
 
-**推荐顺序（Compose 网关）**：`make build-gateway-images` → `make push-gateway-images` → `dev-app.yml` → `gateway-compose.yml`
+**推荐顺序（Compose 网关）**：`make build-gateway-images` → `dev-app.yml` → `gateway-compose.yml`（`delivery=local` 时在 dev-01 构建；跨机用 `save-gateway-images` + `delivery=bundle`）
 
 ```bash
 make stage-dev-app-preflight

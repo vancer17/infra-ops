@@ -55,12 +55,18 @@ assert gateway.get("upstream", {}).get("port") == app.get("listen", {}).get("por
 assert bootstrap.get("docker_install") is True, "docker_install must be true on dev-01"
 
 compose = gateway.get("compose", {})
-assert compose.get("build") == "never", "gateway.compose.build must be never (pre-built images)"
+assert compose.get("build") == "never", "gateway.compose.build must be never"
 images = gateway.get("images", {})
+assert images.get("namespace"), "gateway.images.namespace"
 assert images.get("tag"), "gateway.images.tag"
+assert images.get("delivery") in ("local", "bundle", "registry"), "gateway.images.delivery"
 for key in ("certbot_init", "certbot_renew", "nginx"):
     assert images.get(key), f"gateway.images.{key}"
-print("OK: gateway.enabled, certbot domain, upstream port, docker_install, images.*, compose.build=never")
+# 轩辕加速站不得作为自建镜像 registry
+reg = images.get("registry") or images.get("registry_url") or ""
+if "xuanyuan.run/infra-ops" in reg:
+    raise SystemExit("ERROR: gateway.images.registry_url must not use xuanyuan mirror for custom images")
+print("OK: gateway.enabled, certbot domain, upstream port, docker_install, images.*")
 PY
 
 echo ""
@@ -118,5 +124,6 @@ fi
 
 echo ""
 echo "[stage-gateway-compose-preflight] OK — next:"
-echo "  1) make build-gateway-images && make push-gateway-images"
-echo "  2) ansible-playbook ansible/playbooks/gateway-compose.yml -i ansible/inventories/dev/ --limit ${LIMIT} --vault-password-file .vault_pass"
+echo "  1) make build-gateway-images   # 目标机 delivery=local 时在此机构建"
+echo "  2) make save-gateway-images      # 跨机部署时 delivery=bundle"
+echo "  3) ansible-playbook ansible/playbooks/gateway-compose.yml -i ansible/inventories/dev/ --limit ${LIMIT} --vault-password-file .vault_pass"
