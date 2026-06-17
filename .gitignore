@@ -52,6 +52,9 @@ peers.yaml
 !peers.example.yml
 !peers.example.yaml
 
+# Dev Gateway 镜像 bundle（docker save 产物，不提交）
+docker/dev-gateway/bundles/*.tar
+
 # 环境变量与本地覆盖
 .env
 .env.*

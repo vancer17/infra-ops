@@ -12,31 +12,23 @@ gateway_compose_project_name: "{{ gateway.compose.project_name | default('dev-ga
 gateway_compose_sync_mode: "{{ gateway.compose.sync_mode | default('project_only') }}"
 gateway_compose_sync_delete: "{{ gateway.compose.sync_delete | default(true) }}"
 
-# 由 playbook 注入：仓库根目录（playbook_dir/../..）
 gateway_compose_infra_ops_root: ""
 gateway_compose_project_src: "{{ gateway_compose_infra_ops_root }}/docker/dev-gateway"
+gateway_compose_bundle_src: "{{ gateway_compose_project_src }}/bundles"
+gateway_compose_bundle_dest: "{{ gateway_compose_project_dir }}/bundles"
 
-gateway_image_registry: "{{ gateway.images.registry | default('') }}"
+gateway_images_delivery: "{{ gateway.images.delivery | default('local') }}"
+gateway_image_namespace: "{{ gateway.images.namespace | default('infra-ops') }}"
 gateway_image_tag: "{{ gateway.images.tag | default('latest') }}"
 gateway_image_certbot_init_name: "{{ gateway.images.certbot_init | default('certbot-init') }}"
 gateway_image_certbot_renew_name: "{{ gateway.images.certbot_renew | default('certbot-renew') }}"
 gateway_image_nginx_name: "{{ gateway.images.nginx | default('dev-nginx') }}"
+gateway_image_bundle_filename: "{{ gateway.images.bundle_filename | default('infra-ops-gateway-' ~ gateway_image_tag ~ '.tar') }}"
+gateway_image_registry_url: "{{ gateway.images.registry_url | default('') }}"
 
-gateway_image_certbot_init: >-
-  {{
-    (gateway_image_registry ~ '/' if gateway_image_registry | length > 0 else '')
-    ~ gateway_image_certbot_init_name ~ ':' ~ gateway_image_tag
-  }}
-gateway_image_certbot_renew: >-
-  {{
-    (gateway_image_registry ~ '/' if gateway_image_registry | length > 0 else '')
-    ~ gateway_image_certbot_renew_name ~ ':' ~ gateway_image_tag
-  }}
-gateway_image_nginx: >-
-  {{
-    (gateway_image_registry ~ '/' if gateway_image_registry | length > 0 else '')
-    ~ gateway_image_nginx_name ~ ':' ~ gateway_image_tag
-  }}
+gateway_image_certbot_init: "{{ gateway_image_namespace }}/{{ gateway_image_certbot_init_name }}:{{ gateway_image_tag }}"
+gateway_image_certbot_renew: "{{ gateway_image_namespace }}/{{ gateway_image_certbot_renew_name }}:{{ gateway_image_tag }}"
+gateway_image_nginx: "{{ gateway_image_namespace }}/{{ gateway_image_nginx_name }}:{{ gateway_image_tag }}"
 
 gateway_certbot_email: "{{ gateway.certbot.email | default('') }}"
 gateway_certbot_domains: "{{ gateway.certbot.domains | default('') }}"
@@ -98,11 +90,53 @@ gateway_aliyun_dns_access_key: "{{ (gateway_secrets | default({}, true)).aliyun_
 gateway_aliyun_dns_access_key_secret: "{{ (gateway_secrets | default({}, true)).aliyun_dns_access_key_secret | default('') }}"
 
 gateway_compose_build: "{{ gateway.compose.build | default('never') }}"
-gateway_compose_pull: "{{ gateway.compose.pull | default('always') }}"
+gateway_compose_pull: >-
+  {{
+    'always'
+    if gateway_images_delivery == 'registry'
+    else 'missing'
+  }}
 
 gateway_compose_env_file: "{{ gateway_compose_project_dir }}/.env"
 
-gateway_compose_images_to_pull:
+gateway_compose_image_refs:
   - "{{ gateway_image_certbot_init }}"
   - "{{ gateway_image_certbot_renew }}"
   - "{{ gateway_image_nginx }}"
+
+# delivery=registry 且配置了 registry_url 时，镜像引用加仓库前缀
+gateway_compose_registry_image_refs: >-
+  {{
+    gateway_compose_image_refs
+    | map('regex_replace', '^' ~ gateway_image_namespace ~ '/', gateway_image_registry_url ~ '/')
+    | list
+    if gateway_images_delivery == 'registry' and gateway_image_registry_url | length > 0
+    else gateway_compose_image_refs
+  }}
+
+gateway_compose_bundle_src_file: "{{ gateway_compose_bundle_src }}/{{ gateway_image_bundle_filename }}"
+gateway_compose_bundle_dest_file: "{{ gateway_compose_bundle_dest }}/{{ gateway_image_bundle_filename }}"
+
+gateway_image_certbot_init_ref: >-
+  {{
+    (gateway_image_registry_url ~ '/' ~ gateway_image_certbot_init_name ~ ':' ~ gateway_image_tag)
+    if gateway_images_delivery == 'registry' and gateway_image_registry_url | length > 0
+    else gateway_image_certbot_init
+  }}
+gateway_image_certbot_renew_ref: >-
+  {{
+    (gateway_image_registry_url ~ '/' ~ gateway_image_certbot_renew_name ~ ':' ~ gateway_image_tag)
+    if gateway_images_delivery == 'registry' and gateway_image_registry_url | length > 0
+    else gateway_image_certbot_renew
+  }}
+gateway_image_nginx_ref: >-
+  {{
+    (gateway_image_registry_url ~ '/' ~ gateway_image_nginx_name ~ ':' ~ gateway_image_tag)
+    if gateway_images_delivery == 'registry' and gateway_image_registry_url | length > 0
+    else gateway_image_nginx
+  }}
+
+gateway_compose_images_to_pull:
+  - "{{ gateway_image_certbot_init_ref }}"
+  - "{{ gateway_image_certbot_renew_ref }}"
+  - "{{ gateway_image_nginx_ref }}"

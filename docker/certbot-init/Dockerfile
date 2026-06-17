@@ -2,8 +2,8 @@
 # Container A — certbot-init
 # 首次 DNS-01 向 Let's Encrypt 申请证书（一次性任务）
 #
-# 构建（在 docker/ 目录下）：
-#   docker build -f certbot-init/Dockerfile -t infra-ops/certbot-init:latest .
+# 构建（在 docker/ 目录下；基础镜像 certbot/certbot 可走 Docker 镜像加速，与自建 tag 无关）：
+#   docker build -f certbot-init/Dockerfile -t infra-ops/certbot-init:1.0.0 .
 # =============================================================================
 
 FROM certbot/certbot:v2.11.0

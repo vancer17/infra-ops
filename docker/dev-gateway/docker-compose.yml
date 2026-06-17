@@ -2,7 +2,7 @@
 # Dev 业务网关 Compose — Nginx + Certbot (DNS-01)
 # =============================================================================
 #
-# 镜像在控制机/CI 预构建并 push；目标机由 Ansible 拉取后启动（不在此 compose build）。
+# 镜像在控制机/CI 预构建；本地 tag 为 infra-ops/*（非轩辕加速站私有仓库）
 # 本地构建：仓库根 make build-gateway-images / scripts/docker/build-gateway-images.sh
 #
 # 启动顺序：
@@ -16,9 +16,8 @@
 # 部署目录（与 Ansible gateway.compose.project_dir 一致）：
 #   /opt/gateway/compose
 #
-# 快速开始（目标机，镜像已 push 后）：
+# 快速开始（目标机，delivery=local 且已 build 后）：
 #   cp .env.example .env
-#   docker compose pull
 #   docker compose up -d
 #
 # =============================================================================

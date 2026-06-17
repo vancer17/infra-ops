@@ -7,15 +7,13 @@
 #   roles/gateway_compose 消费。与宿主机 Ansible Nginx（nginx-dev.yml）互斥。
 #
 # 【部署模型】
-#   控制机/CI：make build-gateway-images && make push-gateway-images
-#   目标机：Ansible 仅 sync compose 项目 + pull 镜像 + compose up（不 build）
+#   自定义网关镜像使用本地名 infra-ops/<name>:<tag>，不向轩辕等镜像加速站 push。
+#   轩辕（5yrqsf19ms2mh4.xuanyuan.run）仅用于拉取公网基础镜像（见 bootstrap docker mirror），
+#   不能作为 infra-ops 自建镜像的私有仓库。
 #
-# 【与 nginx.yml 的分工】
-#   gateway.yml  → Compose 项目路径、Certbot DNS-01、.env 非敏感键
-#   nginx.yml    → 网关语义（upstream、server_name 文档）；runtime 决定走哪条 playbook
-#
-# 【敏感信息】
-#   阿里云 DNS API 密钥见 secrets.yml（gateway_secrets）/ Ansible Vault
+#   delivery=local  → 在目标机 make build-gateway-images 后 Ansible compose up
+#   delivery=bundle → 控制机 build+save，Ansible 同步 tar 并 docker load
+#   delivery=registry → 真实私有仓库（阿里云 ACR 等）pull；填 registry_url
 #
 # 【推荐顺序】
 #   dev-app.yml → gateway-compose.yml（停用宿主机 nginx，启动 dev-gateway 栈）
@@ -31,35 +29,38 @@ gateway:
   status: not_started
 
   # ---------------------------------------------------------------------------
-  # compose — 仅同步项目目录；镜像在控制机/CI 手工 build+push，目标机 pull 启动
+  # compose — 仅同步项目目录；不在目标机 docker build
   # ---------------------------------------------------------------------------
   compose:
     project_dir: /opt/gateway/compose
     project_name: dev-gateway
-    # project_only = 只同步 docker/dev-gateway（compose + scripts）；不同步 Dockerfile 构建树
     sync_mode: project_only
     sync_delete: true
-    # Ansible docker_compose_v2：不在目标机构建
     build: never
-    pull: always
+  # pull 由 images.delivery 决定：registry→always，local/bundle→missing
 
   # ---------------------------------------------------------------------------
-  # images — 预构建镜像（scripts/docker/build-gateway-images.sh build|push）
-  # 完整引用：{{ registry }}/{{ name }}:{{ tag }}
+  # images — 本地命名空间 + 分发方式（scripts/docker/build-gateway-images.sh）
+  # 完整引用：{{ namespace }}/{{ name }}:{{ tag }}，例如 infra-ops/certbot-init:1.0.0
   # ---------------------------------------------------------------------------
   images:
-  # 与 app.placeholder / hub jumpserver 一致，使用可达镜像站；留空 registry 则仅本地名
-    registry: "5yrqsf19ms2mh4.xuanyuan.run/infra-ops"
+    namespace: infra-ops
     tag: "1.0.0"
     certbot_init: certbot-init
     certbot_renew: certbot-renew
     nginx: dev-nginx
+    # local | bundle | registry
+    delivery: local
+    # delivery=bundle 时由 build-gateway-images.sh save 生成，Ansible 同步到目标机 load
+    bundle_filename: infra-ops-gateway-1.0.0.tar
+    # delivery=registry 时填写真实仓库（非轩辕加速），示例：
+    # registry_url: registry.cn-hangzhou.aliyuncs.com/your-namespace
+    registry_url: ""
 
   # ---------------------------------------------------------------------------
   # certbot — DNS-01（阿里云 DNS API）
   # ---------------------------------------------------------------------------
   certbot:
-    # 割接前必须改为真实邮箱（勿使用 you@example.com）
     email: "you@example.com"
     domains: backend.jxqydw.com
     primary_domain: backend.jxqydw.com
@@ -95,12 +96,9 @@ gateway:
   # health — apply 后验收
   # ---------------------------------------------------------------------------
   health:
-    # operational 应用（PetIntelli）：反代 /healthz
     public_https_url: "https://backend.jxqydw.com/healthz"
-    # placeholder 应用：仅验收 Nginx 静态 /health（不依赖上游 /healthz）
     public_https_url_nginx: "https://backend.jxqydw.com/health"
     validate_certs: true
     expect_status: 200
     delay: 10
-    # 首次 DNS-01 + pull 可能较久；retries 默认由 role 按 wait_for_cert_sec 推算
     compose_up_buffer_sec: 180

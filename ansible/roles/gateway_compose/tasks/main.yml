@@ -1,8 +1,8 @@
 # =============================================================================
 # gateway_compose role — 主任务
 # =============================================================================
-# 目标机仅：同步 Compose 项目目录 → 渲染 .env → pull 预构建镜像 → compose up
-# 镜像在控制机/CI 执行 scripts/docker/build-gateway-images.sh build|push
+# 目标机：同步 compose 项目 → 按 delivery 准备镜像 → compose up
+# 镜像：make build-gateway-images（本地 tag）；可选 save/load bundle；或真实 ACR pull
 # =============================================================================
 
 ---
@@ -53,7 +53,43 @@
       - gateway_image_nginx | length > 0
       - gateway_image_tag | length > 0
     fail_msg: >-
-      Configure gateway.images.registry, gateway.images.tag, and image names in gateway.yml
+      Configure gateway.images.namespace, gateway.images.tag, and image names in gateway.yml
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert gateway image delivery mode is valid
+  ansible.builtin.assert:
+    that:
+      - gateway_images_delivery in ['local', 'bundle', 'registry']
+    fail_msg: "gateway.images.delivery must be local, bundle, or registry"
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert registry delivery has registry_url
+  ansible.builtin.assert:
+    that:
+      - gateway_image_registry_url | length > 0
+    fail_msg: >-
+      gateway.images.delivery=registry requires gateway.images.registry_url
+      (真实私有仓库如阿里云 ACR；轩辕镜像站仅用于拉取公网基础镜像，不能 push 自建镜像)
+  when: gateway_images_delivery == 'registry'
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Stat image bundle on controller
+  ansible.builtin.stat:
+    path: "{{ gateway_compose_bundle_src_file }}"
+  register: gateway_bundle_src_stat
+  delegate_to: localhost
+  become: false
+  when: gateway_images_delivery == 'bundle'
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert image bundle exists for bundle delivery
+  ansible.builtin.assert:
+    that:
+      - gateway_bundle_src_stat.stat.isreg | default(false) | bool
+    fail_msg: >-
+      Missing {{ gateway_compose_bundle_src_file }} — run:
+      make build-gateway-images save (or GATEWAY_IMAGE_TAG={{ gateway_image_tag }} ...)
+  when: gateway_images_delivery == 'bundle'
   tags: [gateway, gateway-compose, preflight]
 
 - name: Assert Certbot and DNS credentials are configured
@@ -112,6 +148,7 @@
     rsync_opts:
       - "--exclude=.env"
       - "--exclude=.env.*"
+      - "--exclude=bundles/*.tar"
   delegate_to: localhost
   become: false
   tags: [gateway, gateway-compose, sync]
@@ -156,7 +193,56 @@
     - not ansible_check_mode
   tags: [gateway, gateway-compose, host-nginx]
 
-- name: Pull pre-built gateway images on target
+- name: Ensure gateway image bundle directory on target
+  ansible.builtin.file:
+    path: "{{ gateway_compose_bundle_dest }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0750"
+  when:
+    - gateway_images_delivery == 'bundle'
+    - not ansible_check_mode
+  tags: [gateway, gateway-compose, images]
+
+- name: Sync gateway image bundle to target
+  ansible.builtin.copy:
+    src: "{{ gateway_compose_bundle_src_file }}"
+    dest: "{{ gateway_compose_bundle_dest_file }}"
+    owner: deploy
+    group: deploy
+    mode: "0644"
+  when:
+    - gateway_images_delivery == 'bundle'
+    - not ansible_check_mode
+  tags: [gateway, gateway-compose, images]
+
+- name: Load gateway images from bundle on target
+  community.docker.docker_image:
+    load_path: "{{ gateway_compose_bundle_dest_file }}"
+    source: load
+  become: true
+  become_user: deploy
+  when:
+    - gateway_images_delivery == 'bundle'
+    - not ansible_check_mode
+  tags: [gateway, gateway-compose, images]
+
+- name: Verify local gateway images exist on target
+  ansible.builtin.command:
+    cmd: docker image inspect {{ item }}
+  loop: "{{ gateway_compose_image_refs }}"
+  register: gateway_local_image_inspect
+  changed_when: false
+  failed_when: gateway_local_image_inspect.rc != 0
+  become: true
+  become_user: deploy
+  when:
+    - gateway_images_delivery == 'local'
+    - not ansible_check_mode
+  tags: [gateway, gateway-compose, images]
+
+- name: Pull gateway images from private registry
   community.docker.docker_image:
     name: "{{ item }}"
     source: pull
@@ -164,10 +250,12 @@
   loop: "{{ gateway_compose_images_to_pull }}"
   become: true
   become_user: deploy
-  when: not ansible_check_mode
+  when:
+    - gateway_images_delivery == 'registry'
+    - not ansible_check_mode
   tags: [gateway, gateway-compose, images]
 
-- name: Start Dev gateway stack with Docker Compose (pull only, no build)
+- name: Start Dev gateway stack with Docker Compose (no build)
   community.docker.docker_compose_v2:
     project_src: "{{ gateway_compose_project_dir }}"
     project_name: "{{ gateway_compose_project_name }}"
@@ -187,8 +275,9 @@
       - "check mode: would sync {{ gateway_compose_project_src }} → {{ gateway_compose_project_dir }}"
       - "check mode: would render {{ gateway_compose_env_file }}"
       - "check mode: would disable host {{ gateway_host_nginx_package }}.service"
-      - "check mode: would pull images: {{ gateway_compose_images_to_pull | join(', ') }}"
-      - "check mode: would docker compose up in {{ gateway_compose_project_dir }} (project={{ gateway_compose_project_name }}, build=never)"
+      - "images delivery: {{ gateway_images_delivery }}"
+      - "check mode: images {{ gateway_compose_image_refs | join(', ') }}"
+      - "check mode: would docker compose up in {{ gateway_compose_project_dir }} (build=never, pull={{ gateway_compose_pull }})"
       - "Domains: {{ gateway_certbot_domains }} (staging={{ gateway_certbot_staging }})"
       - "App deploy_status: {{ gateway_app_deploy_status }} → upstream probe {{ gateway_upstream_health_path }}, public {{ gateway_health_public_url }}"
       - "Health wait retries: {{ gateway_health_retries }} × {{ gateway_health_delay }}s"
@@ -243,7 +332,7 @@
     msg:
       - "Dev gateway Compose applied on {{ inventory_hostname }}"
       - "Project: {{ gateway_compose_project_dir }} ({{ gateway_compose_project_name }})"
-      - "Images: init={{ gateway_image_certbot_init }}, renew={{ gateway_image_certbot_renew }}, nginx={{ gateway_image_nginx }}"
+      - "Images ({{ gateway_images_delivery }}): init={{ gateway_image_certbot_init_ref }}, renew={{ gateway_image_certbot_renew_ref }}, nginx={{ gateway_image_nginx_ref }}"
       - "LE domain: {{ gateway_certbot_primary_domain }} (staging={{ gateway_certbot_staging }})"
       - "App deploy_status: {{ gateway_app_deploy_status }}"
       - "Public probe: {{ gateway_health_public_url }}"
