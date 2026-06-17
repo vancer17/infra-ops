@@ -14,7 +14,7 @@
 #
 # 【执行顺序】
 #   1. 本 playbook（dev-app.yml）
-#   2. nginx-dev.yml（业务 Nginx 反代 80/443 → 8080）
+#   2. gateway-compose.yml（推荐：Compose LE 网关）或 nginx-dev.yml（nginx.runtime=host）
 #
 # 【常用命令】
 #   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
@@ -97,7 +97,9 @@
         msg:
           - "Dev application applied on {{ inventory_hostname }}"
           - "deploy_status: {{ app.deploy_status | default('placeholder') }}"
-          - "Loopback: http://127.0.0.1:{{ app.listen.port | default(8080) }}/"
-          - "Next: ansible/playbooks/nginx-dev.yml"
+          - "Loopback: http://127.0.0.1:{{ app.listen.port | default(8080) }}/healthz"
+          - >-
+            Next: gateway-compose.yml (LE + Compose Nginx) when nginx.runtime=compose;
+            or nginx-dev.yml when nginx.runtime=host
           - "Update inventory: app.enabled=true"
       tags: [app, app-deploy, verify]

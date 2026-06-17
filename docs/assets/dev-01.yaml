@@ -133,9 +133,11 @@ host:
 
   nginx_app:
     status: operational
+    runtime: host
     gateway_mode: app
     domains:
       internal: dev-app.internal
+      public: backend.jxqydw.com
       public_ip: "121.41.58.20"
       wg_access_ip: "10.200.0.2"
     listen:
@@ -149,6 +151,21 @@ host:
       - ansible/playbooks/dev-app.yml
       - ansible/playbooks/nginx-dev.yml
     acceptance_ref: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
+    migrate_to:
+      runtime: compose
+      playbook: ansible/playbooks/gateway-compose.yml
+      runbook: docs/docker/dev-gateway.runbook.md
+      gateway_compose_dir: /opt/gateway/docker/dev-gateway
+
+  gateway_compose:
+    status: not_started
+    project_dir: /opt/gateway/docker/dev-gateway
+    docker_sync_root: /opt/gateway/docker
+    certbot_challenge: dns-01
+    primary_domain: backend.jxqydw.com
+    playbooks:
+      - ansible/playbooks/gateway-compose.yml
+    runbook: docs/docker/dev-gateway.runbook.md
 
   ansible:
     inventory: ansible/inventories/dev/

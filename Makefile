@@ -54,7 +54,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
         stage-g4-jumpserver-preflight jumpserver-vault-init \
         stage-jumpserver-asset-preflight jumpserver-asset-prep-preflight jumpserver-asset-prep \
         stage-e-preflight control-plane-setup \
-        stage-dev-app-preflight stage-dev-nginx-preflight \
+        stage-dev-app-preflight stage-dev-nginx-preflight stage-gateway-compose-preflight \
         apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
 # -----------------------------------------------------------------------------
@@ -92,7 +92,8 @@ help:
 	@echo "  Hub sudo: make apply-hub-deploy-sudo  (fix Missing sudo password)"
 	@echo "  CI WG sudo: make apply-ci-wireguard-sudo  (F2 deploy-wireguard on ci-01)"
 	@echo "  Dev app:  make stage-dev-app-preflight   (before dev-app.yml on dev-01)"
-	@echo "            make stage-dev-nginx-preflight (before nginx-dev.yml; run dev-app first)"
+	@echo "            make stage-dev-nginx-preflight (host nginx; only if nginx.runtime=host)"
+	@echo "            make stage-gateway-compose-preflight (Compose LE gateway; nginx.runtime=compose)"
 	@echo ""
 	@echo "Individual checks (same as CI jobs):"
 	@echo "  make yamllint       YAML format (.yamllint.yml)"
@@ -263,3 +264,7 @@ stage-dev-app-preflight:
 stage-dev-nginx-preflight:
 	bash "$(SCRIPTS_DEV)/stage-dev-nginx-preflight.sh"
 	@echo "[make] stage-dev-nginx-preflight OK"
+
+stage-gateway-compose-preflight:
+	bash "$(SCRIPTS_DEV)/stage-gateway-compose-preflight.sh"
+	@echo "[make] stage-gateway-compose-preflight OK"

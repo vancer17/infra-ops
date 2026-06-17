@@ -9,6 +9,7 @@
 #     - 反代 127.0.0.1:8080（占位 API 或真实应用）
 #
 # 【前提】
+#   - nginx.runtime 必须为 host（compose 模式请用 gateway-compose.yml）
 #   - dev-app.yml 已部署占位容器（推荐；/health 由 Nginx 直接返回，但 / 需上游）
 #   - 安全组：IN-HTTP/HTTPS-WG、IN-HTTP/HTTPS-PUBLIC-DEV（见 remark.log）
 #   - deploy@dev-01 steady SSH + deploy-app-host sudoers
@@ -65,6 +66,15 @@
         that:
           - nginx.gateway_mode | default('') == 'app'
         fail_msg: "nginx.gateway_mode must be app in group_vars/all/nginx.yml"
+      tags: [nginx, nginx-dev, preflight]
+
+    - name: Assert host Nginx playbook is not used when runtime is compose
+      ansible.builtin.assert:
+        that:
+          - nginx.runtime | default('host') != 'compose'
+        fail_msg: >-
+          nginx.runtime=compose on this host — use gateway-compose.yml instead of
+          nginx-dev.yml. See docs/docker/dev-gateway.runbook.md
       tags: [nginx, nginx-dev, preflight]
 
     - name: Assert Dev SSH is in steady phase

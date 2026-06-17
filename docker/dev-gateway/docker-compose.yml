@@ -1,0 +1,135 @@
+# =============================================================================
+# Dev 业务网关 Compose — Nginx + Certbot (DNS-01)
+# =============================================================================
+#
+# 启动顺序：
+#   1. certbot-init   — 一次性 DNS-01 签发（成功 exit 0）
+#   2. certbot-renew  — 确认证书有效后 healthcheck=healthy，进入续期循环
+#   3. nginx          — 依赖 certbot-renew healthy 后启动（避免无证书启动）
+#
+# 迁移前（dev-01 宿主机）须停用 systemd Nginx，释放 80/443：
+#   sudo systemctl disable --now nginx
+#
+# 部署目录（与 Ansible gateway.compose.project_dir 一致）：
+#   /opt/gateway/docker/dev-gateway
+# 构建上下文为上级目录 /opt/gateway/docker（compose 内 context: ..）
+#
+# 快速开始：
+#   cp .env.example .env    # 填写邮箱与阿里云 DNS API 凭据
+#   make build
+#   make up                 # 或：docker compose up -d --build
+#   make verify
+#
+# 仅重新签发（已有卷、强制换证）：
+#   CERTBOT_FORCE_ISSUE=1 docker compose run --rm certbot-init
+#   docker compose up -d certbot-renew nginx
+#
+# =============================================================================
+
+name: dev-gateway
+
+services:
+  certbot-init:
+    container_name: dev-gateway-certbot-init
+    build:
+      context: ..
+      dockerfile: certbot-init/Dockerfile
+    image: infra-ops/certbot-init:latest
+    restart: "no"
+    env_file:
+      - .env
+    environment:
+      LETSENCRYPT_DIR: /etc/letsencrypt
+      CERTBOT_FORCE_ISSUE: ${CERTBOT_FORCE_ISSUE:-0}
+      CERTBOT_STAGING: ${CERTBOT_STAGING:-0}
+      CERTBOT_DNS_PROPAGATION_SECONDS: ${CERTBOT_DNS_PROPAGATION_SECONDS:-90}
+      CERTBOT_RSA_KEY_SIZE: ${CERTBOT_RSA_KEY_SIZE:-4096}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-renew-state:/var/run/certbot-renew
+    networks:
+      - certbot-internal
+
+  certbot-renew:
+    container_name: dev-gateway-certbot-renew
+    build:
+      context: ..
+      dockerfile: certbot-renew/Dockerfile
+    image: infra-ops/certbot-renew:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      LETSENCRYPT_DIR: /etc/letsencrypt
+      CERTBOT_EMAIL: ${CERTBOT_EMAIL}
+      CERTBOT_DOMAINS: ${CERTBOT_DOMAINS}
+      CERTBOT_PRIMARY_DOMAIN: ${CERTBOT_PRIMARY_DOMAIN}
+      CERTBOT_STAGING: ${CERTBOT_STAGING:-0}
+      CERTBOT_DNS_PROPAGATION_SECONDS: ${CERTBOT_DNS_PROPAGATION_SECONDS:-90}
+      RENEW_INTERVAL_SECONDS: ${RENEW_INTERVAL_SECONDS:-43200}
+      WAIT_FOR_CERT_SEC: ${WAIT_FOR_CERT_SEC:-900}
+      CERTBOT_READY_FILE: /var/run/certbot-renew/ready
+      NGINX_CONTAINER_NAME: dev-gateway-nginx
+      CERTBOT_DEPLOY_HOOK: /usr/local/bin/reload-nginx.sh
+      ALIYUN_DNS_ACCESS_KEY: ${ALIYUN_DNS_ACCESS_KEY}
+      ALIYUN_DNS_ACCESS_KEY_SECRET: ${ALIYUN_DNS_ACCESS_KEY_SECRET}
+    volumes:
+      - letsencrypt:/etc/letsencrypt
+      - certbot-renew-state:/var/run/certbot-renew
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      certbot-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "test -f /var/run/certbot-renew/ready && openssl x509 -checkend 86400 -noout -in /etc/letsencrypt/live/$${CERTBOT_PRIMARY_DOMAIN}/fullchain.pem",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    networks:
+      - certbot-internal
+
+  nginx:
+    container_name: dev-gateway-nginx
+    build:
+      context: ..
+      dockerfile: nginx/Dockerfile
+    image: infra-ops/dev-nginx:latest
+    restart: unless-stopped
+    network_mode: host
+    env_file:
+      - .env
+    environment:
+      CERTBOT_PRIMARY_DOMAIN: ${CERTBOT_PRIMARY_DOMAIN}
+      NGINX_SERVER_NAMES: ${NGINX_SERVER_NAMES}
+      NGINX_INTERNAL_SERVER_NAMES: ${NGINX_INTERNAL_SERVER_NAMES:-}
+      APP_UPSTREAM_HOST: ${APP_UPSTREAM_HOST:-127.0.0.1}
+      APP_UPSTREAM_PORT: ${APP_UPSTREAM_PORT:-8080}
+    volumes:
+      - letsencrypt:/etc/letsencrypt:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      certbot-renew:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  letsencrypt:
+    name: dev-gateway-letsencrypt
+  certbot-renew-state:
+    name: dev-gateway-certbot-renew-state
+  nginx-logs:
+    name: dev-gateway-nginx-logs
+
+networks:
+  certbot-internal:
+    name: dev-gateway-certbot-internal

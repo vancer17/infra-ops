@@ -1,0 +1,87 @@
+# =============================================================================
+# Ansible Inventory 变量：Dev 业务网关 Compose（Nginx + LE DNS-01）
+# =============================================================================
+#
+# 【这个文件是什么】
+#   dev-01 上 docker/dev-gateway 栈的 SSOT，供 gateway-compose.yml /
+#   roles/gateway_compose 消费。与宿主机 Ansible Nginx（nginx-dev.yml）互斥。
+#
+# 【与 nginx.yml 的分工】
+#   gateway.yml  → Compose 项目路径、Certbot DNS-01、.env 非敏感键
+#   nginx.yml    → 网关语义（upstream、server_name 文档）；runtime 决定走哪条 playbook
+#
+# 【敏感信息】
+#   阿里云 DNS API 密钥见 secrets.yml（gateway_secrets）/ Ansible Vault
+#
+# 【推荐顺序】
+#   dev-app.yml → gateway-compose.yml（停用宿主机 nginx，启动 dev-gateway 栈）
+#
+# =============================================================================
+
+---
+
+gateway:
+  enabled: true
+
+  # not_started → 待 gateway-compose.yml apply；operational → Compose 网关已接管 80/443
+  status: not_started
+
+  # ---------------------------------------------------------------------------
+  # compose — 与仓库 docker/dev-gateway 目录布局一致（context: .. = docker/）
+  # ---------------------------------------------------------------------------
+  compose:
+    project_dir: /opt/gateway/docker/dev-gateway
+    docker_sync_root: /opt/gateway/docker
+    project_name: dev-gateway
+    # Ansible 从控制机同步仓库 docker/ 树；CI 上为 checkout 根目录
+    sync_delete: true
+
+  # ---------------------------------------------------------------------------
+  # certbot — DNS-01（阿里云 DNS API）
+  # ---------------------------------------------------------------------------
+  certbot:
+    # 割接前必须改为真实邮箱（勿使用 you@example.com）
+    email: "you@example.com"
+    domains: backend.jxqydw.com
+    primary_domain: backend.jxqydw.com
+    staging: false
+    force_issue: false
+    propagation_seconds: 90
+    rsa_key_size: 4096
+    renew_interval_seconds: 43200
+    wait_for_cert_sec: 900
+
+  # ---------------------------------------------------------------------------
+  # nginx — Compose 容器内 Nginx（host 网络）
+  # ---------------------------------------------------------------------------
+  nginx:
+    server_names: "backend.jxqydw.com 121.41.58.20"
+    internal_server_names: "dev-app.internal 10.200.0.2"
+
+  # ---------------------------------------------------------------------------
+  # upstream — 反代宿主机应用（与 app.listen 对齐）
+  # ---------------------------------------------------------------------------
+  upstream:
+    host: "127.0.0.1"
+    port: 8080
+
+  # ---------------------------------------------------------------------------
+  # host_nginx — 割接时停用 systemd nginx，释放 80/443
+  # ---------------------------------------------------------------------------
+  host_nginx:
+    disable_service: true
+    package_name: nginx
+
+  # ---------------------------------------------------------------------------
+  # health — apply 后验收
+  # ---------------------------------------------------------------------------
+  health:
+    # operational 应用（PetIntelli）：反代 /healthz
+    public_https_url: "https://backend.jxqydw.com/healthz"
+    # placeholder 应用：仅验收 Nginx 静态 /health（不依赖上游 /healthz）
+    public_https_url_nginx: "https://backend.jxqydw.com/health"
+    validate_certs: true
+    expect_status: 200
+    delay: 10
+    # 首次 DNS-01 + build 可能较久；retries 默认由 role 按 wait_for_cert_sec 推算
+    compose_up_buffer_sec: 300

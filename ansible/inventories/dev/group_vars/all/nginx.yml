@@ -16,14 +16,19 @@
 #   应用 8080 不对公网开放（安全组无 8080 入站）
 #
 # 【状态】
-#   enabled: true / status: operational（2026-06-16 阶段 3 验收）
-#   变更 server_name / SSL 后同步 docs/assets/dev-01.yaml、make inventory
+#   enabled: true
+#   runtime: host | compose — host=宿主机 nginx-dev.yml；compose=dev-gateway 栈（gateway-compose.yml）
+#   status: operational（host 模式 2026-06-16 验收）；迁移 Compose 后保持 operational，改 runtime
 #
 # =============================================================================
 
 ---
 
 nginx:
+  # host = 宿主机 systemd Nginx（nginx-dev.yml）
+  # compose = Docker dev-gateway 栈（gateway-compose.yml）；与 host 互斥
+  runtime: host
+
   # app = 业务网关；勿与 Hub 的 gateway_mode: mgmt 混用
   gateway_mode: app
 
@@ -52,6 +57,7 @@ nginx:
     # 公网 EIP；小程序/Dev 外网联调；正式域名确定后追加并保留 IP 过渡期
     public:
       - "121.41.58.20"
+      - backend.jxqydw.com
     # ci-01 同机 WG 地址；可选直连 IP 调试（非 DNS 名）
     wg:
       - "10.200.0.2"
@@ -107,7 +113,7 @@ nginx:
         - IP:10.200.0.2
 
     public:
-      # 小程序正式环境需受信 CA + 备案域名；Dev 期可自签仅作联调
+      # compose 模式由 gateway.yml + LE 证书提供；host 模式以下为历史自签说明
       enabled: true
       provider: self_signed
       self_signed: true
@@ -115,8 +121,9 @@ nginx:
       common_name: "121.41.58.20"
       subject_alt_names:
         - IP:121.41.58.20
-      # 替换为 acm / letsencrypt 时：provider: acm，并改 certificate_file 路径
-      mini_program_note: "微信要求配置合法 HTTPS 域名；纯 IP 能力有限"
+        - DNS:backend.jxqydw.com
+      # compose 模式：provider: letsencrypt_dns，证书由 certbot 卷管理，不经此目录
+      mini_program_note: "微信：Compose 网关 + backend.jxqydw.com 合法域名"
 
   # ---------------------------------------------------------------------------
   # logging — 业务访问日志（与 Hub /var/log/nginx/hub-*.log 分离）
@@ -124,3 +131,4 @@ nginx:
   logging:
     access_log: /var/log/nginx/dev-app.access.log
     error_log: /var/log/nginx/dev-app.error.log
+    # runtime=compose 时日志在 Docker 卷 dev-gateway-nginx-logs（容器内同路径）

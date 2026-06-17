@@ -91,6 +91,7 @@ app:
   # ---------------------------------------------------------------------------
   domains:
     internal: dev-app.internal
+    public: backend.jxqydw.com
     public_ip: "121.41.58.20"
     wg_ip: "10.200.0.2"
 

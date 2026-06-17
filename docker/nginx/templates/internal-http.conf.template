@@ -1,0 +1,37 @@
+# =============================================================================
+# WG 内网 HTTP（可选，由 docker-entrypoint.d 按环境变量生成）
+# 不强制跳转 HTTPS，便于 dev-app.internal / 10.200.0.2 联调
+# =============================================================================
+
+upstream app_backend_internal {
+    server ${APP_UPSTREAM_HOST}:${APP_UPSTREAM_PORT};
+    keepalive 8;
+}
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${NGINX_INTERNAL_SERVER_NAMES};
+
+    access_log /var/log/nginx/dev-app-internal.access.log;
+    error_log /var/log/nginx/dev-app-internal.error.log;
+
+    client_max_body_size 32m;
+
+    location = /health {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        proxy_pass http://app_backend_internal;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+}

@@ -1,0 +1,94 @@
+# =============================================================================
+# Ansible Playbook：Dev 业务网关 Compose（Nginx + LE DNS-01）
+# =============================================================================
+#
+# 【用途】
+#   在 dev-01 部署 docker/dev-gateway 栈，替代宿主机 Ansible Nginx + 自签证书：
+#     - certbot-init / certbot-renew（DNS-01）
+#     - nginx 容器（host 网络）反代 127.0.0.1:8080
+#
+# 【前提】
+#   - dev-app.yml 已部署应用/占位 API @ 127.0.0.1:8080
+#   - Docker CE + Compose 插件（bootstrap）
+#   - secrets.yml（vault）：gateway_secrets.aliyun_dns_*
+#   - 域名 DNS A 记录指向本机公网 IP
+#
+# 【常用命令】
+#   export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
+#
+#   make stage-gateway-compose-preflight
+#
+#   ansible-playbook ansible/playbooks/gateway-compose.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01 \
+#     --vault-password-file .vault_pass \
+#     --check --diff
+#
+#   ansible-playbook ansible/playbooks/gateway-compose.yml \
+#     -i ansible/inventories/dev/ \
+#     --limit dev-01 \
+#     --vault-password-file .vault_pass
+#
+# 【成功后】
+#   更新 group_vars/all/nginx.yml：nginx.runtime: compose
+#   更新 group_vars/all/gateway.yml：gateway.status: operational
+#
+# =============================================================================
+
+---
+- name: Deploy Dev business gateway via Docker Compose
+  hosts: dev_app
+  become: true
+  gather_facts: true
+
+  vars:
+    gateway_compose_infra_ops_root: "{{ playbook_dir | dirname | dirname }}"
+
+  pre_tasks:
+    - name: Assert Debian 12 or newer
+      ansible.builtin.assert:
+        that:
+          - ansible_distribution == "Debian"
+          - ansible_distribution_major_version | int >= 12
+        fail_msg: "gateway-compose playbook requires Debian 12+"
+      tags: [gateway, gateway-compose, preflight]
+
+    - name: Assert Dev SSH is in steady phase
+      ansible.builtin.assert:
+        that:
+          - ssh_phase | default('') == 'steady'
+          - ssh_inventory_user | default('') == 'deploy'
+        fail_msg: "Dev must use deploy@ steady SSH before gateway-compose apply"
+      tags: [gateway, gateway-compose, preflight]
+
+    - name: Probe application upstream before gateway cutover
+      ansible.builtin.uri:
+        url: >-
+          http://{{ gateway.upstream.host | default('127.0.0.1') }}:{{ gateway.upstream.port | default(8080) }}{{
+            '/healthz' if (app.deploy_status | default('placeholder')) == 'operational' else '/'
+          }}
+        status_code: 200
+      register: gateway_upstream_probe
+      failed_when: false
+      when: not ansible_check_mode
+      tags: [gateway, gateway-compose, preflight]
+
+    - name: Warn when application upstream is not reachable
+      ansible.builtin.debug:
+        msg: >-
+          WARN: upstream
+          http://{{ gateway.upstream.host | default('127.0.0.1') }}:{{ gateway.upstream.port | default(8080) }}{{
+            '/healthz' if (app.deploy_status | default('placeholder')) == 'operational' else '/'
+          }}
+          is not responding. Run dev-app.yml first; gateway may return 502 until app is up.
+      when:
+        - not ansible_check_mode
+        - gateway_upstream_probe is defined
+        - gateway_upstream_probe is failed
+      tags: [gateway, gateway-compose, preflight]
+
+  tasks:
+    - name: Deploy Dev gateway Compose stack
+      ansible.builtin.import_role:
+        name: gateway_compose
+      tags: [gateway, gateway-compose]
