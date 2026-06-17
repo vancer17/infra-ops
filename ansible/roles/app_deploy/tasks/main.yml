@@ -128,5 +128,5 @@
         Listen: {{ app_publish_host }}:{{ app_listen_port }}
         (Nginx upstream {{ nginx.upstream.host | default('127.0.0.1') }}:{{ nginx.upstream.port | default(8080) }})
       - "Container: {{ app_deploy_ps.stdout | default('skipped in check mode') }}"
-      - "Next: ansible/playbooks/nginx-dev.yml — then update nginx.enabled / app.enabled in inventory"
+      - "Next: ansible/playbooks/gateway-compose.yml (or nginx-dev.yml if nginx.runtime=host)"
   tags: [app, app-deploy, verify]

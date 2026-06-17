@@ -18,15 +18,16 @@
 | `main.yml` | `env_name`、时区、OSS |
 | `network.yml` | IP 台账、RDS、安全组入站摘要 |
 | `app.yml` | 占位 API、Compose 路径、客户端类型 |
-| `nginx.yml` | 业务 Nginx（80/443 → 8080） |
-| `secrets.yml.example` | Vault 明文结构示例 |
+| `nginx.yml` | 业务 Nginx 语义；`nginx.runtime`：`host` 或 `compose` |
+| `gateway.yml` | Compose 网关（LE DNS-01、项目路径、.env 非敏感键） |
+| `secrets.yml.example` | Vault 明文结构（`app_secrets`、`gateway_secrets`） |
 | `ssh.yml` | SSH 密钥 |
 
 ## `host_vars/`
 
 | 文件 | 关键变量 |
 |------|----------|
-| `dev-01.yml` | `nginx_app_gateway: true`、`app_deploy_host: true` |
+| `dev-01.yml` | `nginx_app_gateway`、`gateway_compose_host`、`app_deploy_host` |
 | `dev-02.yml` | 无业务 Nginx 网关 |
 
 ## 常用命令
@@ -63,14 +64,25 @@ ansible dev-01 -i ansible/inventories/dev/ -m debug -a var=nginx -c local
 | Playbook | Role | 目标 |
 |----------|------|------|
 | `ansible/playbooks/dev-app.yml` | `app_deploy` | 占位 API / 业务 Compose @ `127.0.0.1:8080` |
-| `ansible/playbooks/nginx-dev.yml` | `nginx`（`tasks_from: dev-app`） | 80/443 → 8080 |
+| `ansible/playbooks/nginx-dev.yml` | `nginx`（`tasks_from: dev-app`） | **仅 `nginx.runtime: host`**：宿主机 80/443 |
+| `ansible/playbooks/gateway-compose.yml` | `gateway_compose` | **`nginx.runtime: compose`**：LE + 容器 Nginx |
 
-**推荐顺序**：`dev-app.yml` → `nginx-dev.yml`
+**推荐顺序（Compose 网关）**：`dev-app.yml` → `gateway-compose.yml`
 
 ```bash
 make stage-dev-app-preflight
 ansible-playbook ansible/playbooks/dev-app.yml -i ansible/inventories/dev/ --limit dev-01
 
+make stage-gateway-compose-preflight
+ansible-playbook ansible/playbooks/gateway-compose.yml \
+  -i ansible/inventories/dev/ --limit dev-01 --vault-password-file .vault_pass
+```
+
+割接成功后更新 inventory：`nginx.runtime: compose`、`gateway.status: operational`。
+
+**宿主机 Nginx（回滚/未迁移）**：`nginx.runtime: host` 时 `dev-app.yml` → `nginx-dev.yml`
+
+```bash
 make stage-dev-nginx-preflight
 ansible-playbook ansible/playbooks/nginx-dev.yml -i ansible/inventories/dev/ --limit dev-01
 ```

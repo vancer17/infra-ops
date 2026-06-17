@@ -1,0 +1,236 @@
+# =============================================================================
+# gateway_compose role — 主任务
+# =============================================================================
+
+---
+
+- name: Assert gateway_compose_host is enabled on target
+  ansible.builtin.assert:
+    that:
+      - gateway_compose_host | default(false) | bool
+    fail_msg: "gateway_compose_host must be true (see host_vars/dev-01.yml)"
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert gateway is enabled in inventory
+  ansible.builtin.assert:
+    that:
+      - gateway_enabled | bool
+    fail_msg: "Set gateway.enabled=true in group_vars/all/gateway.yml"
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert infra-ops repository root is set for docker sync
+  ansible.builtin.assert:
+    that:
+      - gateway_compose_infra_ops_root | length > 0
+    fail_msg: >-
+      gateway_compose_infra_ops_root must be set by playbook (playbook_dir/../..)
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Stat docker sync source on controller
+  ansible.builtin.stat:
+    path: "{{ gateway_compose_docker_src }}"
+  register: gateway_docker_src_stat
+  delegate_to: localhost
+  become: false
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert docker/ tree exists in infra-ops checkout
+  ansible.builtin.assert:
+    that:
+      - gateway_docker_src_stat.stat.isdir | default(false) | bool
+    fail_msg: "Missing {{ gateway_compose_docker_src }} on controller — run from infra-ops repo checkout"
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert Certbot and DNS credentials are configured
+  ansible.builtin.assert:
+    that:
+      - gateway_certbot_email | length > 0
+      - gateway_certbot_email != 'you@example.com'
+      - gateway_certbot_domains | length > 0
+      - gateway_certbot_primary_domain | length > 0
+      - gateway_nginx_server_names | length > 0
+      - gateway_aliyun_dns_access_key | length > 0
+      - gateway_aliyun_dns_access_key_secret | length > 0
+    fail_msg: >-
+      Configure gateway.certbot.email (real address, not you@example.com),
+      gateway.certbot.* in gateway.yml, and gateway_secrets.aliyun_dns_* in
+      secrets.yml (vault). See secrets.yml.example.
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert application upstream port matches gateway upstream
+  ansible.builtin.assert:
+    that:
+      - gateway_upstream_port | int == app.listen.port | default(8080) | int
+    fail_msg: "gateway.upstream.port must match app.listen.port"
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Warn when host Nginx runtime is still active in inventory
+  ansible.builtin.debug:
+    msg: >-
+      INFO: nginx.runtime is '{{ nginx.runtime | default('host') }}'.
+      After successful apply, set nginx.runtime=compose and gateway.status=operational;
+      do not re-run nginx-dev.yml on this host.
+  when: nginx.runtime | default('host') != 'compose'
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Ensure rsync is installed on target for docker tree sync
+  ansible.builtin.apt:
+    name: rsync
+    state: present
+  tags: [gateway, gateway-compose, sync]
+
+- name: Ensure gateway Docker sync root exists
+  ansible.builtin.file:
+    path: "{{ gateway_compose_docker_root }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0755"
+  tags: [gateway, gateway-compose, sync]
+
+- name: Ensure gateway Compose project directory exists
+  ansible.builtin.file:
+    path: "{{ gateway_compose_project_dir }}"
+    state: directory
+    owner: deploy
+    group: deploy
+    mode: "0750"
+  tags: [gateway, gateway-compose, sync]
+
+- name: Sync docker/ tree to target for Compose build context
+  ansible.posix.synchronize:
+    src: "{{ gateway_compose_docker_src }}/"
+    dest: "{{ gateway_compose_docker_root }}/"
+    delete: "{{ gateway_compose_sync_delete | bool }}"
+    recursive: true
+    rsync_opts:
+      - "--exclude=.env"
+      - "--exclude=.env.*"
+      - "--exclude=__pycache__"
+  delegate_to: localhost
+  become: false
+  tags: [gateway, gateway-compose, sync]
+
+- name: Ensure deploy owns synced gateway docker tree
+  ansible.builtin.file:
+    path: "{{ gateway_compose_docker_root }}"
+    owner: deploy
+    group: deploy
+    recurse: true
+  tags: [gateway, gateway-compose, sync]
+
+- name: Deploy gateway Compose environment file
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ gateway_compose_env_file }}"
+    owner: deploy
+    group: deploy
+    mode: "0600"
+  tags: [gateway, gateway-compose, config]
+
+- name: Disable and stop host Nginx to release ports 80/443
+  ansible.builtin.systemd:
+    name: "{{ gateway_host_nginx_package }}"
+    enabled: false
+    state: stopped
+  register: gateway_host_nginx_stop
+  failed_when: false
+  when:
+    - gateway_host_nginx_disable | bool
+    - not ansible_check_mode
+  tags: [gateway, gateway-compose, host-nginx]
+
+- name: Report host Nginx stop result
+  ansible.builtin.debug:
+    msg: >-
+      host nginx.service: {{ gateway_host_nginx_stop.status.ActiveState | default('unknown') }}
+      (changed={{ gateway_host_nginx_stop.changed | default(false) }})
+  when:
+    - gateway_host_nginx_disable | bool
+    - gateway_host_nginx_stop is defined
+    - not ansible_check_mode
+  tags: [gateway, gateway-compose, host-nginx]
+
+- name: Build and start Dev gateway stack with Docker Compose
+  community.docker.docker_compose_v2:
+    project_src: "{{ gateway_compose_project_dir }}"
+    project_name: "{{ gateway_compose_project_name }}"
+    state: present
+    build: "{{ gateway_compose_build }}"
+    pull: "{{ gateway_compose_pull }}"
+    recreate: auto
+  become: true
+  become_user: deploy
+  register: gateway_compose_result
+  when: not ansible_check_mode
+  tags: [gateway, gateway-compose, compose]
+
+- name: Preview gateway Compose deployment (check mode)
+  ansible.builtin.debug:
+    msg:
+      - "check mode: would sync {{ gateway_compose_docker_src }} → {{ gateway_compose_docker_root }}"
+      - "check mode: would render {{ gateway_compose_env_file }}"
+      - "check mode: would disable host {{ gateway_host_nginx_package }}.service"
+      - "check mode: would docker compose up in {{ gateway_compose_project_dir }} (project={{ gateway_compose_project_name }})"
+      - "Domains: {{ gateway_certbot_domains }} (staging={{ gateway_certbot_staging }})"
+      - "App deploy_status: {{ gateway_app_deploy_status }} → upstream probe {{ gateway_upstream_health_path }}, public {{ gateway_health_public_url }}"
+      - "Health wait retries: {{ gateway_health_retries }} × {{ gateway_health_delay }}s"
+  when: ansible_check_mode
+  tags: [gateway, gateway-compose, compose]
+
+- name: Wait for certbot-renew to become healthy
+  ansible.builtin.command:
+    cmd: docker inspect --format '{{ "{{" }}.State.Health.Status{{ "}}" }}' dev-gateway-certbot-renew
+  register: gateway_renew_health
+  until: gateway_renew_health.stdout == 'healthy'
+  retries: "{{ gateway_health_retries }}"
+  delay: "{{ gateway_health_delay }}"
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [gateway, gateway-compose, verify]
+
+- name: Wait for HTTPS port after gateway Nginx starts
+  ansible.builtin.wait_for:
+    port: 443
+    host: 127.0.0.1
+    timeout: "{{ (gateway_health_delay | int) * 6 }}"
+  when: not ansible_check_mode
+  tags: [gateway, gateway-compose, verify]
+
+- name: Verify public HTTPS health endpoint (Let's Encrypt)
+  ansible.builtin.uri:
+    url: "{{ gateway_health_public_url }}"
+    validate_certs: "{{ gateway_health_validate_certs | bool }}"
+    status_code: "{{ gateway_health_expect_status }}"
+  register: gateway_public_health
+  until: gateway_public_health is succeeded
+  retries: "{{ gateway_health_retries }}"
+  delay: "{{ gateway_health_delay }}"
+  when:
+    - not ansible_check_mode
+    - gateway_health_public_url | length > 0
+  tags: [gateway, gateway-compose, verify]
+
+- name: Show Dev gateway container status
+  ansible.builtin.command:
+    cmd: docker ps --filter "name=dev-gateway-"
+  become: true
+  become_user: deploy
+  register: gateway_ps
+  changed_when: false
+  when: not ansible_check_mode
+  tags: [gateway, gateway-compose, verify]
+
+- name: Gateway Compose deployment summary
+  ansible.builtin.debug:
+    msg:
+      - "Dev gateway Compose applied on {{ inventory_hostname }}"
+      - "Project: {{ gateway_compose_project_dir }} ({{ gateway_compose_project_name }})"
+      - "LE domain: {{ gateway_certbot_primary_domain }} (staging={{ gateway_certbot_staging }})"
+      - "App deploy_status: {{ gateway_app_deploy_status }}"
+      - "Public probe: {{ gateway_health_public_url }}"
+      - "Containers: {{ gateway_ps.stdout | default('skipped in check mode') }}"
+      - "Update inventory: nginx.runtime=compose, gateway.status=operational, nginx.status=operational"
+      - "Do not re-run nginx-dev.yml; host nginx.service should remain disabled"
+      - "Runbook: docs/docker/dev-gateway.runbook.md"
+  tags: [gateway, gateway-compose, verify]

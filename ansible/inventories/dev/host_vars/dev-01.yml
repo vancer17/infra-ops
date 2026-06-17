@@ -26,9 +26,14 @@ ansible_user: "{{ ssh_inventory_user | default('root') }}"
 # -----------------------------------------------------------------------------
 # nginx_app_gateway — 本机承担 Dev 业务层 Nginx 统一出口（80/443 → :8080）
 # -----------------------------------------------------------------------------
-# 消费者：nginx-dev.yml、roles/nginx dev-app 任务
+# 消费者：nginx-dev.yml（runtime=host）、gateway-compose.yml（runtime=compose）
 # 与 hub-01 的 nginx_gateway（管理面）不同键名，避免误用 Hub playbook
 nginx_app_gateway: true
+
+# -----------------------------------------------------------------------------
+# gateway_compose_host — Compose 业务网关（LE DNS-01 + 容器 Nginx）
+# -----------------------------------------------------------------------------
+gateway_compose_host: true
 
 # -----------------------------------------------------------------------------
 # app_deploy_host — 应用 Compose / 占位 API 部署在此主机

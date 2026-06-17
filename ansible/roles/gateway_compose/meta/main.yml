@@ -1,0 +1,9 @@
+---
+galaxy_info:
+  role_name: gateway_compose
+  author: infra-ops
+  description: Deploy Dev business gateway via Docker Compose (Nginx + LE DNS-01)
+  license: MIT
+  min_ansible_version: "2.14"
+
+dependencies: []

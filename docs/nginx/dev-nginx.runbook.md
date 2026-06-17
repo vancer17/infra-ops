@@ -1,10 +1,10 @@
 # Dev 业务 Nginx 与占位 API（阶段 3）
 
-dev-01 宿主机 Nginx 提供 **业务统一出口**（与 Hub 管理面 Nginx 分离）。
+dev-01 业务 API 出口：**宿主机 Nginx**（`nginx.runtime: host`）或 **Compose 网关**（`nginx.runtime: compose`）。
 
-**状态（2026-06-16）**：`nginx.status: operational`，`app.deploy_status: placeholder`（验收见 [阶段 3 验收报告](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)）。
+**状态（2026-06-16）**：`nginx.status: operational`（host 模式验收）。迁移 Compose 见 [Dev Gateway Runbook](../docker/dev-gateway.runbook.md)。
 
-## 架构
+## 架构（host 模式 — 历史）
 
 ```text
 WG / 公网  →  dev-01 Nginx :443  →  127.0.0.1:8080  →  dev-app-placeholder（或真实业务容器）
@@ -18,7 +18,21 @@ WG / 公网  →  dev-01 Nginx :443  →  127.0.0.1:8080  →  dev-app-placehold
 
 8080 **不对公网开放**（安全组无 8080 入站）。
 
-## 变量 SSOT
+## Compose 网关（推荐 — 小程序 LE 证书）
+
+| 项 | 说明 |
+|----|------|
+| Playbook | `ansible/playbooks/gateway-compose.yml` |
+| Runbook | [docs/docker/dev-gateway.runbook.md](../docker/dev-gateway.runbook.md) |
+| Inventory | `gateway.yml`、`nginx.runtime: compose` |
+
+```bash
+make stage-gateway-compose-preflight
+ansible-playbook ansible/playbooks/gateway-compose.yml \
+  -i ansible/inventories/dev/ --limit dev-01 --vault-password-file .vault_pass
+```
+
+## 架构（host 模式）
 
 | 文件 | 内容 |
 |------|------|

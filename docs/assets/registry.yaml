@@ -135,6 +135,7 @@ stage_dev_app_acceptance:
   playbooks:
     - ansible/playbooks/dev-app.yml
     - ansible/playbooks/nginx-dev.yml
+    - ansible/playbooks/gateway-compose.yml
   checks:
     placeholder_loopback_8080: ok
     docker_container_dev_app_placeholder: ok
@@ -155,8 +156,8 @@ stage_dev_app_acceptance:
     - github_runner_registration
     - real_business_image_via_ci
     - dev_02_bootstrap_redis
-    - trusted_ca_and_domain_for_mini_program
-  conclusion: "Dev 业务 Nginx + 占位 API operational；真实业务镜像与 Runner 待接通"
+    - gateway_compose_le_migration
+  conclusion: "Dev 业务 Nginx + 占位 API operational；Compose LE 网关与 Runner 待接通"
 
 # -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
