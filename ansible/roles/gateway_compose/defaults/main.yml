@@ -7,14 +7,36 @@
 gateway_enabled: "{{ gateway.enabled | default(false) }}"
 gateway_status: "{{ gateway.status | default('not_started') }}"
 
-gateway_compose_project_dir: "{{ gateway.compose.project_dir | default('/opt/gateway/docker/dev-gateway') }}"
-gateway_compose_docker_root: "{{ gateway.compose.docker_sync_root | default('/opt/gateway/docker') }}"
+gateway_compose_project_dir: "{{ gateway.compose.project_dir | default('/opt/gateway/compose') }}"
 gateway_compose_project_name: "{{ gateway.compose.project_name | default('dev-gateway') }}"
+gateway_compose_sync_mode: "{{ gateway.compose.sync_mode | default('project_only') }}"
 gateway_compose_sync_delete: "{{ gateway.compose.sync_delete | default(true) }}"
 
 # 由 playbook 注入：仓库根目录（playbook_dir/../..）
 gateway_compose_infra_ops_root: ""
-gateway_compose_docker_src: "{{ gateway_compose_infra_ops_root }}/docker"
+gateway_compose_project_src: "{{ gateway_compose_infra_ops_root }}/docker/dev-gateway"
+
+gateway_image_registry: "{{ gateway.images.registry | default('') }}"
+gateway_image_tag: "{{ gateway.images.tag | default('latest') }}"
+gateway_image_certbot_init_name: "{{ gateway.images.certbot_init | default('certbot-init') }}"
+gateway_image_certbot_renew_name: "{{ gateway.images.certbot_renew | default('certbot-renew') }}"
+gateway_image_nginx_name: "{{ gateway.images.nginx | default('dev-nginx') }}"
+
+gateway_image_certbot_init: >-
+  {{
+    (gateway_image_registry ~ '/' if gateway_image_registry | length > 0 else '')
+    ~ gateway_image_certbot_init_name ~ ':' ~ gateway_image_tag
+  }}
+gateway_image_certbot_renew: >-
+  {{
+    (gateway_image_registry ~ '/' if gateway_image_registry | length > 0 else '')
+    ~ gateway_image_certbot_renew_name ~ ':' ~ gateway_image_tag
+  }}
+gateway_image_nginx: >-
+  {{
+    (gateway_image_registry ~ '/' if gateway_image_registry | length > 0 else '')
+    ~ gateway_image_nginx_name ~ ':' ~ gateway_image_tag
+  }}
 
 gateway_certbot_email: "{{ gateway.certbot.email | default('') }}"
 gateway_certbot_domains: "{{ gateway.certbot.domains | default('') }}"
@@ -57,9 +79,8 @@ gateway_health_public_url: >-
 gateway_health_validate_certs: "{{ gateway.health.validate_certs | default(true) }}"
 gateway_health_expect_status: "{{ gateway.health.expect_status | default(200) }}"
 gateway_health_delay: "{{ gateway.health.delay | default(10) }}"
-gateway_health_compose_up_buffer_sec: "{{ gateway.health.compose_up_buffer_sec | default(300) }}"
+gateway_health_compose_up_buffer_sec: "{{ gateway.health.compose_up_buffer_sec | default(180) }}"
 
-# 与 certbot-renew WAIT_FOR_CERT_SEC + compose build 缓冲对齐（默认约 120 次 × 10s ≈ 20min）
 gateway_health_retries: >-
   {{
     gateway.health.retries
@@ -76,7 +97,12 @@ gateway_health_retries: >-
 gateway_aliyun_dns_access_key: "{{ (gateway_secrets | default({}, true)).aliyun_dns_access_key | default('') }}"
 gateway_aliyun_dns_access_key_secret: "{{ (gateway_secrets | default({}, true)).aliyun_dns_access_key_secret | default('') }}"
 
-gateway_compose_build: "{{ gateway.compose.build | default('always') }}"
-gateway_compose_pull: "{{ gateway.compose.pull | default('missing') }}"
+gateway_compose_build: "{{ gateway.compose.build | default('never') }}"
+gateway_compose_pull: "{{ gateway.compose.pull | default('always') }}"
 
 gateway_compose_env_file: "{{ gateway_compose_project_dir }}/.env"
+
+gateway_compose_images_to_pull:
+  - "{{ gateway_image_certbot_init }}"
+  - "{{ gateway_image_certbot_renew }}"
+  - "{{ gateway_image_nginx }}"

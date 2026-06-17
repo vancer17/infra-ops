@@ -55,6 +55,7 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
         stage-jumpserver-asset-preflight jumpserver-asset-prep-preflight jumpserver-asset-prep \
         stage-e-preflight control-plane-setup \
         stage-dev-app-preflight stage-dev-nginx-preflight stage-gateway-compose-preflight \
+        build-gateway-images push-gateway-images \
         apply-hub-deploy-sudo apply-ci-wireguard-sudo
 
 # -----------------------------------------------------------------------------
@@ -94,6 +95,7 @@ help:
 	@echo "  Dev app:  make stage-dev-app-preflight   (before dev-app.yml on dev-01)"
 	@echo "            make stage-dev-nginx-preflight (host nginx; only if nginx.runtime=host)"
 	@echo "            make stage-gateway-compose-preflight (Compose LE gateway; nginx.runtime=compose)"
+	@echo "            make build-gateway-images / make push-gateway-images (手工构建并推送网关镜像)"
 	@echo ""
 	@echo "Individual checks (same as CI jobs):"
 	@echo "  make yamllint       YAML format (.yamllint.yml)"
@@ -268,3 +270,11 @@ stage-dev-nginx-preflight:
 stage-gateway-compose-preflight:
 	bash "$(SCRIPTS_DEV)/stage-gateway-compose-preflight.sh"
 	@echo "[make] stage-gateway-compose-preflight OK"
+
+build-gateway-images:
+	bash "$(REPO_ROOT)/scripts/docker/build-gateway-images.sh" build
+	@echo "[make] build-gateway-images OK — bump gateway.images.tag in gateway.yml before deploy"
+
+push-gateway-images:
+	bash "$(REPO_ROOT)/scripts/docker/build-gateway-images.sh" push
+	@echo "[make] push-gateway-images OK"

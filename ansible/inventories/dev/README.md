@@ -19,7 +19,7 @@
 | `network.yml` | IP 台账、RDS、安全组入站摘要 |
 | `app.yml` | 占位 API、Compose 路径、客户端类型 |
 | `nginx.yml` | 业务 Nginx 语义；`nginx.runtime`：`host` 或 `compose` |
-| `gateway.yml` | Compose 网关（LE DNS-01、项目路径、.env 非敏感键） |
+| `gateway.yml` | Compose 网关（LE DNS-01、镜像 tag、项目路径、.env 非敏感键） |
 | `secrets.yml.example` | Vault 明文结构（`app_secrets`、`gateway_secrets`） |
 | `ssh.yml` | SSH 密钥 |
 
@@ -67,7 +67,7 @@ ansible dev-01 -i ansible/inventories/dev/ -m debug -a var=nginx -c local
 | `ansible/playbooks/nginx-dev.yml` | `nginx`（`tasks_from: dev-app`） | **仅 `nginx.runtime: host`**：宿主机 80/443 |
 | `ansible/playbooks/gateway-compose.yml` | `gateway_compose` | **`nginx.runtime: compose`**：LE + 容器 Nginx |
 
-**推荐顺序（Compose 网关）**：`dev-app.yml` → `gateway-compose.yml`
+**推荐顺序（Compose 网关）**：`make build-gateway-images` → `make push-gateway-images` → `dev-app.yml` → `gateway-compose.yml`
 
 ```bash
 make stage-dev-app-preflight
