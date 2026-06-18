@@ -212,9 +212,6 @@ jobs:
 
       - name: Run gitleaks
         run: bash ./scripts/ci/secret-scan.sh
-        env:
-          # install-deps 将 gitleaks 安装到 workspace/.ci-tools/bin
-          PATH: ${{ github.workspace }}/.ci-tools/bin:${{ env.PATH }}
 
   # ---------------------------------------------------------------------------
   # 7. 汇总门禁（Branch Protection 推荐只勾选此项）

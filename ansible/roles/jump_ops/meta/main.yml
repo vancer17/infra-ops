@@ -1,6 +1,7 @@
 ---
 galaxy_info:
   role_name: jump_ops
+  author: infra-ops
   description: Prepare Linux users for JumpServer asset onboarding (jump_ops / jump_readonly)
   license: MIT
   min_ansible_version: "2.14"
