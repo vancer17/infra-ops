@@ -21,7 +21,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-14"
+updated_at: "2026-06-18"
 updated_by: "infra-ops"
 
 host:
@@ -192,3 +192,11 @@ host:
       github_ansible_vault_password: ok
       wireguard_hub_check_diff: ok
     conclusion: "阶段 F 最小组网验收通过；GitHub VAULT 已配；Runner 注册为 deploy.yml 可选后续"
+
+  # JumpServer：本机与 dev-01 同 ECS；堡垒机纳管在 dev-01 资产（CI-DEV-01 @ 10.200.0.2），勿建 ci-01 重复条目
+  jumpserver:
+    asset_host: dev-01
+    console_asset_name: CI-DEV-01
+    onboarded_at: "2026-06-18"
+    acceptance_ref: docs/acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md
+    note: "CI/Ansible 使用 deploy；deploy 不录入 JumpServer"

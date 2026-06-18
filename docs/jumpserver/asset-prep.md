@@ -17,12 +17,12 @@
 chmod +x scripts/mgmt/jumpserver-asset-prep.sh scripts/mgmt/stage-jumpserver-asset-preflight.sh
 
 # 预检 + apply + verify（推荐先单独 preflight）
-make stage-jumpserver-asset-preflight LIMIT=hub-01
-make jumpserver-asset-prep LIMIT=hub-01
+make stage-jumpserver-asset-preflight JUMPSERVER_ASSET_LIMIT=hub-01
+make jumpserver-asset-prep JUMPSERVER_ASSET_LIMIT=hub-01
 
 # Dev（须已 bootstrap + steady）
-make stage-jumpserver-asset-preflight LIMIT=dev-01
-make jumpserver-asset-prep LIMIT=dev-01
+make stage-jumpserver-asset-preflight JUMPSERVER_ASSET_LIMIT=dev-01
+make jumpserver-asset-prep JUMPSERVER_ASSET_LIMIT=dev-01
 ```
 
 **Dev-01 与 ci-01 同机**：JumpServer 只录入 Dev-01，勿再建 ci-01 重复资产。
@@ -50,6 +50,8 @@ make jumpserver-asset-prep LIMIT=dev-01
 - `sshd` AllowUsers 含 `jump_ops` 与 `deploy`
 - JumpServer 测试连接成功（推送后）
 
-**Hub-01（G5，2026-06-17）**：上述项 + 账号推送已完成，见 [G5 验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)。
+**Hub-01（G5，2026-06-17）**：上述项 + 账号推送已完成，见 [G5 Hub 验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)。
+
+**Dev-01 / CI-DEV-01（G5，2026-06-18）**：同上 + Web 终端，见 [G5 Dev 验收](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md)。
 
 详见 [asset-prep.runbook.md](asset-prep.runbook.md)。

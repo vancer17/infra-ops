@@ -82,9 +82,10 @@ Hub 上排查 JumpServer 连通性时曾记录：
 
 ## 六、下一步
 
-- [ ] **资产授权**：用户组 ↔ `Mgmt/Hub`（+ 后续 `Dev/ECS`）+ 账户 `jump_ops`；平台用户 MFA
-- [ ] **端到端**：非管理员经 Web 终端登录 Hub-01，确认录像/命令记录
-- [ ] Dev-01：`jumpserver-asset-prep` → 资产挂 `Dev/ECS`（**勿**重复建 ci-01）
+- [ ] **资产授权**：用户组 ↔ `Mgmt/Hub` + `Dev/ECS` + 账户 `jump_ops`；平台用户 MFA
+- [ ] **端到端**：非管理员经 Web 终端登录 Hub-01 / Dev-01，确认录像/命令记录
+- [x] Dev-01：`jumpserver-asset-prep` → 资产 CI-DEV-01 @ `Dev/ECS`（2026-06-18，见 [Dev G5 验收](./20260618-阶段G5-JumpServer资产纳管-Dev验收.md)）
+- [ ] 删除 CI-DEV-01 上 JMS 多余的 `deploy` 账户（若仍存在）
 - [ ] 修改 JumpServer `admin` 默认密码（若尚未完成）
 - [ ] 评估关公网 SSH / `network_phase: steady`
 - [ ] 可选：将 `install-paramiko.sh` 纳入 infra-ops 或容器启动后检查

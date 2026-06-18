@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-17"
+updated_at: "2026-06-18"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -118,9 +118,46 @@ stage_g5_acceptance:
     deploy_not_in_jms_accounts: ok
   pending:
     - jumpserver_platform_authorization_mfa
-    - jumpserver_asset_dev_01
-    - jumpserver_web_terminal_e2e
-  conclusion: "Hub-01 Ansible jump_ops + JMS 账号推送与测试连接完成；Dev ECS 与授权待办"
+    - jumpserver_web_terminal_e2e_non_admin
+  conclusion: "Hub-01 Ansible jump_ops + JMS 账号推送与测试连接完成；Dev-01 纳管见 stage_g5_dev_acceptance"
+
+# -----------------------------------------------------------------------------
+# stage_g5_dev_acceptance — G5 Dev-01 JumpServer 资产纳管（ci-01，2026-06-18）
+# -----------------------------------------------------------------------------
+stage_g5_dev_acceptance:
+  completed_at: "2026-06-18"
+  control_host: ci-01
+  target_host: dev-01
+  same_ecs_as: ci-01
+  acceptance_log: logs/console-acceptance.log
+  acceptance_report: docs/acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md
+  playbook: ansible/playbooks/jumpserver-asset-prep.yml
+  runbook: docs/jumpserver/asset-prep.runbook.md
+  ansible_command: "make jumpserver-asset-prep JUMPSERVER_ASSET_LIMIT=dev-01"
+  jumpserver_console:
+    asset: CI-DEV-01
+    inventory_name: Dev-01
+    node: Dev/ECS
+    address: "10.200.0.2"
+    account_template: linux-jump-ops
+    linux_user: jump_ops
+  checks:
+    ansible_jumpserver_asset_prep: ok
+    verify_jumpserver_asset_remote: ok
+    jump_ops_shell_bash: ok
+    allow_users_jump_ops: ok
+    make_inventory: ok
+    jms_web_terminal: ok
+    hub_install_paramiko_script: ok
+  notes:
+    - "误用 LIMIT=dev-01 会默认跑 hub-01；须用 JUMPSERVER_ASSET_LIMIT=dev-01"
+    - "JMS 再次推送可能显示「未找到待处理帐户」；Web 终端仍成功"
+  pending:
+    - jumpserver_platform_authorization_mfa
+    - remove_deploy_from_jms_asset_ci_dev_01
+    - secret_scan_gitleaks_env_example_history
+    - network_phase_steady
+  conclusion: "Dev-01（CI-DEV-01）Ansible jump_ops + JMS Web 终端验收通过"
 
 # -----------------------------------------------------------------------------
 # stage_dev_app_acceptance — Dev 业务 Nginx + 占位 API（dev-01，2026-06-16）
@@ -357,7 +394,10 @@ hosts:
     nginx_app_operational_at: "2026-06-17"
     gateway_compose_operational_at: "2026-06-17"
     app_operational_at: "2026-06-17"
-    note: "与 ci-01 同 ECS；Compose LE 网关 + PetIntelli operational"
+    jumpserver_asset_status: onboarded
+    jumpserver_asset_onboarded_at: "2026-06-18"
+    jumpserver_console_asset_name: CI-DEV-01
+    note: "与 ci-01 同 ECS；G5 Dev 堡垒机纳管 onboarded（2026-06-18）"
 
   dev-02:
     asset_file: dev-02.yaml

@@ -26,12 +26,13 @@
 #   阶段 G3（2026-06-17）：Hub 启用 Docker CE — 见 stage_g3_hub_docker（验收通过）
 #   阶段 G4（2026-06-17）：Hub JumpServer Compose — 见 stage_g4_hub_jumpserver（验收通过）
 #   阶段 G5（2026-06-17）：Hub-01 JumpServer 资产纳管 — 见 stage_g5_jumpserver_asset_hub（验收通过）
+#   Dev-01 纳管（2026-06-18）：见 dev-01.yaml jumpserver_asset / registry stage_g5_dev_acceptance
 #   阶段 F6（2026-06-16）：五人 WG Client 池 Hub 登记 — 见 stage_f6_wireguard_client_pool
 #
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-16"
+updated_at: "2026-06-18"
 updated_by: "infra-ops"
 
 host:
@@ -376,10 +377,9 @@ host:
       inventory_nginx_deploy_ready: ok
     pending:
       - jumpserver_admin_password_rotation
-      - jumpserver_asset_dev_ecs_onboarding
       - jumpserver_platform_authorization_mfa
       - steady_in_ssh_wg_and_retire_public_ssh
-    conclusion: "阶段 G4 验收通过；jms.internal 反代 JumpServer jms_all；deploy_status=ready"
+    conclusion: "阶段 G4 验收通过；jms.internal 反代 JumpServer jms_all；deploy_status=ready；Dev-01 纳管见 stage_g5_dev_acceptance"
 
   # 阶段 G5 Hub-01 JumpServer 资产纳管（2026-06-17，logs/console-acceptance.log + console-check.log）
   stage_g5_jumpserver_asset_hub:
@@ -423,9 +423,9 @@ host:
     pending:
       - jumpserver_asset_authorization_user_groups
       - jumpserver_web_terminal_e2e_non_admin
-      - jumpserver_asset_dev_01
+      - remove_deploy_from_jms_ci_dev_01
       - paramiko_script_into_infra_ops_optional
-    conclusion: "Hub-01 已完成 Ansible jump_ops 准备 + JMS 账号推送与测试连接；下一步授权与 Dev-ECS 纳管"
+    conclusion: "Hub-01 Ansible jump_ops + JMS 账号推送完成；Dev-01 纳管见 registry stage_g5_dev_acceptance"
 
   # 阶段 F6 五人 WG Client 池（2026-06-16，logs/console-acceptance.log）
   stage_f6_wireguard_client_pool:
