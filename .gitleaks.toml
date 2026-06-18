@@ -1,0 +1,13 @@
+# Gitleaks config for infra-ops (used by scripts/ci/secret-scan.sh and CI secret-scan job).
+# Extends built-in rules; allowlists reduce false positives in documented example files.
+
+title = "infra-ops gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "JumpServer Compose example env placeholders (not production secrets)"
+paths = [
+  '''(?:^|/)jumpserver/\.env\.example$''',
+]
