@@ -11,23 +11,23 @@
 #   dev/nginx.yml   → dev-01：dev-app.internal、公网 API、反代应用容器
 #
 # 【访问路径（与安全组 remark.log 对齐）】
-#   WG 开发机：  http(s)://dev-app.internal → 10.200.0.2 → Nginx → 127.0.0.1:8080
-#   小程序/外网： https://121.41.58.20 → Nginx → 127.0.0.1:8080
+#   WG 开发机：  http://dev-app.internal → 10.200.0.2 → Compose Nginx（内网 HTTP）→ 127.0.0.1:8080
+#   小程序/外网： https://backend.jxqydw.com → Compose Nginx（LE）→ 127.0.0.1:8080
 #   应用 8080 不对公网开放（安全组无 8080 入站）
 #
 # 【状态】
-#   enabled: true
-#   runtime: host | compose — host=宿主机 nginx-dev.yml；compose=dev-gateway 栈（gateway-compose.yml）
-#   status: operational（host 模式 2026-06-16 验收）；迁移 Compose 后保持 operational，改 runtime
+#   enabled: true / runtime: compose（2026-06-17 阶段 4 验收）
+#   公网 HTTPS：Let's Encrypt DNS-01，域名 backend.jxqydw.com（微信小程序 TLS）
+#   宿主机 nginx-dev.yml 已停用；见 gateway.yml、docs/docker/dev-gateway.runbook.md
 #
 # =============================================================================
 
 ---
 
 nginx:
-  # host = 宿主机 systemd Nginx（nginx-dev.yml）
+  # host = 宿主机 systemd Nginx（nginx-dev.yml，已迁移）
   # compose = Docker dev-gateway 栈（gateway-compose.yml）；与 host 互斥
-  runtime: host
+  runtime: compose
 
   # app = 业务网关；勿与 Hub 的 gateway_mode: mgmt 混用
   gateway_mode: app

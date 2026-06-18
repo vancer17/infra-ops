@@ -26,7 +26,11 @@ gateway:
   enabled: true
 
   # not_started → 待 gateway-compose.yml apply；operational → Compose 网关已接管 80/443
-  status: not_started
+  status: operational
+  operational_at: "2026-06-17"
+  acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
+  # 实机首次割接路径（与 Ansible project_dir 可并存）
+  deploy_note: "手工验收于 ~/infra-ops/docker/dev-gateway；Ansible 同步目标 /opt/gateway/compose"
 
   # ---------------------------------------------------------------------------
   # compose — 仅同步项目目录；不在目标机 docker build

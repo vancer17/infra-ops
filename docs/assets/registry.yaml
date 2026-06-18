@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-16"
+updated_at: "2026-06-17"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -156,8 +156,48 @@ stage_dev_app_acceptance:
     - github_runner_registration
     - real_business_image_via_ci
     - dev_02_bootstrap_redis
-    - gateway_compose_le_migration
-  conclusion: "Dev 业务 Nginx + 占位 API operational；Compose LE 网关与 Runner 待接通"
+  conclusion: "Dev 业务 Nginx + 占位 API operational（host 模式）；公网 HTTPS 已迁移至阶段 4 Compose LE"
+
+# -----------------------------------------------------------------------------
+# stage_gateway_compose_acceptance — Dev Gateway Compose + LE（dev-01，2026-06-17）
+# -----------------------------------------------------------------------------
+stage_gateway_compose_acceptance:
+  completed_at: "2026-06-17"
+  control_host: ci-01
+  target_host: dev-01
+  acceptance_log: logs/console-acceptance.log
+  incident_log: logs/remark.log
+  acceptance_report: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
+  runbook: docs/docker/dev-gateway.runbook.md
+  playbooks:
+    - ansible/playbooks/gateway-compose.yml
+  deploy_path_manual: ~/infra-ops/docker/dev-gateway
+  checks:
+    compose_certbot_init_exit_0: ok
+    compose_certbot_renew_healthy: ok
+    compose_nginx_healthy: ok
+    le_fullchain_verify_return_0: ok
+    tls_healthz_readyz_https_200: ok
+    docker_subnet_172_30_not_vpc: ok
+    rds_route_eth0_not_docker_bridge: ok
+    petintelli_readyz_200: ok
+  gateway_compose:
+    status: operational
+    primary_domain: backend.jxqydw.com
+    certbot_subnet: "172.30.0.0/24"
+    images_tag: "1.0.0"
+  nginx_app:
+    runtime: compose
+    ssl: letsencrypt_dns01
+  app:
+    deploy_status: operational
+    container: petintelli-backend
+  pending:
+    - wechat_mp_request_domain_console
+    - ansible_project_dir_opt_gateway_compose
+    - docker_daemon_default_address_pools_apply
+    - remove_legacy_certbot_container_nice_mcnulty
+  conclusion: "Compose LE 网关 operational；Docker 网段冲突已修复；微信 TLS 前提满足"
 
 # -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
@@ -310,10 +350,14 @@ hosts:
     bootstrap_status: ssh_done
     same_ecs_as: ci-01
     nginx_app_status: operational
-    app_deploy_status: placeholder
-    nginx_app_operational_at: "2026-06-16"
-    app_placeholder_operational_at: "2026-06-16"
-    note: "与 ci-01 同 ECS；业务 Nginx + 占位 API operational；真实业务镜像待 CI"
+    nginx_runtime: compose
+    gateway_compose_status: operational
+    app_deploy_status: operational
+    api_domain: backend.jxqydw.com
+    nginx_app_operational_at: "2026-06-17"
+    gateway_compose_operational_at: "2026-06-17"
+    app_operational_at: "2026-06-17"
+    note: "与 ci-01 同 ECS；Compose LE 网关 + PetIntelli operational"
 
   dev-02:
     asset_file: dev-02.yaml
