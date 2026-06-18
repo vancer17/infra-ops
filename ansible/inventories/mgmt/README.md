@@ -2,7 +2,7 @@
 
 Ansible 对 **Hub / 管理面** 的主机清单，与 `inventories/dev/` 分离。
 
-**hub-01 状态（2026-06-17）**：阶段 F WireGuard、G1 Nginx、G2 内网 DNS、G3 Hub Docker、G4 JumpServer `operational`、**G5 Hub-01 资产纳管 `onboarded`**。**下一步**：JumpServer 授权/MFA、Dev-01 纳管、修改默认管理员密码、评估关公网 SSH。
+**hub-01 状态（2026-06-18）**：阶段 F WireGuard、G1 Nginx、G2 内网 DNS、G3 Hub Docker、G4 JumpServer `operational`、**G5 Hub-01 资产纳管 `onboarded`**；**Dev-01（CI-DEV-01）纳管 `onboarded`**（见 `docs/assets/registry.yaml` → `stage_g5_dev_acceptance`）。**下一步**：JumpServer 平台授权/MFA、删 JMS 多余 deploy、修改默认管理员密码、评估关公网 SSH。
 
 ## 用途
 

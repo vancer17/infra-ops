@@ -27,6 +27,7 @@
 | [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) | **对象存储**：Bucket 现状、RAM/前缀规划、阶段 H 验收清单 |
 | [阶段 G RDS 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) | `app_dev` 内网连通与 prod 隔离验收 |
 | [阶段 G5 Hub 资产纳管验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md) | JumpServer Hub-01 `jump_ops` + 账号推送 |
+| [阶段 G5 Dev 资产纳管验收](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md) | JumpServer Dev-01（CI-DEV-01）`jump_ops` + Web 终端 |
 | [阶段 3 Dev 业务 Nginx 验收](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md) | dev-01 占位 API + 宿主机 Nginx（历史 host 模式） |
 | [阶段 4 Dev Gateway Compose 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) | Compose LE 网关 + Docker 网段修复 + 微信 TLS |
 | [Dev Gateway Runbook](../docker/dev-gateway.runbook.md) | `gateway-compose.yml` / Compose 运维 |
@@ -49,12 +50,12 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - **mgmt** 管理面：`ansible/inventories/mgmt/`（hub-01）
 - ci-01 与 dev-01 同机：mgmt `wireguard_peers` 组管理 ci-01 WG Client；dev inventory 管 dev-01 应用
 
-## Bootstrap / 数据层 / 业务层进度（2026-06-17）
+## Bootstrap / 数据层 / 业务层进度（2026-06-18）
 
 | 主机 / 资源 | 状态 | 备注 |
 |-------------|------|------|
-| ci-01 / dev-01 | `ssh_done` | WG operational；RDS + **PetIntelli + Compose LE 网关 operational** |
-| hub-01 | `ssh_done` | WG Server operational；G4 JumpServer + G5 Hub 资产纳管 onboarded；**F6 Client 池 Hub 已登记** |
+| ci-01 / dev-01 | `ssh_done` | WG operational；RDS + PetIntelli + Compose LE 网关；**G5 Dev 堡垒机纳管 onboarded** |
+| hub-01 | `ssh_done` | WG Server operational；G4 JumpServer + G5 Hub 资产纳管 onboarded；F6 Client 池 Hub 已登记 |
 | WG Client 池 | `hub_registered` | zhengyaoyuan operational；四人待 Client 握手（见 wireguard-clients.yaml） |
 | dev-02 | `pending` | RDS 白名单 pending_bootstrap |
 | test-01 | `pending` | 未纳入 |
@@ -82,12 +83,12 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | **GitHub VAULT** | **`ANSIBLE_VAULT_PASSWORD` 已配**（dev Environment）；`wireguard-hub.yml --check --diff` 通过 |
 | **Dev inventory** | `ci_access_mode: wireguard`（阶段标记）；dev-01 同机仍用 VPC 私网 |
 | **GitHub Runner** | 可选；见 `ci-01.yaml` → `github_runner.status` |
-| **下一里程碑** | 四人 `wg0.conf` 分发与握手；JumpServer 授权/MFA + Dev-01 纳管；`network_phase: steady` |
+| **下一里程碑** | 四人 `wg0.conf` 分发与握手；JumpServer **平台授权/MFA**；删 JMS 多余 `deploy`；`network_phase: steady` |
 
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
 - **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
 - **验收日志**：F2 隧道 + F3-1 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
-- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 F6 Client 池](../acceptance/20260616-阶段F6-WireGuard人员Client池验收.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)、[阶段 G5 Hub 资产纳管](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)、[阶段 3 Dev 业务 Nginx](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
+- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 F6 Client 池](../acceptance/20260616-阶段F6-WireGuard人员Client池验收.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)、[阶段 G5 Hub 资产纳管](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)、[阶段 G5 Dev 资产纳管](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md)、[阶段 3 Dev 业务 Nginx](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
 
 ## 相关文档
 

@@ -21,7 +21,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-17"
+updated_at: "2026-06-18"
 updated_by: "infra-ops"
 
 host:
@@ -110,6 +110,8 @@ host:
     bootstrap_completed_at: "2026-06-14"
     ssh_phase: steady
     ssh_keys_configured: true
+    jumpserver_asset_status: onboarded
+    jumpserver_asset_onboarded_at: "2026-06-18"
     baota_installed: false
 
   wireguard:
@@ -200,3 +202,37 @@ host:
     inventory: ansible/inventories/dev/
     inventory_user: deploy
     ci_deploy_key: infra-ci-deploy
+
+  # 阶段 G5 Dev JumpServer 资产纳管（2026-06-18，ci-01 控制机）
+  jumpserver_asset:
+    status: onboarded
+    onboarded_at: "2026-06-18"
+    control_host: ci-01
+    playbook: ansible/playbooks/jumpserver-asset-prep.yml
+    console:
+      asset_name: CI-DEV-01
+      inventory_name: Dev-01
+      node: Dev/ECS
+      address: "10.200.0.2"
+      address_fallback: "172.21.226.38"
+      account_template: linux-jump-ops
+      linux_user: jump_ops
+    ansible_prep:
+      command: "make jumpserver-asset-prep JUMPSERVER_ASSET_LIMIT=dev-01"
+      verify_script: scripts/mgmt/verify-jumpserver-asset-remote.sh
+      checks:
+        jump_ops_shell_bash: ok
+        allow_users_jump_ops: ok
+        ssh_dir_mode_700: ok
+        sudoers_jump_ops: ok
+        verify_jumpserver_asset_remote: ok
+    jms:
+      account_push_replay: skipped_no_pending_account
+      web_terminal: ok
+      web_terminal_at: "2026-06-18"
+      note: "推送密钥在 asset-prep 前已写入；prep 后 Console 即成功"
+    pending:
+      - remove_deploy_account_from_jms_if_present
+      - platform_authorization_mfa
+    acceptance_ref: docs/acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md
+    acceptance_log: logs/console-acceptance.log
