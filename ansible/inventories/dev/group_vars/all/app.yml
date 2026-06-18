@@ -22,11 +22,11 @@
 ---
 
 app:
-  # 2026-06-16 阶段 3 验收：占位 API operational
+  # 2026-06-16 阶段 3 占位 API；2026-06-17 PetIntelli 容器 operational @ 8080
   enabled: true
 
-  # placeholder → 占位 API；operational → 真实业务镜像
-  deploy_status: placeholder
+  # placeholder → 占位 API；operational → 真实业务镜像（petintelli-backend）
+  deploy_status: operational
 
   # ---------------------------------------------------------------------------
   # compose — Docker Compose 布局（与 bootstrap 目录约定一致）

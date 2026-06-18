@@ -2,6 +2,8 @@
 
 在 **dev-01** 上用 Compose 接管业务 API 公网出口，替代宿主机 Ansible Nginx + 自签证书。
 
+**状态（2026-06-17）**：`gateway.status: operational`；验收见 [阶段 4 报告](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md)。
+
 ## 镜像与镜像站说明
 
 | 类型 | 示例 | 用途 |
@@ -77,7 +79,23 @@ docker compose up -d
 | 误用轩辕 push | 轩辕仅加速公网镜像 pull，不能 `docker push infra-ops/*` 到轩辕 |
 | init DNS 失败 | RAM 权限、TXT 传播时间 |
 | `/readyz` 超时、`/healthz` 200 | `ip route get <RDS_IP>` 是否走 `br-*`；检查 `certbot-internal` 子网是否为 172.20/172.21；`compose down` 后重建网络 |
+| 微信 TLS / 证书链 | `openssl s_client` → `Verify return code: 0`；`curl` 无 `-k`；须 `fullchain.pem` |
 | 502 | `curl http://127.0.0.1:8080/healthz` |
+
+## 验收
+
+```bash
+cd ~/infra-ops/docker/dev-gateway
+./scripts/verify-gateway.sh
+
+# TLS 链（期望 Verify return code: 0）
+echo | openssl s_client -connect backend.jxqydw.com:443 -servername backend.jxqydw.com 2>&1 | grep "Verify return code"
+
+curl -sS -o /dev/null -w 'readyz: %{http_code} verify=%{ssl_verify_result}\n' --max-time 15 \
+  https://backend.jxqydw.com/readyz
+```
+
+微信小程序另须在公众平台配置 **request 合法域名** `backend.jxqydw.com`。
 
 ## 相关路径
 

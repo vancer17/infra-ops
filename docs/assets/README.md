@@ -27,8 +27,10 @@
 | [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) | **对象存储**：Bucket 现状、RAM/前缀规划、阶段 H 验收清单 |
 | [阶段 G RDS 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) | `app_dev` 内网连通与 prod 隔离验收 |
 | [阶段 G5 Hub 资产纳管验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md) | JumpServer Hub-01 `jump_ops` + 账号推送 |
-| [阶段 3 Dev 业务 Nginx 验收](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md) | dev-01 占位 API + 业务 Nginx 80/443 |
-| [Dev 业务 Nginx Runbook](../nginx/dev-nginx.runbook.md) | `dev-app.yml` / `nginx-dev.yml` 运维 |
+| [阶段 3 Dev 业务 Nginx 验收](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md) | dev-01 占位 API + 宿主机 Nginx（历史 host 模式） |
+| [阶段 4 Dev Gateway Compose 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) | Compose LE 网关 + Docker 网段修复 + 微信 TLS |
+| [Dev Gateway Runbook](../docker/dev-gateway.runbook.md) | `gateway-compose.yml` / Compose 运维 |
+| [Dev 业务 Nginx Runbook](../nginx/dev-nginx.runbook.md) | 业务出口总览（Compose 当前 / host 历史） |
 | [阶段 F6 WG Client 池验收](../acceptance/20260616-阶段F6-WireGuard人员Client池验收.md) | 五人笔记本 Hub 登记 + zhengyaoyuan Client 验收 |
 
 ## 与 Inventory 的分工
@@ -47,17 +49,18 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - **mgmt** 管理面：`ansible/inventories/mgmt/`（hub-01）
 - ci-01 与 dev-01 同机：mgmt `wireguard_peers` 组管理 ci-01 WG Client；dev inventory 管 dev-01 应用
 
-## Bootstrap / 数据层 / 业务层进度（2026-06-16）
+## Bootstrap / 数据层 / 业务层进度（2026-06-17）
 
 | 主机 / 资源 | 状态 | 备注 |
 |-------------|------|------|
-| ci-01 / dev-01 | `ssh_done` | WG operational；**RDS `app_dev` + 占位 API + 业务 Nginx operational** |
+| ci-01 / dev-01 | `ssh_done` | WG operational；RDS + **PetIntelli + Compose LE 网关 operational** |
 | hub-01 | `ssh_done` | WG Server operational；G4 JumpServer + G5 Hub 资产纳管 onboarded；**F6 Client 池 Hub 已登记** |
 | WG Client 池 | `hub_registered` | zhengyaoyuan operational；四人待 Client 握手（见 wireguard-clients.yaml） |
 | dev-02 | `pending` | RDS 白名单 pending_bootstrap |
 | test-01 | `pending` | 未纳入 |
 | RDS `app_dev` | **operational** | 内网 host；见 [阶段 G 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) |
-| dev-01 业务 Nginx | **operational** | 见 [阶段 3 验收](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md) |
+| dev-01 业务网关 | **operational（compose）** | LE + `backend.jxqydw.com`；见 [阶段 4 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) |
+| dev-01 应用 | **operational** | `petintelli-backend` @ 8080 |
 
 ## 维护流程
 

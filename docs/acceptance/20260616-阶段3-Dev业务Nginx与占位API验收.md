@@ -8,6 +8,7 @@
 | **验收日志** | [logs/console-acceptance.log](../../logs/console-acceptance.log) |
 | **Playbook** | `ansible/playbooks/dev-app.yml`、`ansible/playbooks/nginx-dev.yml` |
 | **Runbook** | [docs/nginx/dev-nginx.runbook.md](../nginx/dev-nginx.runbook.md) |
+| **后续** | 公网 HTTPS 已迁移至 [阶段 4 Compose LE 网关](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) |
 | **前置** | Bootstrap、WireGuard、RDS `app_dev`、Hub 内网 DNS（`dev-app.internal` → `10.200.0.2`） |
 
 ---

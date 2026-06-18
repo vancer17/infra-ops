@@ -1,90 +1,77 @@
-# Dev 业务 Nginx 与占位 API（阶段 3）
+# Dev 业务 API 出口（阶段 3 / 阶段 4）
 
-dev-01 业务 API 出口：**宿主机 Nginx**（`nginx.runtime: host`）或 **Compose 网关**（`nginx.runtime: compose`）。
+dev-01 业务 API 出口：**Compose 网关**（当前）或 **宿主机 Nginx**（历史）。
 
-**状态（2026-06-16）**：`nginx.status: operational`（host 模式验收）。迁移 Compose 见 [Dev Gateway Runbook](../docker/dev-gateway.runbook.md)。
+**状态（2026-06-17）**：`nginx.runtime: compose`，`gateway.status: operational`。公网 HTTPS 使用 **Let's Encrypt** + `backend.jxqydw.com`。验收见 [阶段 4](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md)。
 
-## 架构（host 模式 — 历史）
+## 架构（Compose — 当前）
 
 ```text
-WG / 公网  →  dev-01 Nginx :443  →  127.0.0.1:8080  →  dev-app-placeholder（或真实业务容器）
+小程序 / 公网  →  backend.jxqydw.com:443（LE）→ 127.0.0.1:8080（petintelli-backend）
+WG 内网        →  dev-app.internal:80（HTTP）→ 127.0.0.1:8080
 ```
 
 | 访问方 | 入口 |
 |--------|------|
-| WG 开发机 | `https://dev-app.internal`（DNS → `10.200.0.2`） |
-| 公网 / 小程序联调 | `https://121.41.58.20` |
-| 本机调试 | `http://127.0.0.1:8080`（不经 Nginx） |
+| 微信小程序 / 公网 | `https://backend.jxqydw.com` |
+| WG 开发机 | `http://dev-app.internal`（DNS → `10.200.0.2`） |
+| 本机调试 | `http://127.0.0.1:8080/healthz`（不经 Nginx） |
 
 8080 **不对公网开放**（安全组无 8080 入站）。
 
-## Compose 网关（推荐 — 小程序 LE 证书）
+## Compose 网关（SSOT）
 
 | 项 | 说明 |
 |----|------|
-| Playbook | `ansible/playbooks/gateway-compose.yml` |
 | Runbook | [docs/docker/dev-gateway.runbook.md](../docker/dev-gateway.runbook.md) |
+| Playbook | `ansible/playbooks/gateway-compose.yml` |
 | Inventory | `gateway.yml`、`nginx.runtime: compose` |
+| 手工路径 | `~/infra-ops/docker/dev-gateway` |
 
 ```bash
-make stage-gateway-compose-preflight
-ansible-playbook ansible/playbooks/gateway-compose.yml \
-  -i ansible/inventories/dev/ --limit dev-01 --vault-password-file .vault_pass
+cd ~/infra-ops/docker/dev-gateway
+./scripts/verify-gateway.sh
 ```
 
-## 架构（host 模式）
+## 架构（host 模式 — 历史，2026-06-16）
 
-| 文件 | 内容 |
-|------|------|
-| `ansible/inventories/dev/group_vars/all/nginx.yml` | Nginx 80/443、server_name、SSL、upstream |
-| `ansible/inventories/dev/group_vars/all/app.yml` | 占位 API / Compose / 镜像 |
-| `ansible/inventories/dev/group_vars/all/network.yml` | `dev_hosts.dev-01` 业务状态 |
+```text
+WG / 公网  →  dev-01 宿主机 Nginx :443（自签）→  127.0.0.1:8080
+```
 
-## Playbook
+仅作回滚参考；**勿与 Compose 同时占用 80/443**。验收：[阶段 3](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)。
 
 ```bash
-export ANSIBLE_PRIVATE_KEY_FILE=~/infra-ops/ansible/keys/infra-ci-deploy
-
-# 顺序：先应用，后 Nginx
-make stage-dev-app-preflight
-ansible-playbook ansible/playbooks/dev-app.yml \
-  -i ansible/inventories/dev/ --limit dev-01
-
+# 仅 nginx.runtime: host 时
 make stage-dev-nginx-preflight
 ansible-playbook ansible/playbooks/nginx-dev.yml \
   -i ansible/inventories/dev/ --limit dev-01
 ```
 
-首次 apply 前若 `become` 报 sudo 错误：
+## 变量 SSOT
+
+| 文件 | 内容 |
+|------|------|
+| `gateway.yml` | Compose、LE DNS-01、镜像、Docker 网段 |
+| `nginx.yml` | `runtime`、server_name 语义、upstream |
+| `app.yml` | PetIntelli / Compose @ 8080 |
+
+## 验收（Compose）
 
 ```bash
-ansible-playbook ansible/playbooks/bootstrap.yml \
-  -i ansible/inventories/dev/ --limit dev-01 --tags sudo
-```
-
-## 验收
-
-```bash
-# dev-01 本机
-curl -sf http://127.0.0.1:8080/
-curl -sk https://127.0.0.1/health
-
-# WG 笔记本
-curl -sk https://dev-app.internal/health
-
-# 公网
-curl -sk https://121.41.58.20/health
-curl -sI http://121.41.58.20/health   # 期望 301
+curl -sS https://backend.jxqydw.com/healthz
+curl -sS --max-time 15 https://backend.jxqydw.com/readyz
+echo | openssl s_client -connect backend.jxqydw.com:443 -servername backend.jxqydw.com 2>&1 | grep "Verify return code"
 ```
 
 ## 安全组（dev-01 / ci-01 同机）
 
-见 `logs/remark.log` / `network.yml` → `security_group_ingress`：
+见 `network.yml` → `security_group_ingress`：
 
 - `IN-HTTP-WG` / `IN-HTTPS-WG` ← `10.200.0.0/16`
 - `IN-HTTP-PUBLIC-DEV` / `IN-HTTPS-PUBLIC-DEV` ← `0.0.0.0/0`
 
-## 相关 Role / 模板
+## 相关
 
-- `ansible/roles/app_deploy/` — Compose、`.env`、占位容器
-- `ansible/roles/nginx/tasks/dev-app.yml` — 业务 Nginx vhost
+- `ansible/roles/gateway_compose/` — Ansible 部署
+- `docker/dev-gateway/` — Compose 项目与 `verify-gateway.sh`

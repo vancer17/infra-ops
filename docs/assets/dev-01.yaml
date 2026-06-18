@@ -3,8 +3,8 @@
 # =============================================================================
 #
 # 【角色说明】
-#   Dev 环境主应用机：Web/API、业务 Nginx 统一出口（80/443 → 127.0.0.1:8080）。
-#   2026-06-16：阶段 3 占位 API + 业务 Nginx operational（见 acceptance_ref）。
+#   Dev 环境主应用机：Web/API、业务网关统一出口（Compose Nginx 80/443 → 127.0.0.1:8080）。
+#   2026-06-17：Compose LE 网关 operational（见 stage 4 acceptance）。
 #
 # 【与 CI-01 同机】
 #   本台 ECS（控制台 yax）同时承担 ci-01 角色，见 ci-01.yaml 与 registry.yaml。
@@ -21,21 +21,21 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-16"
+updated_at: "2026-06-17"
 updated_by: "infra-ops"
 
 host:
   name: dev-01
   role: dev_app
   env: dev
-  description: "主应用 Web/API + Nginx 反代（与 ci-01 同 ECS）"
+  description: "主应用 Web/API + Compose 业务网关（与 ci-01 同 ECS）"
 
   colocated_with: ci-01
 
   cloud:
     provider: aliyun
     region: cn-hangzhou
-    instance_id: "i-bp14czvx1exdi6cmrt2r"
+    instance_id: "i-bp14czvx1exdi6zmrt2r"
     instance_type: "ecs.s6-c1m2.2xlarge"
     console_name: "yax"
     vpc_id: "vpc-bp1jmugctnhj97dbjyx31"
@@ -52,6 +52,7 @@ host:
     hostname: null
     ci_same_vpc: true
     ci_access_from: private
+    api_domain: backend.jxqydw.com
 
   security_groups:
     bootstrap:
@@ -75,6 +76,7 @@ host:
       endpoint_internal: rm-bp1wjjf373l7t331v.mysql.rds.aliyuncs.com
       endpoint_public: rm-bp1wjjf373l7t331vno.mysql.rds.aliyuncs.com
       endpoint_application: internal
+      private_ip_resolved: "172.20.211.167"
       database: app_dev
       user: app_dev
       charset: utf8mb4
@@ -123,18 +125,23 @@ host:
 
   app:
     enabled: true
-    deploy_status: placeholder
-    container_name: dev-app-placeholder
-    image: "5yrqsf19ms2mh4.xuanyuan.run/hashicorp/http-echo:0.2.3"
+    deploy_status: operational
+    container_name: petintelli-backend
+    image: deploy-backend
     listen: "127.0.0.1:8080"
     compose_dir: /opt/app/compose
-    operational_at: "2026-06-16"
-    acceptance_ref: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
+    operational_at: "2026-06-17"
+    health_paths:
+      liveness: /healthz
+      readiness: /readyz
+    note: "占位 dev-app-placeholder 已停用；PetIntelli FastAPI"
+    acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
 
   nginx_app:
     status: operational
-    runtime: host
+    runtime: compose
     gateway_mode: app
+    superseded_runtime: host
     domains:
       internal: dev-app.internal
       public: backend.jxqydw.com
@@ -145,30 +152,50 @@ host:
       https: 443
     upstream: "127.0.0.1:8080"
     health_uri: /health
-    ssl: self_signed_dev
-    operational_at: "2026-06-16"
+    api_health_uri: /healthz
+    ssl: letsencrypt_dns01
+    ssl_issuer: "Let's Encrypt (YE2)"
+    ssl_expires: "2026-09-15"
+    operational_at: "2026-06-17"
     playbooks:
-      - ansible/playbooks/dev-app.yml
-      - ansible/playbooks/nginx-dev.yml
-    acceptance_ref: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
-    migrate_to:
-      runtime: compose
-      playbook: ansible/playbooks/gateway-compose.yml
-      runbook: docs/docker/dev-gateway.runbook.md
-      gateway_compose_dir: /opt/gateway/compose
+      - ansible/playbooks/gateway-compose.yml
+    runbook: docs/docker/dev-gateway.runbook.md
+    acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
+    legacy:
+      runtime: host
+      playbooks:
+        - ansible/playbooks/nginx-dev.yml
+      acceptance_ref: docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md
+      ssl: self_signed_dev
 
   gateway_compose:
-    status: not_started
-    project_dir: /opt/gateway/compose
+    status: operational
+    project_name: dev-gateway
+    project_dir_manual: ~/infra-ops/docker/dev-gateway
+    project_dir_ansible: /opt/gateway/compose
     images_namespace: infra-ops
     images_tag: "1.0.0"
     images_delivery: local
     certbot_challenge: dns-01
     primary_domain: backend.jxqydw.com
+    docker_network:
+      certbot_internal_subnet: "172.30.0.0/24"
+      reserved_vpc_subnets:
+        - "172.20.0.0/16"
+        - "172.21.0.0/16"
+    volumes:
+      - dev-gateway-letsencrypt
+      - dev-gateway-certbot-renew-state
+      - dev-gateway-nginx-logs
     playbooks:
       - ansible/playbooks/gateway-compose.yml
     runbook: docs/docker/dev-gateway.runbook.md
+    acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
 
+  wechat_miniprogram:
+    request_domain: backend.jxqydw.com
+    tls_requirement: "受信 CA（LE）；须配置公众平台合法域名"
+    verified_at: "2026-06-17"
   ansible:
     inventory: ansible/inventories/dev/
     inventory_user: deploy

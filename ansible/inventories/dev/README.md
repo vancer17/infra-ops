@@ -51,13 +51,17 @@ ansible dev-01 -i ansible/inventories/dev/ -m debug -a var=nginx -c local
 | 变量 | apply 后状态 |
 |------|--------------|
 | `app.enabled` | `true` |
-| `app.deploy_status` | `placeholder`（真实业务待 CI） |
+| `app.deploy_status` | `operational`（PetIntelli） |
 | `nginx.enabled` | `true` |
+| `nginx.runtime` | `compose` |
 | `nginx.status` | `operational` |
+| `gateway.status` | `operational` |
 | `dev_hosts.dev-01.nginx_app_status` | `operational` |
-| `dev_hosts.dev-01.app_deploy_status` | `placeholder` |
+| `dev_hosts.dev-01.gateway_compose_status` | `operational` |
 
-验收：[docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md](../../docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
+验收（Compose LE）：[docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md](../../docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md)
+
+历史（host 自签）：[docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md](../../docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
 
 ## 阶段 3 Playbook
 
