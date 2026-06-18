@@ -51,13 +51,13 @@ fi
 
 ci_log "Running gitleaks detect (source: ${CI_REPO_ROOT})..."
 
-# --verbose：输出详情；--redact：日志脱敏
-# 无 .gitleaks.toml 时使用 gitleaks 默认规则
+gitleaks_args=(detect --source . --verbose --redact)
+if [[ -f "${CI_REPO_ROOT}/.gitleaks.toml" ]]; then
+  gitleaks_args+=(--config "${CI_REPO_ROOT}/.gitleaks.toml")
+  ci_log "Using config: ${CI_REPO_ROOT}/.gitleaks.toml"
+fi
+
 # shellcheck disable=SC2086
-ci_cd gitleaks detect \
-  --source . \
-  --verbose \
-  --redact \
-  ${GITLEAKS_EXTRA_ARGS:-}
+ci_cd gitleaks "${gitleaks_args[@]}" ${GITLEAKS_EXTRA_ARGS:-}
 
 ci_log "secret-scan OK"
