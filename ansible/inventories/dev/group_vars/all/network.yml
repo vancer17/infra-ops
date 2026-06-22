@@ -20,6 +20,7 @@
 #   4. WireGuard ci-01↔Hub operational（F2）；F2-5 后 ci_access_mode: wireguard
 #      dev-01 与 ci-01 同 ECS → ansible_host 仍用 VPC 私网；Hub 经 WG（mgmt inventory）
 #   5. RDS Dev 库 app_dev（方案 A）已于 2026-06-15 验收；rds.host 使用内网域名（见 §rds）
+#   6. Redis 云实例 r-bp10kgwdml4kqgssoz 已于 2026-06-22 验收；redis.host 使用内网域名（见 §redis）
 #
 # 【ansible_host 计算逻辑】
 #   见 host_vars/dev-*.yml：
@@ -230,3 +231,43 @@ rds:
   strategy: app_dev_new
   status: operational
   accepted_at: "2026-06-15"
+
+# -----------------------------------------------------------------------------
+# redis_whitelist — Redis 实例 IP 白名单（Redis 控制台配置，非 ECS 安全组）
+# -----------------------------------------------------------------------------
+# 规则：只加 ECS 私网 IP；与 RDS 白名单策略相同，不加 WG / 公网
+# 权威文档：docs/redis/20260622-Redis-实例现状与Dev规划.md
+redis_whitelist:
+  group_name: dev-ecs
+  instance_id: r-bp10kgwdml4kqgssoz
+  entries:
+    - host: dev-01
+      ip: "172.21.226.38/32"
+      status: confirmed
+      confirmed_at: "2026-06-22"
+      note: "ci-01/dev-01 同机；nc + redis-cli 验收通过"
+    - host: dev-02
+      ip: "172.21.127.124/32"
+      status: pending_bootstrap
+
+# -----------------------------------------------------------------------------
+# redis — 应用连接 Redis 的业务参数（2026-06-22 阶段 I 验收后）
+# -----------------------------------------------------------------------------
+# host：内网连接地址；应用与 redis-cli 均使用此域名
+# 密码：GitHub Secret REDIS_PASSWORD 或 ansible-vault app_secrets.redis_password
+# 部署变更：由原 dev-02 Docker Redis 改为云托管实例（见 docs/redis/）
+redis:
+  host: "r-bp10kgwdml4kqgssoz.redis.rds.aliyuncs.com"
+  port: 6379
+  user: petintelli_app
+  database: 0
+  key_prefix: "petintelli:app:"
+  engine_version: "7.0.15"
+  architecture: standard
+  product: community
+  instance_id: r-bp10kgwdml4kqgssoz
+  private_ip_resolved: "172.23.160.90"
+  strategy: cloud_managed_single_account
+  status: operational
+  accepted_at: "2026-06-22"
+  acceptance_ref: docs/acceptance/20260622-阶段I-Dev-Redis验收.md

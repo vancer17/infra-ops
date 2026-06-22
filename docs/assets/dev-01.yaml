@@ -90,6 +90,26 @@ host:
       accepted_at: "2026-06-15"
       prod_isolation_verified: true
       acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
+    redis:
+      instance_id: r-bp10kgwdml4kqgssoz
+      console_name: "20260622-183920"
+      endpoint_internal: r-bp10kgwdml4kqgssoz.redis.rds.aliyuncs.com
+      endpoint_application: internal
+      port: 6379
+      private_ip_resolved: "172.23.160.90"
+      user: petintelli_app
+      database: 0
+      key_prefix: "petintelli:app:"
+      engine_version: "7.0.15"
+      architecture: standard
+      product: community
+      whitelist_group: dev-ecs
+      whitelist_ip: "172.21.226.38/32"
+      whitelist_status: confirmed
+      deployment_note: "云托管 Redis；替代原 dev-02 Docker Redis 规划"
+      status: operational
+      accepted_at: "2026-06-22"
+      acceptance_ref: docs/acceptance/20260622-阶段I-Dev-Redis验收.md
     oss:
       dev_bucket:
         name: infra-dev-file-storage
@@ -140,6 +160,13 @@ host:
     status: operational
     database: app_dev
     acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
+
+  redis_dev:
+    status: operational
+    instance_id: r-bp10kgwdml4kqgssoz
+    user: petintelli_app
+    database: 0
+    acceptance_ref: docs/acceptance/20260622-阶段I-Dev-Redis验收.md
 
   oss_dev:
     status: operational

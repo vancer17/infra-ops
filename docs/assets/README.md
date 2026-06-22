@@ -25,7 +25,10 @@
 | [test-01.yaml](./test-01.yaml) | Test 预留节点（本期 WG 可选纳入） |
 | [RDS MySQL 实例现状与 Dev 规划](../rds/20260615-RDS-MySQL-实例现状与Dev规划.md) | **云数据库**：实例规格、已有库表、连接地址、白名单、Dev 规划 |
 | [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) | **对象存储**：独立 Dev 桶、RAM 策略、阶段 H 验收（`make oss-smoke`） |
+| [Redis 实例现状与 Dev 规划](../redis/20260622-Redis-实例现状与Dev规划.md) | **云缓存**：托管 Redis 7.0、账号 `petintelli_app`、白名单、阶段 I 验收 |
 | [阶段 G RDS 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) | `app_dev` 内网连通与 prod 隔离验收 |
+| [阶段 H OSS 验收](../acceptance/20260622-阶段H-Dev-OSS验收.md) | `infra-dev-file-storage` RAM smoke 验收 |
+| [阶段 I Redis 验收](../acceptance/20260622-阶段I-Dev-Redis验收.md) | 云 Redis `petintelli_app` / DB 0 验收 |
 | [阶段 G5 Hub 资产纳管验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md) | JumpServer Hub-01 `jump_ops` + 账号推送 |
 | [阶段 G5 Dev 资产纳管验收](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md) | JumpServer Dev-01（CI-DEV-01）`jump_ops` + Web 终端 |
 | [阶段 3 Dev 业务 Nginx 验收](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md) | dev-01 占位 API + 宿主机 Nginx（历史 host 模式） |
@@ -60,6 +63,7 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | dev-02 | `pending` | RDS 白名单 pending_bootstrap |
 | test-01 | `pending` | 未纳入 |
 | RDS `app_dev` | **operational** | 内网 host；见 [阶段 G 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) |
+| Redis 云实例 | **operational** | `petintelli_app` @ DB 0；见 [阶段 I 验收](../acceptance/20260622-阶段I-Dev-Redis验收.md) |
 | dev-01 业务网关 | **operational（compose）** | LE + `backend.jxqydw.com`；见 [阶段 4 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) |
 | dev-01 应用 | **operational** | `petintelli-backend` @ 8080 |
 
@@ -88,11 +92,12 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 - **同一 VPC**：4 台可用 ECS 均在 `vpc-bp1jmugctnhj97dbjyx31`（杭州）。
 - **CI 与 Dev-01 同机**：访问 dev-01 仍等价于本机私网 `172.21.226.38`；连 Hub 走 WG `10.200.0.1`。
 - **验收日志**：F2 隧道 + F3-1 `logs/console-acceptance.log`；F2-5 收口 `logs/console-check.log`。
-- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 F6 Client 池](../acceptance/20260616-阶段F6-WireGuard人员Client池验收.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)、[阶段 G5 Hub 资产纳管](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)、[阶段 G5 Dev 资产纳管](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md)、[阶段 3 Dev 业务 Nginx](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
+- **验收报告**：[阶段 F WireGuard](../acceptance/20260614-阶段F-WireGuard验收报告.md)、[阶段 F6 Client 池](../acceptance/20260616-阶段F6-WireGuard人员Client池验收.md)、[阶段 G RDS `app_dev`](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md)、[阶段 H OSS](../acceptance/20260622-阶段H-Dev-OSS验收.md)、[阶段 I Redis](../acceptance/20260622-阶段I-Dev-Redis验收.md)、[阶段 G5 Hub 资产纳管](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md)、[阶段 G5 Dev 资产纳管](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md)、[阶段 3 Dev 业务 Nginx](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
 
 ## 相关文档
 
 - [RDS MySQL 实例现状与 Dev 规划](../rds/20260615-RDS-MySQL-实例现状与Dev规划.md)
+- [Redis 实例现状与 Dev 规划](../redis/20260622-Redis-实例现状与Dev规划.md)
 - [安全组策略](../security-groups/README.md)
 - [Dev Bootstrap Runbook](../bootstrap/dev-01-bootstrap.runbook.md)
 - [Hub Bootstrap Runbook](../bootstrap/hub-01-bootstrap.runbook.md)（hub-01：`ssh_done`，2026-06-14）

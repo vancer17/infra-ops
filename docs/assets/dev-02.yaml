@@ -3,7 +3,8 @@
 # =============================================================================
 #
 # 【角色说明】
-#   企业原方案：121.40.245.68 作为 dev_worker（Redis、队列、Worker）。
+#   企业原方案：121.40.245.68 作为 dev_worker（队列、Worker）。
+#   Redis：2026-06-22 起使用云托管实例 r-bp10kgwdml4kqgssoz，不再在 dev-02 部署 Docker Redis。
 #   当前现实：原机器不可用；本台 launch-advisor-20260425 作为 **临时替代**。
 #
 # 【与 inventory 的关系】
@@ -23,7 +24,7 @@ host:
   name: dev-02
   role: dev_worker
   env: dev
-  description: "Dev Worker / Redis / 队列（替代原 121.40.245.68）"
+  description: "Dev Worker / 队列（替代原 121.40.245.68）；Redis 已迁至云实例见 registry.redis"
 
   replacement:
     replaces_planned_host: "121.40.245.68"
@@ -75,6 +76,12 @@ host:
       whitelist_ip: "172.21.127.124/32"
       whitelist_status: pending_bootstrap
       note: "Bootstrap 后验收内网 nc/mysql，与 dev-01 相同库 app_dev"
+    redis:
+      instance_id: r-bp10kgwdml4kqgssoz
+      endpoint_internal: r-bp10kgwdml4kqgssoz.redis.rds.aliyuncs.com
+      note: "与 dev-01 共用云 Redis；Bootstrap 后加白名单 172.21.127.124/32 并 nc/redis-cli 验收"
+      whitelist_ip: "172.21.127.124/32"
+      whitelist_status: pending_bootstrap
     oss:
       dev_bucket:
         name: infra-dev-file-storage

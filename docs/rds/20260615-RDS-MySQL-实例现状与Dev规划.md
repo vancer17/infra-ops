@@ -214,8 +214,8 @@ Hub / JumpServer     → 通常不需要 RDS 白名单
 2. **（推荐）** 控制台关闭 RDS 外网地址。  
 3. **dev-02**：Bootstrap 后白名单加 `172.21.127.124/32` 并验收。  
 4. **OSS**：RAM 角色 + `dev/` 前缀 smoke 测试（见 [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) §九）。
-5. **Redis**（若业务需要）：dev-02 Docker 部署。  
-6. **（等业务栈）** Flyway/Liquibase schema 迁移。  
+5. **Redis**：云实例 `r-bp10kgwdml4kqgssoz` 已验收（2026-06-22）；应用配置 `REDIS_*` 见 [Redis Dev 规划](../redis/20260622-Redis-实例现状与Dev规划.md)。
+6. **（等业务栈）** Flyway/Liquibase schema 迁移。
 7. **并行**：JumpServer、Self-hosted Runner、`network_phase: steady`。
 
 ---

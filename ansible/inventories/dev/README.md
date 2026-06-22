@@ -7,7 +7,7 @@
 | 分组 | 主机 | 职责 |
 |------|------|------|
 | `dev_app` | dev-01 | 业务 Nginx 统一出口 + 应用/占位 API |
-| `dev_worker` | dev-02 | Redis / Worker（无业务 Nginx） |
+| `dev_worker` | dev-02 | Worker / 队列（无业务 Nginx；Redis 已迁至云实例） |
 | `jumpserver_assets` | dev-01、dev-02 | JumpServer 纳管元数据 |
 
 ## `group_vars/all/` 文件分工

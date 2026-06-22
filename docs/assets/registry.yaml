@@ -192,7 +192,7 @@ stage_dev_app_acceptance:
   pending:
     - github_runner_registration
     - real_business_image_via_ci
-    - dev_02_bootstrap_redis
+    - dev_02_bootstrap
   conclusion: "Dev 业务 Nginx + 占位 API operational（host 模式）；公网 HTTPS 已迁移至阶段 4 Compose LE"
 
 # -----------------------------------------------------------------------------
@@ -235,6 +235,37 @@ stage_gateway_compose_acceptance:
     - docker_daemon_default_address_pools_apply
     - remove_legacy_certbot_container_nice_mcnulty
   conclusion: "Compose LE 网关 operational；Docker 网段冲突已修复；微信 TLS 前提满足"
+
+# -----------------------------------------------------------------------------
+# stage_i_redis_acceptance — 阶段 I Dev 云 Redis（ci-01/dev-01，2026-06-22）
+# -----------------------------------------------------------------------------
+stage_i_redis_acceptance:
+  completed_at: "2026-06-22"
+  control_host: ci-01
+  target_host: dev-01
+  same_ecs_as: ci-01
+  acceptance_log: logs/console-acceptance.log
+  acceptance_report: docs/acceptance/20260622-阶段I-Dev-Redis验收.md
+  planning_doc: docs/redis/20260622-Redis-实例现状与Dev规划.md
+  instance_id: r-bp10kgwdml4kqgssoz
+  checks:
+    nc_redis_6379: ok
+    ip_route_eth0: ok
+    redis_cli_ping: ok
+    db0_smoke_set_get_del: ok
+    info_server_version: ok
+  redis:
+    endpoint_internal: r-bp10kgwdml4kqgssoz.redis.rds.aliyuncs.com
+    user: petintelli_app
+    database: 0
+    key_prefix: "petintelli:app:"
+    engine_version: "7.0.15"
+    status: operational
+  pending:
+    - github_secret_redis_password
+    - petintelli_backend_redis_env
+    - dev_02_redis_whitelist_after_bootstrap
+  conclusion: "云 Redis petintelli_app @ DB 0 operational；替代原 dev-02 Docker Redis 规划"
 
 # -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
@@ -412,7 +443,7 @@ hosts:
     zone: "杭州 可用区 I"
     inventory_group: dev_worker
     bootstrap_status: pending
-    note: "替代原 121.40.245.68；纳入 WG 与 Bootstrap 待实施"
+    note: "替代原 121.40.245.68；Worker/队列；Redis 已迁至云实例（见 shared_cloud_dependencies.redis）"
 
   test-01:
     asset_file: test-01.yaml
@@ -538,6 +569,24 @@ shared_cloud_dependencies:
         note: "约 27 GB 存量；Dev 角色 list/put 已验收拒绝"
       - bucket: taoyouxiangzu
         note: "规划子项目桶；策略显式 Deny"
+  redis:
+    instance_id: "r-bp10kgwdml4kqgssoz"
+    console_name: "20260622-183920"
+    endpoint_internal: "r-bp10kgwdml4kqgssoz.redis.rds.aliyuncs.com"
+    endpoint_application: internal
+    port: 6379
+    engine_version: "7.0.15"
+    architecture: standard
+    product: community
+    dev_user: petintelli_app
+    dev_database: 0
+    dev_key_prefix: "petintelli:app:"
+    dev_strategy: cloud_managed_single_account
+    dev_status: operational
+    dev_accepted_at: "2026-06-22"
+    dev_acceptance_ref: "docs/acceptance/20260622-阶段I-Dev-Redis验收.md"
+    whitelist_group: dev-ecs
+    replaces_planned: "dev-02 Docker Redis（172.21.127.124:6379）"
 
 # -----------------------------------------------------------------------------
 # security_whitelist_summary — 安全组/RDS 白名单源 IP 汇总（须与 network.yml 一致）

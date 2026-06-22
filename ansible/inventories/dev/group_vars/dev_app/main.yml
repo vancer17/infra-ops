@@ -8,7 +8,7 @@
 #
 # 【与 dev_worker 的分工】
 #   dev_app    → dev-01：Nginx 统一出口 + Web/API 容器
-#   dev_worker → dev-02：Redis / Worker（无业务 Nginx）
+#   dev_worker → dev-02：Worker / 队列（无业务 Nginx；Redis 见 network.yml redis）
 #
 # =============================================================================
 
