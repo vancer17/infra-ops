@@ -21,7 +21,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-18"
+updated_at: "2026-06-22"
 updated_by: "infra-ops"
 
 host:
@@ -68,7 +68,9 @@ host:
 
   ram_role:
     name: Dev-ECS-Role
-    attached: false
+    attached: true
+    attached_at: "2026-06-22"
+    policy: DevOssInfraDevFileStorageOnly
 
   dependencies:
     rds:
@@ -89,11 +91,25 @@ host:
       prod_isolation_verified: true
       acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
     oss:
-      buckets:
-        - name: yzx-file-storage
-          prefix: dev/
+      dev_bucket:
+        name: infra-dev-file-storage
+        resource_group: InfraDevOss
+        resource_group_id: rg-aek6bz2zppab7gq
+        endpoint_internal: oss-cn-hangzhou-internal.aliyuncs.com
+        ram_policy: DevOssInfraDevFileStorageOnly
+        object_key_note: "桶级 Dev 隔离；smoke 前缀 smoke-test/；应用键如 uploads/（无需 dev/ 前缀）"
+      prod_isolation:
+        bucket: yzx-file-storage
+        list_denied: true
+        put_denied: true
+        verified_at: "2026-06-22"
+      legacy_planned:
         - name: taoyouxiangzu
-          prefix: dev/
+          note: "子项目桶；控制台待确认；Dev 策略显式 Deny"
+      status: operational
+      accepted_at: "2026-06-22"
+      acceptance_ref: docs/acceptance/20260622-阶段H-Dev-OSS验收.md
+      smoke_command: make oss-smoke
 
   access_whitelist:
     ci_public_ip: "121.41.58.20/32"
@@ -124,6 +140,12 @@ host:
     status: operational
     database: app_dev
     acceptance_ref: docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md
+
+  oss_dev:
+    status: operational
+    bucket: infra-dev-file-storage
+    ram_role: Dev-ECS-Role
+    acceptance_ref: docs/acceptance/20260622-阶段H-Dev-OSS验收.md
 
   app:
     enabled: true

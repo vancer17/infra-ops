@@ -24,7 +24,7 @@
 | [dev-02.yaml](./dev-02.yaml) | Dev Worker 替代节点（原 `121.40.245.68` 不可用后的替代） |
 | [test-01.yaml](./test-01.yaml) | Test 预留节点（本期 WG 可选纳入） |
 | [RDS MySQL 实例现状与 Dev 规划](../rds/20260615-RDS-MySQL-实例现状与Dev规划.md) | **云数据库**：实例规格、已有库表、连接地址、白名单、Dev 规划 |
-| [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) | **对象存储**：Bucket 现状、RAM/前缀规划、阶段 H 验收清单 |
+| [OSS 实例现状与 Dev 规划](../oss/20260616-OSS-实例现状与Dev规划.md) | **对象存储**：独立 Dev 桶、RAM 策略、阶段 H 验收（`make oss-smoke`） |
 | [阶段 G RDS 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) | `app_dev` 内网连通与 prod 隔离验收 |
 | [阶段 G5 Hub 资产纳管验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md) | JumpServer Hub-01 `jump_ops` + 账号推送 |
 | [阶段 G5 Dev 资产纳管验收](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md) | JumpServer Dev-01（CI-DEV-01）`jump_ops` + Web 终端 |

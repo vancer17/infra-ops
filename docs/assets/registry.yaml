@@ -22,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-18"
+updated_at: "2026-06-22"
 updated_by: "infra-ops"
 
 # -----------------------------------------------------------------------------
@@ -516,10 +516,28 @@ shared_cloud_dependencies:
     dev_acceptance_ref: "docs/acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md"
     whitelist_group: dev-ecs
   oss:
-    - bucket: yzx-file-storage
-      dev_prefix: "dev/"
-    - bucket: taoyouxiangzu
-      dev_prefix: "dev/"
+    dev_bucket:
+      name: infra-dev-file-storage
+      region: cn-hangzhou
+      resource_group: InfraDevOss
+      resource_group_id: rg-aek6bz2zppab7gq
+      endpoint_internal: oss-cn-hangzhou-internal.aliyuncs.com
+      redundancy: ZRS
+      versioning: enabled
+      ram_role: Dev-ECS-Role
+      ram_policy: DevOssInfraDevFileStorageOnly
+      ecs_bound_hosts:
+        - dev-01
+        - ci-01
+      status: operational
+      accepted_at: "2026-06-22"
+      acceptance_ref: docs/acceptance/20260622-阶段H-Dev-OSS验收.md
+      smoke_script: scripts/dev/oss-smoke.sh
+    prod_buckets_isolated:
+      - bucket: yzx-file-storage
+        note: "约 27 GB 存量；Dev 角色 list/put 已验收拒绝"
+      - bucket: taoyouxiangzu
+        note: "规划子项目桶；策略显式 Deny"
 
 # -----------------------------------------------------------------------------
 # security_whitelist_summary — 安全组/RDS 白名单源 IP 汇总（须与 network.yml 一致）

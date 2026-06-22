@@ -21,7 +21,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-18"
+updated_at: "2026-06-22"
 updated_by: "infra-ops"
 
 host:
@@ -66,8 +66,10 @@ host:
 
   ram_role:
     name: "Dev-ECS-Role"
-    attached: false
-    note: "若绑定在实例上，则 CI 与 Dev 共享同一 RAM 角色"
+    attached: true
+    attached_at: "2026-06-22"
+    policy: DevOssInfraDevFileStorageOnly
+    note: "与 dev-01 同 ECS 实例绑定；OSS 验收见阶段 H"
 
   github_runner:
     planned: true

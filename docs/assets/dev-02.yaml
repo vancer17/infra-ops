@@ -76,11 +76,10 @@ host:
       whitelist_status: pending_bootstrap
       note: "Bootstrap 后验收内网 nc/mysql，与 dev-01 相同库 app_dev"
     oss:
-      buckets:
-        - name: yzx-file-storage
-          prefix: dev/
-        - name: taoyouxiangzu
-          prefix: dev/
+      dev_bucket:
+        name: infra-dev-file-storage
+        note: "Bootstrap 后绑定同一 Dev-ECS-Role；验收重复 make oss-smoke"
+      prod_isolation_bucket: yzx-file-storage
 
   access_whitelist:
     ci_public_ip: "121.41.58.20/32"

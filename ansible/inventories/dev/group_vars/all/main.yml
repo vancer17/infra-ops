@@ -23,7 +23,7 @@
 #   timezone、locale  → roles/common/tasks/base.yml（装系统时区与 locale）
 #   env_name          → 预留：后续 app_deploy role / .env.j2 模板标记环境
 #   network_phase     → 预留：与 network.yml 中 ci_connectivity 配合，标记阶段
-#   oss.bucket/prefix → 预留：后续应用部署时写 .env 或 RAM 策略文档对照
+#   oss.bucket/prefix → 应用 .env（独立 Dev 桶 infra-dev-file-storage；桶级隔离，无 dev/ 前缀）
 #
 # 【与 Test/Prod 的扩展方式】
 #   Test 环境复制 inventories/test/group_vars/all/main.yml，仅改：
@@ -90,21 +90,21 @@ locale: en_US.UTF-8
 # -----------------------------------------------------------------------------
 # 类型：嵌套字典
 # 结构：
-#   oss.bucket  → Bucket 名称
-#   oss.prefix  → 对象键前缀，Dev 环境固定 dev/，与 Prod prod/ 隔离
+#   oss.bucket  → Dev 专用 Bucket（与生产 yzx-file-storage 隔离）
+#   oss.prefix  → 对象键可选逻辑前缀；独立 Dev 桶时通常留空，应用自行规划 uploads/ 等
 #
 # 对应资产：
-#   docs/assets/dev-01.yaml → dependencies.oss.buckets
-#   企业方案：yzx-file-storage、taoyouxiangzu（子项目 bucket 在 host 台账单独列）
+#   docs/assets/dev-01.yaml → dependencies.oss.dev_bucket
+#   docs/assets/registry.yaml → shared_cloud_dependencies.oss.dev_bucket
 #
-# 访问方式（Bootstrap 期）：
-#   ECS 绑定 RAM 角色 Dev-ECS-Role，策略仅允许 dev/* 前缀；不在变量里放 AK/SK
+# 访问方式：
+#   ECS 绑定 RAM 角色 Dev-ECS-Role + 自定义策略 DevOssInfraDevFileStorageOnly
 #
-# 后续消费者（阶段 4 应用部署，尚未在本仓库 role 中引用）：
-#   .env.j2 模板示例：
+# 后续消费者（app_deploy role）：
+#   .env.j2 模板：
 #     OSS_BUCKET={{ oss.bucket }}
-#     OSS_PREFIX={{ oss.prefix }}/
+#     OSS_PREFIX=（prefix 为空时不追加 dev/）
 # 引用语法：oss.bucket、oss.prefix（点号访问嵌套键）
 oss:
-  bucket: yzx-file-storage   # 主文件存储 Bucket
-  prefix: dev                # 环境前缀；对象路径形如 dev/uploads/xxx
+  bucket: infra-dev-file-storage
+  prefix: ""
