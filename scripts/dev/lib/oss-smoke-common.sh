@@ -169,19 +169,17 @@ oss_smoke_write_ossutil_config() {
   cat >"${OSSUTIL_CONFIG}" <<EOF
 [Credentials]
 language = CH
+endpoint = ${OSS_ENDPOINT}
 mode = EcsRamRole
 ecsRoleName = ${OSS_RAM_ROLE_NAME}
-
-[Default]
-endpoint = ${OSS_ENDPOINT}
 EOF
   chmod 600 "${OSSUTIL_CONFIG}"
   oss_smoke_log "wrote ossutil config: ${OSSUTIL_CONFIG} (EcsRamRole=${OSS_RAM_ROLE_NAME})"
 }
 
-# 所有 ossutil 调用统一加 -c 配置文件
+# 所有 ossutil 调用统一加 -c 配置文件；-e 显式传入 endpoint 防止配置节误读
 oss_smoke_ossutil() {
-  "${OSSUTIL_BIN}" -c "${OSSUTIL_CONFIG}" "$@"
+  "${OSSUTIL_BIN}" -c "${OSSUTIL_CONFIG}" -e "${OSS_ENDPOINT}" "$@"
 }
 
 # -----------------------------------------------------------------------------
