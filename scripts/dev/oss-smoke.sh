@@ -188,17 +188,22 @@ cmd_put_get() {
   smoke_local="$(mktemp)"
   remote_uri="oss://${OSS_DEV_BUCKET}/${smoke_key}"
 
-  trap 'rm -f "${smoke_local}"' RETURN
-
   echo "oss smoke ${date} from $(hostname) at $(date -Is)" >"${smoke_local}"
+
   oss_smoke_log "upload: ${remote_uri}"
   oss_smoke_ossutil cp "${smoke_local}" "${remote_uri}" -f
 
+  # 不用 ossutil cat：v1.7 会在文件内容后追加 "0.xxx(s) elapsed"，导致字符串比对失败
+  local smoke_downloaded
+  smoke_downloaded="$(mktemp)"
+  trap 'rm -f "${smoke_local}" "${smoke_downloaded}"' RETURN
+
   oss_smoke_log "download: ${remote_uri}"
-  local downloaded
-  downloaded="$(oss_smoke_ossutil cat "${remote_uri}")"
-  [[ "$(cat "${smoke_local}")" == "${downloaded}" ]] \
-    || oss_smoke_die "content mismatch after get"
+  oss_smoke_ossutil cp "${remote_uri}" "${smoke_downloaded}" -f
+
+  if ! cmp -s "${smoke_local}" "${smoke_downloaded}"; then
+    oss_smoke_die "content mismatch after get (local vs downloaded)"
+  fi
 
   oss_smoke_log "list prefix: oss://${OSS_DEV_BUCKET}/${OSS_SMOKE_KEY_PREFIX}/"
   oss_smoke_ossutil ls "oss://${OSS_DEV_BUCKET}/${OSS_SMOKE_KEY_PREFIX}/" --limited-num 5
