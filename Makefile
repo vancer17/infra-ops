@@ -37,6 +37,7 @@ REPO_ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 SCRIPTS_CI := $(REPO_ROOT)/scripts/ci
 SCRIPTS_WG := $(REPO_ROOT)/scripts/wireguard
 SCRIPTS_MGMT := $(REPO_ROOT)/scripts/mgmt
+SCRIPTS_DEV := $(REPO_ROOT)/scripts/dev
 
 # 本地工具路径：install-deps.sh 创建的 venv 与 gitleaks 安装目录
 VENV_BIN := $(REPO_ROOT)/.venv/bin
@@ -49,7 +50,9 @@ export PATH := $(VENV_BIN):$(CI_TOOLS_BIN):$(PATH)
 .PHONY: help setup lint syntax inventory inventory-mgmt ci \
         yamllint shellcheck ansible-lint ansible-syntax \
         docker-validate secret-scan \
-        wg-keys-check wg-keys-list stage-f-preflight stage-f2-5-followup \
+        wg-keys-check wg-keys-list \
+        oss-smoke oss-smoke-preflight oss-smoke-meta oss-smoke-deps \
+        stage-f-preflight stage-f2-5-followup \
         stage-g1-nginx-preflight stage-g2-preflight stage-g3-docker-preflight \
         stage-g4-jumpserver-preflight jumpserver-vault-init \
         stage-jumpserver-asset-preflight jumpserver-asset-prep-preflight jumpserver-asset-prep \
@@ -82,6 +85,13 @@ help:
 	@echo "  make wg-keys-check   Check wg/ansible-vault deps"
 	@echo "  make wg-keys-list    List hub/peer key files status"
 	@echo "  See: docs/wireguard/wg-keys.runbook.md"
+	@echo ""
+	@echo "OSS smoke (stage H4, on ECS with Dev-ECS-Role):"
+	@echo "  make oss-smoke-preflight   Parse inventory + SSH/colocated probe"
+	@echo "  make oss-smoke-deps        Check curl/python3/ossutil on target context"
+	@echo "  make oss-smoke-meta        ECS RAM metadata (no STS secrets in log)"
+	@echo "  make oss-smoke             Full H4: put/get dev bucket + deny prod bucket"
+	@echo "  OSS_SMOKE_LIMIT=dev-01 OSS_DEV_BUCKET=infra-dev-file-storage make oss-smoke"
 	@echo "  Stage G1:   make stage-g1-nginx-preflight  (before nginx-hub.yml on Hub)"
 	@echo "  Stage G2:   make stage-g2-preflight  (before hub-g2.yml; add IN-DNS-WG in console)"
 	@echo "  Stage G3:   make stage-g3-docker-preflight  (before hub-g3-docker.yml; Hub Docker)"
@@ -193,6 +203,24 @@ wg-keys-check:
 
 wg-keys-list:
 	bash "$(SCRIPTS_WG)/wg-keys.sh" list
+
+# -----------------------------------------------------------------------------
+# oss-smoke — 阶段 H4：Dev 桶读写 + 生产桶隔离验收（实机，非 make ci 一部分）
+# -----------------------------------------------------------------------------
+OSS_SMOKE_LIMIT ?= dev-01
+
+oss-smoke-preflight:
+	ANSIBLE_LIMIT="$(OSS_SMOKE_LIMIT)" bash "$(SCRIPTS_DEV)/oss-smoke.sh" preflight
+
+oss-smoke-deps:
+	ANSIBLE_LIMIT="$(OSS_SMOKE_LIMIT)" bash "$(SCRIPTS_DEV)/oss-smoke.sh" check-deps
+
+oss-smoke-meta:
+	ANSIBLE_LIMIT="$(OSS_SMOKE_LIMIT)" bash "$(SCRIPTS_DEV)/oss-smoke.sh" check-meta
+
+oss-smoke:
+	ANSIBLE_LIMIT="$(OSS_SMOKE_LIMIT)" bash "$(SCRIPTS_DEV)/oss-smoke.sh" all
+	@echo "[make] oss-smoke OK (limit=$(OSS_SMOKE_LIMIT))"
 
 stage-f-preflight:
 	bash "$(SCRIPTS_MGMT)/stage-f-preflight.sh"
