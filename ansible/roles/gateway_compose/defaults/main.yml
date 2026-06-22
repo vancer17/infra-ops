@@ -46,6 +46,13 @@ gateway_nginx_internal_server_names: "{{ gateway.nginx.internal_server_names | d
 gateway_upstream_host: "{{ gateway.upstream.host | default('127.0.0.1') }}"
 gateway_upstream_port: "{{ gateway.upstream.port | default(8080) }}"
 
+gateway_mqtt_enabled: "{{ gateway.mqtt.enabled | default(false) }}"
+gateway_mqtt_tls_domain: "{{ gateway.mqtt.tls_domain | default('') }}"
+gateway_mqtt_tls_port: "{{ gateway.mqtt.tls_port | default(8883) }}"
+gateway_mqtt_tls_cert_domain: "{{ gateway.mqtt.tls_cert_domain | default(gateway_certbot_primary_domain) }}"
+gateway_mqtt_upstream_host: "{{ gateway.mqtt.upstream_host | default('127.0.0.1') }}"
+gateway_mqtt_upstream_port: "{{ gateway.mqtt.upstream_port | default(1883) }}"
+
 gateway_host_nginx_disable: "{{ gateway.host_nginx.disable_service | default(true) }}"
 gateway_host_nginx_package: "{{ gateway.host_nginx.package_name | default('nginx') }}"
 

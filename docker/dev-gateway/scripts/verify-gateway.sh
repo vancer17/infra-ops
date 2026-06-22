@@ -27,6 +27,17 @@ SERVER_NAMES="$(read_env NGINX_SERVER_NAMES)"
 UPSTREAM_HOST="$(read_env APP_UPSTREAM_HOST)"
 UPSTREAM_PORT="$(read_env APP_UPSTREAM_PORT)"
 CERTBOT_STAGING="$(read_env CERTBOT_STAGING)"
+MQTT_ENABLED="$(read_env NGINX_MQTT_TLS_ENABLED)"
+MQTT_TLS_DOMAIN="$(read_env MQTT_TLS_DOMAIN)"
+MQTT_TLS_PORT="$(read_env MQTT_TLS_PORT)"
+MQTT_TLS_CERT_DOMAIN="$(read_env MQTT_TLS_CERT_DOMAIN)"
+MQTT_UPSTREAM_HOST="$(read_env MQTT_UPSTREAM_HOST)"
+MQTT_UPSTREAM_PORT="$(read_env MQTT_UPSTREAM_PORT)"
+MQTT_ENABLED="${MQTT_ENABLED:-0}"
+MQTT_TLS_PORT="${MQTT_TLS_PORT:-8883}"
+MQTT_UPSTREAM_HOST="${MQTT_UPSTREAM_HOST:-127.0.0.1}"
+MQTT_UPSTREAM_PORT="${MQTT_UPSTREAM_PORT:-1883}"
+MQTT_TLS_CERT_DOMAIN="${MQTT_TLS_CERT_DOMAIN:-${PRIMARY}}"
 UPSTREAM_HOST="${UPSTREAM_HOST:-127.0.0.1}"
 UPSTREAM_PORT="${UPSTREAM_PORT:-8080}"
 UPSTREAM="${UPSTREAM_HOST}:${UPSTREAM_PORT}"
@@ -38,6 +49,9 @@ echo "=== Dev Gateway 验收 ==="
 echo "主域名: ${PRIMARY}"
 echo "Nginx server_name: ${SERVER_NAMES}"
 echo "上游: ${UPSTREAM}"
+if [[ "${MQTT_ENABLED}" == "1" ]]; then
+  echo "MQTT: MQTTS :${MQTT_TLS_PORT} (${MQTT_TLS_DOMAIN}) -> ${MQTT_UPSTREAM_HOST}:${MQTT_UPSTREAM_PORT}"
+fi
 echo
 
 # --- Compose 服务状态 ---
@@ -161,6 +175,76 @@ if [[ -n "${PRIMARY}" ]]; then
     ok "HTTPS https://${PRIMARY}/health 可达（Nginx 静态探针）"
   else
     echo "WARN: https://${PRIMARY}/healthz 与 /health 均失败（DNS/安全组/证书？）"
+  fi
+fi
+
+# --- MQTT（路线 A：8883 MQTTS，1883 仅本机）---
+if [[ "${MQTT_ENABLED}" == "1" ]]; then
+  if [[ -z "${MQTT_TLS_DOMAIN}" ]]; then
+    fail "NGINX_MQTT_TLS_ENABLED=1 但 MQTT_TLS_DOMAIN 未设置"
+  fi
+
+  if ! docker compose exec -T nginx test -f "/etc/nginx/stream.d/mqtt-stream.conf"; then
+    fail "缺少 stream 配置 /etc/nginx/stream.d/mqtt-stream.conf"
+  fi
+  ok "MQTT stream 配置已生成"
+
+  mqtt_cert_path="/etc/letsencrypt/live/${MQTT_TLS_CERT_DOMAIN}/fullchain.pem"
+  if ! docker compose exec -T nginx test -f "${mqtt_cert_path}"; then
+    fail "MQTT TLS 证书不存在: ${mqtt_cert_path}"
+  fi
+  ok "MQTT TLS 证书文件存在 (${MQTT_TLS_CERT_DOMAIN})"
+
+  if command -v ss >/dev/null 2>&1; then
+    if ss -tln | grep -qE ":${MQTT_TLS_PORT}\b"; then
+      ok "宿主机监听 TCP ${MQTT_TLS_PORT}"
+    else
+      fail "宿主机未监听 TCP ${MQTT_TLS_PORT}（Nginx host 网络应绑定该端口）"
+    fi
+  else
+    echo "WARN: 未安装 ss，跳过端口监听检查"
+  fi
+
+  if command -v openssl >/dev/null 2>&1; then
+    mqtt_sni_out="$(echo | openssl s_client -connect "127.0.0.1:${MQTT_TLS_PORT}" -servername "${MQTT_TLS_DOMAIN}" 2>/dev/null || true)"
+    if [[ "${mqtt_sni_out}" == *"CONNECTED"* ]]; then
+      ok "本机 openssl SNI ${MQTT_TLS_DOMAIN}:${MQTT_TLS_PORT} 握手成功"
+      if [[ "${mqtt_sni_out}" == *"Verify return code: 0"* ]]; then
+        ok "MQTTS 证书链校验通过 (verify=0)"
+      else
+        echo "WARN: MQTTS 证书链校验未通过（检查 SAN 是否含 ${MQTT_TLS_DOMAIN}）"
+      fi
+    else
+      echo "WARN: 本机 MQTTS 握手失败（nginx 未 reload / 证书路径错误？）"
+    fi
+
+    san="$(docker compose exec -T certbot-renew openssl x509 -noout -ext subjectAltName -in "${cert_path}" 2>/dev/null || true)"
+    if [[ "${san}" == *"${MQTT_TLS_DOMAIN}"* ]]; then
+      ok "LE 证 SAN 包含 ${MQTT_TLS_DOMAIN}"
+    else
+      echo "WARN: LE 证 SAN 未包含 ${MQTT_TLS_DOMAIN}；需扩展 CERTBOT_DOMAINS 并 CERTBOT_FORCE_ISSUE=1 重签"
+    fi
+  fi
+
+  if command -v nc >/dev/null 2>&1; then
+    if nc -z -w 2 "${MQTT_UPSTREAM_HOST}" "${MQTT_UPSTREAM_PORT}" 2>/dev/null; then
+      ok "MQTT 上游 ${MQTT_UPSTREAM_HOST}:${MQTT_UPSTREAM_PORT} 可达"
+    else
+      echo "WARN: MQTT 上游 ${MQTT_UPSTREAM_HOST}:${MQTT_UPSTREAM_PORT} 不可达（Broker 未启动？）"
+    fi
+  fi
+
+  if command -v ss >/dev/null 2>&1; then
+    if ss -tln | grep -qE ':(1883)\b'; then
+      bind1883="$(ss -tln | grep -E ':(1883)\b' || true)"
+      if [[ "${bind1883}" == *"0.0.0.0:1883"* ]] || [[ "${bind1883}" == *"[::]:1883"* ]]; then
+        echo "WARN: 1883 监听在 0.0.0.0/::（应仅 127.0.0.1；并确认安全组未放行 1883）"
+      else
+        ok "1883 未对 0.0.0.0 监听（符合路线 A）"
+      fi
+    else
+      echo "WARN: 本机无进程监听 1883（Broker 未部署时 MQTTS 握手后可能断连）"
+    fi
   fi
 fi
 

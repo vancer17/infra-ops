@@ -1,0 +1,24 @@
+# =============================================================================
+# MQTT over TLS（MQTTS）— Nginx stream 四层反代
+# 公网 ${MQTT_TLS_PORT} TLS 终止 → 本机 Broker 明文 ${MQTT_UPSTREAM_HOST}:${MQTT_UPSTREAM_PORT}
+# 不对外暴露 1883；由 entrypoint 在 NGINX_MQTT_TLS_ENABLED=1 时渲染
+# =============================================================================
+
+upstream mqtt_plain_backend {
+    server ${MQTT_UPSTREAM_HOST}:${MQTT_UPSTREAM_PORT};
+}
+
+server {
+    listen ${MQTT_TLS_PORT} ssl;
+    listen [::]:${MQTT_TLS_PORT} ssl;
+
+    ssl_certificate     /etc/letsencrypt/live/${MQTT_TLS_CERT_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${MQTT_TLS_CERT_DOMAIN}/privkey.pem;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    proxy_pass          mqtt_plain_backend;
+    proxy_connect_timeout 10s;
+    # MQTT 长连接；默认 10m 过短会导致空闲断连
+    proxy_timeout       24h;
+}

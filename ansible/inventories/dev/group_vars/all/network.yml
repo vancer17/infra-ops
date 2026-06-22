@@ -164,6 +164,7 @@ app_ports:
   http: 80
   https: 443
   app: 8080
+  mqtt_tls: 8883
 
 # -----------------------------------------------------------------------------
 # security_group_ingress — Dev ECS 入站摘要（与控制台 remark.log 对齐，Ansible 不改云）
@@ -190,11 +191,16 @@ security_group_ingress:
       port: 80
       source: "0.0.0.0/0"
       note: "可 301 至 443"
+    - id: IN-MQTT-TLS-PUBLIC-DEV
+      protocol: tcp
+      port: 8883
+      source: "0.0.0.0/0"
+      note: "MQTTS；Nginx stream TLS 终止 → 127.0.0.1:1883"
   not_exposed:
     - port: 8080
       note: "应用容器仅 127.0.0.1，由 Nginx 反代"
     - port: 1883
-      note: "MQTT 待独立规划"
+      note: "MQTT 明文仅本机回环；公网使用 8883 MQTTS"
 
 # -----------------------------------------------------------------------------
 # host_firewall — 目标机 ufw 策略（Bootstrap 期不启用）
