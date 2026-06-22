@@ -1,15 +1,16 @@
 # Dev 业务网关（Compose）
 
-在 **dev-01** 上以 Docker Compose 运行公网 API 出口：**DNS-01 签发 Let's Encrypt 证书** + **Nginx（host 网络）** 反代宿主机 `127.0.0.1:8080`。
+在 **dev-01** 上以 Docker Compose 运行公网 API + MQTT 出口：**DNS-01 签发 Let's Encrypt** + **Nginx（host 网络）** 反代 `127.0.0.1:8080`，**stream MQTTS** `:8883` → `127.0.0.1:1883`。
 
-替代原宿主机 Ansible 管理的自签 Nginx（迁移时须先 `systemctl disable --now nginx`）。
+**当前**：`backend.yizuxing.com` / `mqtt.yizuxing.com`；镜像 `1.0.2`。详见 [Runbook](../../docs/docker/dev-gateway.runbook.md) 与 [阶段 J 验收](../../docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md)。
 
 ## 架构
 
 ```text
 certbot-init (一次性)  →  写入 letsencrypt 卷
 certbot-renew (常驻)   →  就绪门控 + 续期 + reload nginx
-nginx (host 网络)      →  :80 / :443  →  127.0.0.1:8080
+nginx (host 网络)      →  :80 / :443 → 127.0.0.1:8080
+                       →  :8883 (stream TLS) → 127.0.0.1:1883
 ```
 
 | 组件 | 容器名 | 说明 |
@@ -101,12 +102,17 @@ make issue-staging
 ```bash
 make verify
 
-# 公网（勿使用 -k）
-curl -s "https://backend.jxqydw.com/healthz"
-curl -s "https://backend.jxqydw.com/readyz"
+# 公网 API（勿使用 -k）
+curl -s "https://backend.yizuxing.com/healthz"
+curl -s "https://backend.yizuxing.com/readyz"
+
+# MQTTS
+echo | openssl s_client -connect mqtt.yizuxing.com:8883 -servername mqtt.yizuxing.com 2>&1 | grep "Verify return code"
 ```
 
-微信小程序另须在公众平台配置 **request 合法域名**。
+微信小程序须在公众平台配置 **request 合法域名** `backend.yizuxing.com`。
+
+详见 [阶段 J 验收](../../docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md)。
 
 ## 相关文档
 

@@ -12,12 +12,13 @@
 #
 # 【访问路径（与安全组 remark.log 对齐）】
 #   WG 开发机：  http://dev-app.internal → 10.200.0.2 → Compose Nginx（内网 HTTP）→ 127.0.0.1:8080
-#   小程序/外网： https://backend.jxqydw.com → Compose Nginx（LE）→ 127.0.0.1:8080
+#   小程序/外网： https://backend.yizuxing.com → Compose Nginx（LE）→ 127.0.0.1:8080
+#   MQTT 公网：  mqtt.yizuxing.com:8883（stream TLS）→ 127.0.0.1:1883（不经 http 块）
 #   应用 8080 不对公网开放（安全组无 8080 入站）
 #
 # 【状态】
-#   enabled: true / runtime: compose（2026-06-17 阶段 4 验收）
-#   公网 HTTPS：Let's Encrypt DNS-01，域名 backend.jxqydw.com（微信小程序 TLS）
+#   enabled: true / runtime: compose（2026-06-17 阶段 4；2026-06-22 阶段 J 域名 + MQTTS）
+#   公网 HTTPS：Let's Encrypt DNS-01，域名 backend.yizuxing.com（已备案 yizuxing.com）
 #   宿主机 nginx-dev.yml 已停用；见 gateway.yml、docs/docker/dev-gateway.runbook.md
 #
 # =============================================================================
@@ -46,6 +47,7 @@ nginx:
   listen:
     http: 80
     https: 443
+    mqtt_tls: 8883
 
   # ---------------------------------------------------------------------------
   # server_name — 虚拟主机名（Nginx server_name 指令）
@@ -57,7 +59,7 @@ nginx:
     # 公网 EIP；小程序/Dev 外网联调；正式域名确定后追加并保留 IP 过渡期
     public:
       - "121.41.58.20"
-      - backend.jxqydw.com
+      - backend.yizuxing.com
     # ci-01 同机 WG 地址；可选直连 IP 调试（非 DNS 名）
     wg:
       - "10.200.0.2"
@@ -82,7 +84,7 @@ nginx:
     public_http_enabled: true
     public_https_enabled: true
     # 对应 remark.log：IN-HTTP-PUBLIC-DEV / IN-HTTPS-PUBLIC-DEV（0.0.0.0/0）
-    public_ingress_note: "小程序、硬件 HTTP API；MQTT 不走本 Nginx"
+    public_ingress_note: "小程序 HTTPS API；MQTT MQTTS 走 stream :8883，不经本 http 块"
     wg_ingress_note: "IN-HTTP-WG / IN-HTTPS-WG"
 
   # ---------------------------------------------------------------------------
@@ -121,9 +123,9 @@ nginx:
       common_name: "121.41.58.20"
       subject_alt_names:
         - IP:121.41.58.20
-        - DNS:backend.jxqydw.com
+        - DNS:backend.yizuxing.com
       # compose 模式：provider: letsencrypt_dns，证书由 certbot 卷管理，不经此目录
-      mini_program_note: "微信：Compose 网关 + backend.jxqydw.com 合法域名"
+      mini_program_note: "微信：Compose 网关 + backend.yizuxing.com 合法域名（yizuxing.com 已备案）"
 
   # ---------------------------------------------------------------------------
   # logging — 业务访问日志（与 Hub /var/log/nginx/hub-*.log 分离）

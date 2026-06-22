@@ -58,8 +58,9 @@ ansible dev-01 -i ansible/inventories/dev/ -m debug -a var=nginx -c local
 | `gateway.status` | `operational` |
 | `dev_hosts.dev-01.nginx_app_status` | `operational` |
 | `dev_hosts.dev-01.gateway_compose_status` | `operational` |
+| `dev_hosts.dev-01.mqtt_tls_status` | `operational`（2026-06-22） |
 
-验收（Compose LE）：[docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md](../../docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md)
+验收（Compose LE + MQTTS）：[阶段 J](../../docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md)（当前）；[阶段 4](../../docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md)（历史）
 
 历史（host 自签）：[docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md](../../docs/acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md)
 

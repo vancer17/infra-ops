@@ -91,7 +91,9 @@ app:
   # ---------------------------------------------------------------------------
   domains:
     internal: dev-app.internal
-    public: backend.jxqydw.com
+    public: backend.yizuxing.com
+    public_legacy: backend.jxqydw.com
+    mqtt_tls: mqtt.yizuxing.com
     public_ip: "121.41.58.20"
     wg_ip: "10.200.0.2"
 
@@ -104,7 +106,7 @@ app:
     - type: mini_program
       note: "微信小程序 HTTPS API；需公网 443 与后续正式域名"
     - type: hardware_device
-      note: "硬件 HTTP API；MQTT 独立规划，不经本 HTTP 栈"
+      note: "MQTT MQTTS mqtt.yizuxing.com:8883（路线 A）；HTTP API 走 HTTPS"
     - type: public_internet
       note: "remark.log IN-HTTPS-PUBLIC-DEV"
 

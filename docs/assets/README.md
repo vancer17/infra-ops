@@ -32,7 +32,8 @@
 | [阶段 G5 Hub 资产纳管验收](../acceptance/20260617-阶段G5-JumpServer资产纳管-Hub验收.md) | JumpServer Hub-01 `jump_ops` + 账号推送 |
 | [阶段 G5 Dev 资产纳管验收](../acceptance/20260618-阶段G5-JumpServer资产纳管-Dev验收.md) | JumpServer Dev-01（CI-DEV-01）`jump_ops` + Web 终端 |
 | [阶段 3 Dev 业务 Nginx 验收](../acceptance/20260616-阶段3-Dev业务Nginx与占位API验收.md) | dev-01 占位 API + 宿主机 Nginx（历史 host 模式） |
-| [阶段 4 Dev Gateway Compose 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) | Compose LE 网关 + Docker 网段修复 + 微信 TLS |
+| [阶段 4 Dev Gateway Compose 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) | Compose LE 网关 + Docker 网段修复（历史域名 jxqydw） |
+| [阶段 J MQTT / 域名迁移验收](../acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md) | `backend.yizuxing.com` + `mqtt.yizuxing.com` MQTTS 8883（路线 A） |
 | [Dev Gateway Runbook](../docker/dev-gateway.runbook.md) | `gateway-compose.yml` / Compose 运维 |
 | [Dev 业务 Nginx Runbook](../nginx/dev-nginx.runbook.md) | 业务出口总览（Compose 当前 / host 历史） |
 | [阶段 F6 WG Client 池验收](../acceptance/20260616-阶段F6-WireGuard人员Client池验收.md) | 五人笔记本 Hub 登记 + zhengyaoyuan Client 验收 |
@@ -64,7 +65,7 @@ host_vars/*.yml             ← 每台主机的 ansible_host 表达式
 | test-01 | `pending` | 未纳入 |
 | RDS `app_dev` | **operational** | 内网 host；见 [阶段 G 验收](../acceptance/20260615-阶段G-Dev-RDS-app_dev验收.md) |
 | Redis 云实例 | **operational** | `petintelli_app` @ DB 0；见 [阶段 I 验收](../acceptance/20260622-阶段I-Dev-Redis验收.md) |
-| dev-01 业务网关 | **operational（compose）** | LE + `backend.jxqydw.com`；见 [阶段 4 验收](../acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md) |
+| dev-01 业务网关 | **operational（compose）** | LE + `backend.yizuxing.com` + MQTTS `mqtt.yizuxing.com:8883`；镜像 `1.0.2`；见 [阶段 J 验收](../acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md) |
 | dev-01 应用 | **operational** | `petintelli-backend` @ 8080 |
 
 ## 维护流程

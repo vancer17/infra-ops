@@ -25,12 +25,14 @@
 gateway:
   enabled: true
 
-  # not_started → 待 gateway-compose.yml apply；operational → Compose 网关已接管 80/443
+  # not_started → 待 gateway-compose.yml apply；operational → Compose 网关已接管 80/443/8883
   status: operational
   operational_at: "2026-06-17"
+  mqtt_tls_operational_at: "2026-06-22"
   acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
-  # 实机首次割接路径（与 Ansible project_dir 可并存）
-  deploy_note: "手工验收于 ~/infra-ops/docker/dev-gateway；Ansible 同步目标 /opt/gateway/compose"
+  mqtt_acceptance_ref: docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md
+  # 实机 Ansible SSOT：/opt/gateway/compose；手工调试可并用 ~/infra-ops/docker/dev-gateway
+  deploy_note: "Ansible @ /opt/gateway/compose；阶段 J：yizuxing 域名 + MQTTS 8883；镜像 1.0.2"
 
   # ---------------------------------------------------------------------------
   # compose — 仅同步项目目录；不在目标机 docker build
@@ -48,7 +50,7 @@ gateway:
 
   # ---------------------------------------------------------------------------
   # images — 本地命名空间 + 分发方式（scripts/docker/build-gateway-images.sh）
-  # 完整引用：{{ namespace }}/{{ name }}:{{ tag }}，例如 infra-ops/certbot-init:1.0.0
+  # 完整引用：{{ namespace }}/{{ name }}:{{ tag }}，例如 infra-ops/certbot-init:1.0.2
   # ---------------------------------------------------------------------------
   images:
     namespace: infra-ops

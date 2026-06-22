@@ -268,6 +268,52 @@ stage_i_redis_acceptance:
   conclusion: "云 Redis petintelli_app @ DB 0 operational；替代原 dev-02 Docker Redis 规划"
 
 # -----------------------------------------------------------------------------
+# stage_j_mqtt_tls_acceptance — 阶段 J MQTT MQTTS + API 域名迁移（ci-01/dev-01，2026-06-22）
+# -----------------------------------------------------------------------------
+stage_j_mqtt_tls_acceptance:
+  completed_at: "2026-06-22"
+  control_host: ci-01
+  target_host: dev-01
+  same_ecs_as: ci-01
+  acceptance_log: logs/console-acceptance.log
+  acceptance_report: docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md
+  runbook: docs/docker/dev-gateway.runbook.md
+  playbooks:
+    - ansible/playbooks/gateway-compose.yml
+  deploy_path_ansible: /opt/gateway/compose
+  checks:
+    ansible_gateway_compose_apply: ok
+    compose_nginx_healthy_1_0_2: ok
+    stream_d_not_conf_d: ok
+    mqtt_tls_8883_listen: ok
+    mqtt_plain_127_0_0_1_1883: ok
+    le_san_api_and_mqtt: ok
+    mqtls_verify_return_0: ok
+    https_healthz_readyz_200: ok
+    http_301_not_beaver_403: ok
+    rds_route_eth0: ok
+  domains:
+    api_public: backend.yizuxing.com
+    api_public_legacy: backend.jxqydw.com
+    mqtt_tls: mqtt.yizuxing.com
+  gateway_compose:
+    status: operational
+    images_tag: "1.0.2"
+    mqtt_route: A
+    nginx_network_mode: host
+  ssl:
+    provider: letsencrypt_dns01
+    expires: "2026-09-20"
+    san:
+      - backend.yizuxing.com
+      - mqtt.yizuxing.com
+  pending:
+    - wechat_mp_request_domain_yizuxing_console
+    - security_group_8883_console_confirm
+    - mqtt_broker_compose_in_infra_ops
+  conclusion: "API 域 yizuxing + MQTTS 8883 路线 A operational；镜像 1.0.2 修复 stream 模板路径"
+
+# -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
 # -----------------------------------------------------------------------------
 # 事实：截图中 4 台运行中实例均在同一 VPC，分属两个 vSwitch（子网）。
@@ -421,14 +467,19 @@ hosts:
     nginx_runtime: compose
     gateway_compose_status: operational
     app_deploy_status: operational
-    api_domain: backend.jxqydw.com
+    api_domain: backend.yizuxing.com
+    api_domain_legacy: backend.jxqydw.com
+    mqtt_tls_domain: mqtt.yizuxing.com
     nginx_app_operational_at: "2026-06-17"
     gateway_compose_operational_at: "2026-06-17"
+    domain_migrated_at: "2026-06-22"
+    mqtt_tls_operational_at: "2026-06-22"
+    gateway_images_tag: "1.0.2"
     app_operational_at: "2026-06-17"
     jumpserver_asset_status: onboarded
     jumpserver_asset_onboarded_at: "2026-06-18"
     jumpserver_console_asset_name: CI-DEV-01
-    note: "与 ci-01 同 ECS；G5 Dev 堡垒机纳管 onboarded（2026-06-18）"
+    note: "与 ci-01 同 ECS；G5 Dev 堡垒机纳管 onboarded；2026-06-22 阶段 J：yizuxing API + MQTTS 8883"
 
   dev-02:
     asset_file: dev-02.yaml

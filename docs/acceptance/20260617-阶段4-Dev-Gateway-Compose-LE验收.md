@@ -1,5 +1,7 @@
 # 阶段 4：Dev Gateway Compose（LE DNS-01）验收
 
+> **后续（2026-06-22）**：API 域已迁至 `backend.yizuxing.com`，MQTT 路线 A `mqtt.yizuxing.com:8883`，网关镜像 `1.0.2`。见 [阶段 J](./20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md)。下文保留阶段 4 当时记录（`jxqydw`）。
+
 | 项 | 说明 |
 |----|------|
 | **日期** | 2026-06-17 |

@@ -4,7 +4,7 @@
 #
 # 【角色说明】
 #   Dev 环境主应用机：Web/API、业务网关统一出口（Compose Nginx 80/443 → 127.0.0.1:8080）。
-#   2026-06-17：Compose LE 网关 operational（见 stage 4 acceptance）。
+#   2026-06-22：API 域名迁移 yizuxing.com + MQTT 路线 A（MQTTS 8883）；见阶段 J acceptance。
 #
 # 【与 CI-01 同机】
 #   本台 ECS（控制台 yax）同时承担 ci-01 角色，见 ci-01.yaml 与 registry.yaml。
@@ -52,7 +52,9 @@ host:
     hostname: null
     ci_same_vpc: true
     ci_access_from: private
-    api_domain: backend.jxqydw.com
+    api_domain: backend.yizuxing.com
+    api_domain_legacy: backend.jxqydw.com
+    api_domain_legacy_status: blocked_icp
 
   security_groups:
     bootstrap:
@@ -60,7 +62,7 @@ host:
         name: sg-dev-ecs-bootstrap
         attached_at: "2026-06-08"
         phase: bootstrap
-        note: "含 IN-HTTP/HTTPS-WG、IN-HTTP/HTTPS-PUBLIC-DEV；8080 不对公网开放"
+        note: "含 IN-HTTP/HTTPS-WG、IN-HTTP/HTTPS-PUBLIC-DEV、IN-MQTT-TLS-PUBLIC-DEV(8883)；8080/1883 不对公网"
     target:
       - id: null
         name: sg-dev-ecs-wg
@@ -195,23 +197,28 @@ host:
     superseded_runtime: host
     domains:
       internal: dev-app.internal
-      public: backend.jxqydw.com
+      public: backend.yizuxing.com
+      public_legacy: backend.jxqydw.com
+      mqtt_tls: mqtt.yizuxing.com
       public_ip: "121.41.58.20"
       wg_access_ip: "10.200.0.2"
     listen:
       http: 80
       https: 443
+      mqtt_tls: 8883
     upstream: "127.0.0.1:8080"
     health_uri: /health
     api_health_uri: /healthz
     ssl: letsencrypt_dns01
     ssl_issuer: "Let's Encrypt (YE2)"
-    ssl_expires: "2026-09-15"
+    ssl_expires: "2026-09-20"
     operational_at: "2026-06-17"
+    domain_migrated_at: "2026-06-22"
+    mqtt_tls_operational_at: "2026-06-22"
     playbooks:
       - ansible/playbooks/gateway-compose.yml
     runbook: docs/docker/dev-gateway.runbook.md
-    acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
+    acceptance_ref: docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md
     legacy:
       runtime: host
       playbooks:
@@ -225,10 +232,20 @@ host:
     project_dir_manual: ~/infra-ops/docker/dev-gateway
     project_dir_ansible: /opt/gateway/compose
     images_namespace: infra-ops
-    images_tag: "1.0.0"
+    images_tag: "1.0.2"
     images_delivery: local
     certbot_challenge: dns-01
-    primary_domain: backend.jxqydw.com
+    primary_domain: backend.yizuxing.com
+    certbot_domains: "backend.yizuxing.com mqtt.yizuxing.com"
+    nginx_network_mode: host
+    mqtt:
+      enabled: true
+      route: A
+      tls_domain: mqtt.yizuxing.com
+      tls_port: 8883
+      upstream: "127.0.0.1:1883"
+      plain_port_not_public: 1883
+      operational_at: "2026-06-22"
     docker_network:
       certbot_internal_subnet: "172.30.0.0/24"
       reserved_vpc_subnets:
@@ -241,12 +258,13 @@ host:
     playbooks:
       - ansible/playbooks/gateway-compose.yml
     runbook: docs/docker/dev-gateway.runbook.md
-    acceptance_ref: docs/acceptance/20260617-阶段4-Dev-Gateway-Compose-LE验收.md
+    acceptance_ref: docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md
 
   wechat_miniprogram:
-    request_domain: backend.jxqydw.com
+    request_domain: backend.yizuxing.com
+    request_domain_legacy: backend.jxqydw.com
     tls_requirement: "受信 CA（LE）；须配置公众平台合法域名"
-    verified_at: "2026-06-17"
+    verified_at: "2026-06-22"
   ansible:
     inventory: ansible/inventories/dev/
     inventory_user: deploy
