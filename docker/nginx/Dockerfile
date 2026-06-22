@@ -13,10 +13,10 @@ RUN rm -f /etc/nginx/conf.d/default.conf
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/templates/dev-app.conf.template /etc/nginx/templates/dev-app.conf.template
 COPY nginx/templates/internal-http.conf.template /etc/nginx/templates/internal-http.conf.template
-COPY nginx/templates/mqtt-stream.conf.template /etc/nginx/templates/mqtt-stream.conf.template
+COPY nginx/stream-templates/mqtt-stream.conf.template /etc/nginx/stream-templates/mqtt-stream.conf.template
 COPY nginx/docker-entrypoint.d/50-internal-http.sh /docker-entrypoint.d/50-internal-http.sh
 COPY nginx/docker-entrypoint.d/60-mqtt-stream.sh /docker-entrypoint.d/60-mqtt-stream.sh
 
 RUN chmod +x /docker-entrypoint.d/50-internal-http.sh \
     && chmod +x /docker-entrypoint.d/60-mqtt-stream.sh \
-    && mkdir -p /var/log/nginx /etc/nginx/stream.d
+    && mkdir -p /var/log/nginx /etc/nginx/stream.d /etc/nginx/stream-templates

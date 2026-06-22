@@ -3,9 +3,11 @@ set -eu
 
 # 公网 MQTTS（stream 8883）→ 127.0.0.1:1883；NGINX_MQTT_TLS_ENABLED=0 时不生成配置
 stream_dir="/etc/nginx/stream.d"
-template="/etc/nginx/templates/mqtt-stream.conf.template"
+# 勿放在 /etc/nginx/templates/：官方 20-envsubst-on-templates.sh 会写入 conf.d（http 上下文）导致启动失败
+template="/etc/nginx/stream-templates/mqtt-stream.conf.template"
 output="${stream_dir}/mqtt-stream.conf"
 placeholder="${stream_dir}/00-disabled.conf"
+stray_http_conf="/etc/nginx/conf.d/mqtt-stream.conf"
 
 mkdir -p "${stream_dir}"
 
@@ -17,6 +19,9 @@ if [ "${NGINX_MQTT_TLS_ENABLED:-0}" != "1" ]; then
 fi
 
 rm -f "${placeholder}"
+
+# 旧版镜像曾把 stream 模板误渲染到 conf.d，启动前清理
+rm -f "${stray_http_conf}"
 
 if [ -z "${MQTT_TLS_DOMAIN:-}" ]; then
   echo "ERROR: NGINX_MQTT_TLS_ENABLED=1 但 MQTT_TLS_DOMAIN 未设置" >&2
