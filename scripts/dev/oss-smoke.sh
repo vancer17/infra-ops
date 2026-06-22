@@ -196,14 +196,16 @@ cmd_put_get() {
   # 不用 ossutil cat：v1.7 会在文件内容后追加 "0.xxx(s) elapsed"，导致字符串比对失败
   local smoke_downloaded
   smoke_downloaded="$(mktemp)"
-  trap 'rm -f "${smoke_local}" "${smoke_downloaded}"' RETURN
 
   oss_smoke_log "download: ${remote_uri}"
   oss_smoke_ossutil cp "${remote_uri}" "${smoke_downloaded}" -f
 
   if ! cmp -s "${smoke_local}" "${smoke_downloaded}"; then
+    rm -f "${smoke_local}" "${smoke_downloaded}"
     oss_smoke_die "content mismatch after get (local vs downloaded)"
   fi
+
+  rm -f "${smoke_local}" "${smoke_downloaded}"
 
   oss_smoke_log "list prefix: oss://${OSS_DEV_BUCKET}/${OSS_SMOKE_KEY_PREFIX}/"
   oss_smoke_ossutil ls "oss://${OSS_DEV_BUCKET}/${OSS_SMOKE_KEY_PREFIX}/" --limited-num 5
@@ -232,11 +234,12 @@ cmd_deny_isolation() {
   probe_local="$(mktemp)"
   probe_uri="oss://${iso_bucket}/smoke-test-must-fail.txt"
   echo "must not upload" >"${probe_local}"
-  trap 'rm -f "${probe_local}"' RETURN
 
   if oss_smoke_ossutil cp "${probe_local}" "${probe_uri}" -f >/dev/null 2>&1; then
+    rm -f "${probe_local}"
     oss_smoke_die "isolation FAILED: can put to ${iso_bucket}"
   fi
+  rm -f "${probe_local}"
   oss_smoke_log "put ${iso_bucket}: denied (OK)"
 
   oss_smoke_log "deny-isolation OK"
