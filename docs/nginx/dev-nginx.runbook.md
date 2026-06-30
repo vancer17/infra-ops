@@ -2,12 +2,14 @@
 
 dev-01 业务 API 与 MQTT 公网出口：**Compose 网关**（当前）或 **宿主机 Nginx**（历史）。
 
-**状态（2026-06-22）**：`nginx.runtime: compose`，`gateway.status: operational`。API **Let's Encrypt** + `backend.yizuxing.com`；MQTT 路线 A **`mqtt.yizuxing.com:8883`**。验收见 [阶段 J](../acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md)。
+**状态（2026-06-30）**：`nginx.runtime: compose`，`gateway.status: operational`。API **Let's Encrypt** + `backend.yizuxing.com`；MQTT 路线 A **`mqtt.yizuxing.com:8883`**；device-management-system 通过 `/device-management` 路径隔离接入。验收见 [阶段 J](../acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md) 与 [device-management 路径隔离验收](../acceptance/20260630-Dev-Gateway-device-management路径隔离验收.md)。
 
 ## 架构（Compose — 当前）
 
 ```text
 小程序 / 公网 API  →  backend.yizuxing.com:443（LE）→ 127.0.0.1:8080（petintelli-backend）
+设备管理系统       →  backend.yizuxing.com/device-management/api/* → 127.0.0.1:18080/api/*
+设备管理系统前端   →  backend.yizuxing.com/device-management/ → /home/deploy/device-management-system/frontend
 设备 / 公网 MQTT   →  mqtt.yizuxing.com:8883（stream TLS）→ 127.0.0.1:1883（Broker）
 WG 内网            →  dev-app.internal:80（HTTP）→ 127.0.0.1:8080
 ```
@@ -15,6 +17,8 @@ WG 内网            →  dev-app.internal:80（HTTP）→ 127.0.0.1:8080
 | 访问方 | 入口 |
 |--------|------|
 | 微信小程序 / 公网 API | `https://backend.yizuxing.com` |
+| 设备管理系统 | `https://backend.yizuxing.com/device-management/` |
+| 设备管理系统 API | `https://backend.yizuxing.com/device-management/api/*` |
 | 硬件 / 设备 MQTT | `mqtts://mqtt.yizuxing.com:8883` |
 | WG 开发机 | `http://dev-app.internal`（DNS → `10.200.0.2`） |
 | 本机调试 | `http://127.0.0.1:8080/healthz`（不经 Nginx） |
@@ -58,6 +62,9 @@ WG / 公网  →  dev-01 宿主机 Nginx :443（自签）→  127.0.0.1:8080
 ```bash
 curl -sS https://backend.yizuxing.com/healthz
 curl -sS --max-time 15 https://backend.yizuxing.com/readyz
+curl -sS https://backend.yizuxing.com/device-management/healthz
+curl -sS --max-time 15 https://backend.yizuxing.com/device-management/readyz
+curl -sS -I https://backend.yizuxing.com/device-management/
 echo | openssl s_client -connect backend.yizuxing.com:443 -servername backend.yizuxing.com 2>&1 | grep "Verify return code"
 echo | openssl s_client -connect mqtt.yizuxing.com:8883 -servername mqtt.yizuxing.com 2>&1 | grep "Verify return code"
 ```

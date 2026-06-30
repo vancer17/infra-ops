@@ -1,8 +1,8 @@
 # Dev 业务网关（Compose）
 
-在 **dev-01** 上以 Docker Compose 运行公网 API + MQTT 出口：**DNS-01 签发 Let's Encrypt** + **Nginx（host 网络）** 反代 `127.0.0.1:8080`，**stream MQTTS** `:8883` → `127.0.0.1:1883`。
+在 **dev-01** 上以 Docker Compose 运行公网 API + MQTT 出口：**DNS-01 签发 Let's Encrypt** + **Nginx（host 网络）** 反代 `127.0.0.1:8080`，以 `/device-management` 路径隔离反代 `127.0.0.1:18080`，并通过 **stream MQTTS** `:8883` → `127.0.0.1:1883`。
 
-**当前**：`backend.yizuxing.com` / `mqtt.yizuxing.com`；镜像 `1.0.2`。详见 [Runbook](../../docs/docker/dev-gateway.runbook.md) 与 [阶段 J 验收](../../docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md)。
+**当前**：`backend.yizuxing.com` / `mqtt.yizuxing.com`；镜像 `1.0.3`；`/device-management` 已验收。详见 [Runbook](../../docs/docker/dev-gateway.runbook.md)、[阶段 J 验收](../../docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md) 与 [device-management 路径隔离验收](../../docs/acceptance/20260630-Dev-Gateway-device-management路径隔离验收.md)。
 
 ## 架构
 
@@ -10,6 +10,8 @@
 certbot-init (一次性)  →  写入 letsencrypt 卷
 certbot-renew (常驻)   →  就绪门控 + 续期 + reload nginx
 nginx (host 网络)      →  :80 / :443 → 127.0.0.1:8080
+                       →  /device-management/api/* → 127.0.0.1:18080/api/*
+                       →  /device-management/ → /home/deploy/device-management-system/frontend
                        →  :8883 (stream TLS) → 127.0.0.1:1883
 ```
 
@@ -80,6 +82,10 @@ make verify
 | `ALIYUN_DNS_*` | 阿里云 DNS API（DNS-01 必填） |
 | `NGINX_SERVER_NAMES` | 公网 HTTPS `server_name` |
 | `NGINX_INTERNAL_SERVER_NAMES` | 可选 WG 内网 HTTP，不强制 HTTPS |
+| `DMS_SERVICE_PREFIX` | device-management 路径前缀，默认 `/device-management` |
+| `DMS_UPSTREAM_HOST` / `DMS_UPSTREAM_PORT` | device-management 后端，当前 `127.0.0.1:18080` |
+| `DMS_FRONTEND_HOST_DIR` | 前端宿主机目录，当前 `/home/deploy/device-management-system/frontend` |
+| `DMS_FRONTEND_WEB_ROOT` | Nginx 容器内静态根，当前 `/srv/www` |
 
 ## 常用命令
 
@@ -105,6 +111,9 @@ make verify
 # 公网 API（勿使用 -k）
 curl -s "https://backend.yizuxing.com/healthz"
 curl -s "https://backend.yizuxing.com/readyz"
+curl -s "https://backend.yizuxing.com/device-management/healthz"
+curl -s "https://backend.yizuxing.com/device-management/readyz"
+curl -I "https://backend.yizuxing.com/device-management/"
 
 # MQTTS
 echo | openssl s_client -connect mqtt.yizuxing.com:8883 -servername mqtt.yizuxing.com 2>&1 | grep "Verify return code"

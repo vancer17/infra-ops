@@ -314,6 +314,44 @@ stage_j_mqtt_tls_acceptance:
   conclusion: "API 域 yizuxing + MQTTS 8883 路线 A operational；镜像 1.0.2 修复 stream 模板路径"
 
 # -----------------------------------------------------------------------------
+# stage_device_management_gateway_acceptance — device-management 路径隔离（dev-01，2026-06-30）
+# -----------------------------------------------------------------------------
+stage_device_management_gateway_acceptance:
+  completed_at: "2026-06-30"
+  control_host: dev-01
+  target_host: dev-01
+  same_ecs_as: ci-01
+  acceptance_log: logs/acceptance.log
+  acceptance_report: docs/acceptance/20260630-Dev-Gateway-device-management路径隔离验收.md
+  runbook: docs/docker/dev-gateway.runbook.md
+  playbooks:
+    - ansible/playbooks/gateway-compose.yml
+  deploy_path_ansible: /opt/gateway/compose
+  checks:
+    compose_nginx_healthy_1_0_3: ok
+    nginx_t: ok
+    device_management_upstream_18080_healthz_200: ok
+    device_management_public_healthz_200: ok
+    device_management_public_readyz_200: ok
+    device_management_public_frontend_200: ok
+    device_management_public_auth_me_401: ok
+    device_management_internal_healthz_200: ok
+    device_management_internal_frontend_200: ok
+    mqtt_tls_8883_still_ok: ok
+    rds_route_eth0: ok
+  service:
+    name: device-management-system
+    public_prefix: https://backend.yizuxing.com/device-management/
+    internal_prefix: http://dev-app.internal/device-management/
+    upstream: "127.0.0.1:18080"
+    frontend_host_dir: /home/deploy/device-management-system/frontend
+  gateway_compose:
+    status: operational
+    images_tag: "1.0.3"
+    nginx_network_mode: host
+  conclusion: "device-management-system 通过 /device-management 路径隔离接入业务面 Compose Nginx；公网与 WG 内网均验收通过"
+
+# -----------------------------------------------------------------------------
 # vpc — 当前可用 ECS 共享的 VPC 拓扑摘要
 # -----------------------------------------------------------------------------
 # 事实：截图中 4 台运行中实例均在同一 VPC，分属两个 vSwitch（子网）。
@@ -474,12 +512,14 @@ hosts:
     gateway_compose_operational_at: "2026-06-17"
     domain_migrated_at: "2026-06-22"
     mqtt_tls_operational_at: "2026-06-22"
-    gateway_images_tag: "1.0.2"
+    gateway_images_tag: "1.0.3"
+    device_management_path: /device-management
+    device_management_operational_at: "2026-06-30"
     app_operational_at: "2026-06-17"
     jumpserver_asset_status: onboarded
     jumpserver_asset_onboarded_at: "2026-06-18"
     jumpserver_console_asset_name: CI-DEV-01
-    note: "与 ci-01 同 ECS；G5 Dev 堡垒机纳管 onboarded；2026-06-22 阶段 J：yizuxing API + MQTTS 8883"
+    note: "与 ci-01 同 ECS；G5 Dev 堡垒机纳管 onboarded；2026-06-22 阶段 J：yizuxing API + MQTTS 8883；2026-06-30：device-management 路径隔离 operational"
 
   dev-02:
     asset_file: dev-02.yaml

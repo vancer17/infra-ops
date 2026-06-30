@@ -128,14 +128,17 @@ dev_hosts:
     ansible_host_internal: "172.21.226.38"
     same_ecs_as_ci: true
     bootstrap_status: bootstrap_done
-    # 业务网关（2026-06-17 Compose LE；2026-06-22 MQTTS 8883 + yizuxing 域名）
+    # 业务网关（2026-06-17 Compose LE；2026-06-22 MQTTS 8883 + yizuxing 域名；
+    # 2026-06-30 device-management /device-management 路径隔离）
     nginx_app_status: operational
     nginx_runtime: compose
     gateway_compose_status: operational
-    gateway_images_tag: "1.0.2"
+    gateway_images_tag: "1.0.3"
     api_domain: backend.yizuxing.com
     mqtt_tls_domain: mqtt.yizuxing.com
     mqtt_tls_status: operational
+    device_management_path: /device-management
+    device_management_status: operational
     app_deploy_status: operational
   dev-02:
     public_ip: "112.124.104.223"

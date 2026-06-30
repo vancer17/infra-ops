@@ -5,6 +5,7 @@
 # 【角色说明】
 #   Dev 环境主应用机：Web/API、业务网关统一出口（Compose Nginx 80/443 → 127.0.0.1:8080）。
 #   2026-06-22：API 域名迁移 yizuxing.com + MQTT 路线 A（MQTTS 8883）；见阶段 J acceptance。
+#   2026-06-30：device-management-system 通过 /device-management 路径隔离接入 127.0.0.1:18080。
 #
 # 【与 CI-01 同机】
 #   本台 ECS（控制台 yax）同时承担 ci-01 角色，见 ci-01.yaml 与 registry.yaml。
@@ -21,7 +22,7 @@
 # =============================================================================
 
 schema_version: "1"
-updated_at: "2026-06-22"
+updated_at: "2026-06-30"
 updated_by: "infra-ops"
 
 host:
@@ -55,6 +56,7 @@ host:
     api_domain: backend.yizuxing.com
     api_domain_legacy: backend.jxqydw.com
     api_domain_legacy_status: blocked_icp
+    device_management_public_path: https://backend.yizuxing.com/device-management/
 
   security_groups:
     bootstrap:
@@ -207,6 +209,18 @@ host:
       https: 443
       mqtt_tls: 8883
     upstream: "127.0.0.1:8080"
+    additional_routes:
+      device_management:
+        prefix: /device-management
+        upstream: "127.0.0.1:18080"
+        frontend_host_dir: /home/deploy/device-management-system/frontend
+        frontend_web_root: /srv/www
+        public_url: https://backend.yizuxing.com/device-management/
+        internal_url: http://dev-app.internal/device-management/
+        healthz: /device-management/healthz
+        readyz: /device-management/readyz
+        api_prefix: /device-management/api/
+        operational_at: "2026-06-30"
     health_uri: /health
     api_health_uri: /healthz
     ssl: letsencrypt_dns01
@@ -219,6 +233,7 @@ host:
       - ansible/playbooks/gateway-compose.yml
     runbook: docs/docker/dev-gateway.runbook.md
     acceptance_ref: docs/acceptance/20260622-阶段J-Dev-MQTT-MQTTS与域名迁移验收.md
+    device_management_acceptance_ref: docs/acceptance/20260630-Dev-Gateway-device-management路径隔离验收.md
     legacy:
       runtime: host
       playbooks:
@@ -232,12 +247,19 @@ host:
     project_dir_manual: ~/infra-ops/docker/dev-gateway
     project_dir_ansible: /opt/gateway/compose
     images_namespace: infra-ops
-    images_tag: "1.0.2"
+    images_tag: "1.0.3"
     images_delivery: local
     certbot_challenge: dns-01
     primary_domain: backend.yizuxing.com
     certbot_domains: "backend.yizuxing.com mqtt.yizuxing.com"
     nginx_network_mode: host
+    device_management:
+      service_prefix: /device-management
+      upstream: "127.0.0.1:18080"
+      frontend_host_dir: /home/deploy/device-management-system/frontend
+      public_url: https://backend.yizuxing.com/device-management/
+      internal_url: http://dev-app.internal/device-management/
+      operational_at: "2026-06-30"
     mqtt:
       enabled: true
       route: A
