@@ -1,6 +1,12 @@
 # =============================================================================
 # gateway_compose role — 默认变量
 # =============================================================================
+#
+# 基础信息：
+#   - 消费 inventories/dev/group_vars/all/gateway.yml。
+#   - 渲染 docker/dev-gateway/.env，供 Compose Nginx/certbot 容器读取。
+#   - device_management 变量用于在业务面网关上按 /device-management 路径隔离
+#     device-management-system，不改变后端 127.0.0.1:18080 监听位置。
 
 ---
 
@@ -45,6 +51,12 @@ gateway_nginx_internal_server_names: "{{ gateway.nginx.internal_server_names | d
 
 gateway_upstream_host: "{{ gateway.upstream.host | default('127.0.0.1') }}"
 gateway_upstream_port: "{{ gateway.upstream.port | default(8080) }}"
+
+gateway_device_management_service_prefix: "{{ gateway.device_management.service_prefix | default('/device-management') }}"
+gateway_device_management_upstream_host: "{{ gateway.device_management.upstream_host | default('127.0.0.1') }}"
+gateway_device_management_upstream_port: "{{ gateway.device_management.upstream_port | default(18080) }}"
+gateway_device_management_frontend_host_dir: "{{ gateway.device_management.frontend_host_dir | default('/home/deploy/device-management-system/frontend') }}"
+gateway_device_management_frontend_web_root: "{{ gateway.device_management.frontend_web_root | default('/srv/www') }}"
 
 gateway_mqtt_enabled: "{{ gateway.mqtt.enabled | default(false) }}"
 gateway_mqtt_tls_domain: "{{ gateway.mqtt.tls_domain | default('') }}"

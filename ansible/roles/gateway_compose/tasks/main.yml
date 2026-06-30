@@ -4,6 +4,13 @@
 # 目标机：同步 compose 项目 → 按 delivery 准备镜像 → compose up
 # 镜像：make build-gateway-images（本地 tag）；可选 save/load bundle；或真实 ACR pull
 # =============================================================================
+#
+# 基础信息：
+#   - 只部署 Dev 业务面 gateway，不处理 Hub 管理面 Nginx。
+#   - device-management-system 通过 /device-management 路径隔离接入，
+#     前端目录只读挂载到 Nginx 容器，API 反代到 127.0.0.1:18080。
+#   - 目标机已有后端监听端口保持不变，避免与其它服务端口冲突。
+# =============================================================================
 
 ---
 
@@ -113,6 +120,33 @@
     that:
       - gateway_upstream_port | int == app.listen.port | default(8080) | int
     fail_msg: "gateway.upstream.port must match app.listen.port"
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert device-management path prefix is valid
+  ansible.builtin.assert:
+    that:
+      - gateway_device_management_service_prefix is match('^/[A-Za-z0-9/_-]+$')
+      - gateway_device_management_service_prefix is not match('.*\\s.*')
+      - gateway_device_management_service_prefix is not match('.*/$')
+    fail_msg: >-
+      gateway.device_management.service_prefix must start with /, must not end
+      with /, and may only contain letters, numbers, underscore, hyphen, and /
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Stat device-management frontend directory on target
+  ansible.builtin.stat:
+    path: "{{ gateway_device_management_frontend_host_dir }}"
+  register: gateway_device_management_frontend_stat
+  tags: [gateway, gateway-compose, preflight]
+
+- name: Assert device-management frontend directory exists
+  ansible.builtin.assert:
+    that:
+      - gateway_device_management_frontend_stat.stat.isdir | default(false) | bool
+    fail_msg: >-
+      device-management frontend directory is missing:
+      {{ gateway_device_management_frontend_host_dir }}.
+      Deploy frontend files first, or update gateway.device_management.frontend_host_dir.
   tags: [gateway, gateway-compose, preflight]
 
 - name: Warn when host Nginx runtime is still active in inventory

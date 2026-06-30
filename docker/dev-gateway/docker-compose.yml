@@ -16,6 +16,11 @@
 # 部署目录（与 Ansible gateway.compose.project_dir 一致）：
 #   /opt/gateway/compose
 #
+# device-management-system 路径隔离：
+#   /device-management/     由 Nginx 托管前端静态目录
+#   /device-management/api/ 转发到宿主机 127.0.0.1:18080/api/
+#   前端目录通过只读 bind mount 注入 Nginx 容器，不改变后端监听端口。
+#
 # 快速开始（目标机，delivery=local 且已 build 后）：
 #   cp .env.example .env
 #   docker compose up -d
@@ -92,10 +97,15 @@ services:
       - .env
     environment:
       CERTBOT_PRIMARY_DOMAIN: ${CERTBOT_PRIMARY_DOMAIN}
+      NGINX_ENVSUBST_FILTER: ^(APP_UPSTREAM_HOST|APP_UPSTREAM_PORT|CERTBOT_PRIMARY_DOMAIN|NGINX_SERVER_NAMES|DMS_SERVICE_PREFIX|DMS_UPSTREAM_HOST|DMS_UPSTREAM_PORT|DMS_FRONTEND_WEB_ROOT)$
       NGINX_SERVER_NAMES: ${NGINX_SERVER_NAMES}
       NGINX_INTERNAL_SERVER_NAMES: ${NGINX_INTERNAL_SERVER_NAMES:-}
       APP_UPSTREAM_HOST: ${APP_UPSTREAM_HOST:-127.0.0.1}
       APP_UPSTREAM_PORT: ${APP_UPSTREAM_PORT:-8080}
+      DMS_SERVICE_PREFIX: ${DMS_SERVICE_PREFIX:-/device-management}
+      DMS_UPSTREAM_HOST: ${DMS_UPSTREAM_HOST:-127.0.0.1}
+      DMS_UPSTREAM_PORT: ${DMS_UPSTREAM_PORT:-18080}
+      DMS_FRONTEND_WEB_ROOT: ${DMS_FRONTEND_WEB_ROOT:-/srv/www}
       NGINX_MQTT_TLS_ENABLED: ${NGINX_MQTT_TLS_ENABLED:-0}
       MQTT_TLS_DOMAIN: ${MQTT_TLS_DOMAIN:-}
       MQTT_TLS_PORT: ${MQTT_TLS_PORT:-8883}
@@ -105,6 +115,7 @@ services:
     volumes:
       - letsencrypt:/etc/letsencrypt:ro
       - nginx-logs:/var/log/nginx
+      - ${DMS_FRONTEND_HOST_DIR:-/home/deploy/device-management-system/frontend}:${DMS_FRONTEND_WEB_ROOT:-/srv/www}/device-management:ro
     depends_on:
       certbot-renew:
         condition: service_healthy

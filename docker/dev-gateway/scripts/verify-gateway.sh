@@ -4,6 +4,12 @@ set -euo pipefail
 # =============================================================================
 # Dev Gateway 验收脚本（在 dev-01 或已部署主机上、dev-gateway 目录内执行）
 # =============================================================================
+#
+# 基础信息：
+#   - 验证业务面 Compose Gateway，不涉及 Hub 管理面 Nginx。
+#   - 除既有 app upstream 外，会检测 device-management-system 的路径隔离入口：
+#     /device-management/healthz -> 127.0.0.1:18080/healthz。
+# =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 COMPOSE_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -33,6 +39,12 @@ MQTT_TLS_PORT="$(read_env MQTT_TLS_PORT)"
 MQTT_TLS_CERT_DOMAIN="$(read_env MQTT_TLS_CERT_DOMAIN)"
 MQTT_UPSTREAM_HOST="$(read_env MQTT_UPSTREAM_HOST)"
 MQTT_UPSTREAM_PORT="$(read_env MQTT_UPSTREAM_PORT)"
+DMS_SERVICE_PREFIX="$(read_env DMS_SERVICE_PREFIX)"
+DMS_UPSTREAM_HOST="$(read_env DMS_UPSTREAM_HOST)"
+DMS_UPSTREAM_PORT="$(read_env DMS_UPSTREAM_PORT)"
+DMS_SERVICE_PREFIX="${DMS_SERVICE_PREFIX:-/device-management}"
+DMS_UPSTREAM_HOST="${DMS_UPSTREAM_HOST:-127.0.0.1}"
+DMS_UPSTREAM_PORT="${DMS_UPSTREAM_PORT:-18080}"
 MQTT_ENABLED="${MQTT_ENABLED:-0}"
 MQTT_TLS_PORT="${MQTT_TLS_PORT:-8883}"
 MQTT_UPSTREAM_HOST="${MQTT_UPSTREAM_HOST:-127.0.0.1}"
@@ -52,6 +64,7 @@ echo "上游: ${UPSTREAM}"
 if [[ "${MQTT_ENABLED}" == "1" ]]; then
   echo "MQTT: MQTTS :${MQTT_TLS_PORT} (${MQTT_TLS_DOMAIN}) -> ${MQTT_UPSTREAM_HOST}:${MQTT_UPSTREAM_PORT}"
 fi
+echo "Device Management: ${DMS_SERVICE_PREFIX} -> ${DMS_UPSTREAM_HOST}:${DMS_UPSTREAM_PORT}"
 echo
 
 # --- Compose 服务状态 ---
@@ -175,6 +188,18 @@ if [[ -n "${PRIMARY}" ]]; then
     ok "HTTPS https://${PRIMARY}/health 可达（Nginx 静态探针）"
   else
     echo "WARN: https://${PRIMARY}/healthz 与 /health 均失败（DNS/安全组/证书？）"
+  fi
+
+  if curl -sf --max-time 10 "http://${DMS_UPSTREAM_HOST}:${DMS_UPSTREAM_PORT}/healthz" >/dev/null 2>&1; then
+    ok "device-management 上游 http://${DMS_UPSTREAM_HOST}:${DMS_UPSTREAM_PORT}/healthz 可达"
+  else
+    echo "WARN: device-management 上游 /healthz 不可达（检查 127.0.0.1:18080 后端）"
+  fi
+
+  if curl -sf --max-time 10 "https://${PRIMARY}${DMS_SERVICE_PREFIX}/healthz" >/dev/null 2>&1; then
+    ok "HTTPS https://${PRIMARY}${DMS_SERVICE_PREFIX}/healthz 可达（路径隔离入口）"
+  else
+    echo "WARN: https://${PRIMARY}${DMS_SERVICE_PREFIX}/healthz 不可达（检查 Nginx route / upstream）"
   fi
 fi
 

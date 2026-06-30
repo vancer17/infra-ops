@@ -7,6 +7,7 @@
 # 【检查内容】
 #   对以下 compose 文件（若存在）运行 `docker compose config`：
 #     - jumpserver/docker-compose.yml
+#     - docker/dev-gateway/docker-compose.yml
 #     - monitoring/docker-compose.yml
 #
 #   `docker compose config` 仅解析/合并 YAML，不启动容器。
@@ -29,13 +30,14 @@ source "${SCRIPT_DIR}/lib/common.sh"
 # 待校验的 compose 路径（相对描述名 → 用于日志）
 declare -A COMPOSE_TARGETS=(
   ["jumpserver/docker-compose.yml"]="${CI_REPO_ROOT}/jumpserver/docker-compose.yml"
+  ["docker/dev-gateway/docker-compose.yml"]="${CI_REPO_ROOT}/docker/dev-gateway/docker-compose.yml"
   ["monitoring/docker-compose.yml"]="${CI_REPO_ROOT}/monitoring/docker-compose.yml"
 )
 
 # 先统计是否存在待校验文件；全无则跳过，不要求本机安装 docker
 # （Bootstrap 前 ECS 上常无 docker CLI，且仓库可能尚未添加 compose 文件）
 pending=0
-for label in jumpserver/docker-compose.yml monitoring/docker-compose.yml; do
+for label in jumpserver/docker-compose.yml docker/dev-gateway/docker-compose.yml monitoring/docker-compose.yml; do
   if [[ -f "${COMPOSE_TARGETS[$label]}" ]]; then
     pending=$((pending + 1))
   fi
@@ -52,7 +54,7 @@ fi
 
 validated=0
 
-for label in jumpserver/docker-compose.yml monitoring/docker-compose.yml; do
+for label in jumpserver/docker-compose.yml docker/dev-gateway/docker-compose.yml monitoring/docker-compose.yml; do
   compose_file="${COMPOSE_TARGETS[$label]}"
 
   if [[ ! -f "${compose_file}" ]]; then
@@ -63,9 +65,7 @@ for label in jumpserver/docker-compose.yml monitoring/docker-compose.yml; do
   ci_log "Validating compose: ${label}"
   compose_dir="$(dirname "${compose_file}")"
   temp_env=false
-  if [[ "${label}" == "jumpserver/docker-compose.yml" ]] \
-    && [[ ! -f "${compose_dir}/.env" ]] \
-    && [[ -f "${compose_dir}/.env.example" ]]; then
+  if [[ ! -f "${compose_dir}/.env" ]] && [[ -f "${compose_dir}/.env.example" ]]; then
     cp "${compose_dir}/.env.example" "${compose_dir}/.env"
     temp_env=true
     ci_log "  using ${compose_dir}/.env.example as temporary .env for config validation"

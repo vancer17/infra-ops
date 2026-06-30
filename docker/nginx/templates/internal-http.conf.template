@@ -2,9 +2,23 @@
 # WG 内网 HTTP（可选，由 docker-entrypoint.d 按环境变量生成）
 # 不强制跳转 HTTPS，便于 dev-app.internal / 10.200.0.2 联调
 # =============================================================================
+#
+# 基础信息：
+#   - 本模板用于业务面 WG 内网 HTTP 入口，不用于 Hub 管理面 Nginx。
+#   - device-management-system 通过 ${DMS_SERVICE_PREFIX} 路径隔离：
+#       ${DMS_SERVICE_PREFIX}/       -> 前端静态目录
+#       ${DMS_SERVICE_PREFIX}/api/*   -> 后端 /api/*
+#       ${DMS_SERVICE_PREFIX}/healthz -> 后端 /healthz
+#   - 转发时剥离服务前缀，不改变后端 127.0.0.1:18080 监听位置。
+# =============================================================================
 
 upstream app_backend_internal {
     server ${APP_UPSTREAM_HOST}:${APP_UPSTREAM_PORT};
+    keepalive 8;
+}
+
+upstream device_management_backend_internal {
+    server ${DMS_UPSTREAM_HOST}:${DMS_UPSTREAM_PORT};
     keepalive 8;
 }
 
@@ -21,6 +35,76 @@ server {
     location = /health {
         default_type text/plain;
         return 200 "ok\n";
+    }
+
+    location = ${DMS_SERVICE_PREFIX} {
+        return 301 ${DMS_SERVICE_PREFIX}/;
+    }
+
+    location ^~ ${DMS_SERVICE_PREFIX}/api/ {
+        rewrite ^${DMS_SERVICE_PREFIX}(/api/.*)$ $1 break;
+        proxy_pass http://device_management_backend_internal;
+        proxy_http_version 1.1;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+
+    location = ${DMS_SERVICE_PREFIX}/health {
+        rewrite ^${DMS_SERVICE_PREFIX}/health$ /health break;
+        proxy_pass http://device_management_backend_internal;
+        proxy_http_version 1.1;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+
+    location = ${DMS_SERVICE_PREFIX}/healthz {
+        rewrite ^${DMS_SERVICE_PREFIX}/healthz$ /healthz break;
+        proxy_pass http://device_management_backend_internal;
+        proxy_http_version 1.1;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+
+    location = ${DMS_SERVICE_PREFIX}/readyz {
+        rewrite ^${DMS_SERVICE_PREFIX}/readyz$ /readyz break;
+        proxy_pass http://device_management_backend_internal;
+        proxy_http_version 1.1;
+        proxy_set_header Authorization $http_authorization;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection "";
+        proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
+    }
+
+    location = ${DMS_SERVICE_PREFIX}/favicon.ico {
+        root ${DMS_FRONTEND_WEB_ROOT};
+        try_files $uri =404;
+    }
+
+    location ^~ ${DMS_SERVICE_PREFIX}/ {
+        root ${DMS_FRONTEND_WEB_ROOT};
+        try_files $uri $uri/ ${DMS_SERVICE_PREFIX}/index.html;
     }
 
     location / {

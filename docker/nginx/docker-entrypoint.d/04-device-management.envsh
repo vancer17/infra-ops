@@ -1,0 +1,39 @@
+# =============================================================================
+# Dev Gateway Nginx env defaults — device-management-system
+# =============================================================================
+#
+# 基础信息：
+#   - 本文件由官方 nginx docker-entrypoint.sh source，不直接执行。
+#   - 为业务面 Nginx 的 /device-management 路径隔离提供默认环境变量。
+#   - 后端固定经宿主机 127.0.0.1:18080 访问；本文件不改变后端监听端口。
+#   - 前端目录由 Compose 只读挂载到 ${DMS_FRONTEND_WEB_ROOT}/device-management。
+# =============================================================================
+
+export DMS_SERVICE_PREFIX="${DMS_SERVICE_PREFIX:-/device-management}"
+export DMS_UPSTREAM_HOST="${DMS_UPSTREAM_HOST:-127.0.0.1}"
+export DMS_UPSTREAM_PORT="${DMS_UPSTREAM_PORT:-18080}"
+export DMS_FRONTEND_WEB_ROOT="${DMS_FRONTEND_WEB_ROOT:-/srv/www}"
+
+case "${DMS_SERVICE_PREFIX}" in
+  /*) ;;
+  *)
+    echo "ERROR: DMS_SERVICE_PREFIX must start with / (current: ${DMS_SERVICE_PREFIX})" >&2
+    exit 1
+    ;;
+esac
+
+case "${DMS_SERVICE_PREFIX}" in
+  */)
+    echo "ERROR: DMS_SERVICE_PREFIX must not end with / (current: ${DMS_SERVICE_PREFIX})" >&2
+    exit 1
+    ;;
+esac
+
+case "${DMS_SERVICE_PREFIX}" in
+  *[!A-Za-z0-9_/-]*)
+    echo "ERROR: DMS_SERVICE_PREFIX contains unsupported characters: ${DMS_SERVICE_PREFIX}" >&2
+    exit 1
+    ;;
+esac
+
+echo "device-management-system route: ${DMS_SERVICE_PREFIX} -> ${DMS_UPSTREAM_HOST}:${DMS_UPSTREAM_PORT}"
